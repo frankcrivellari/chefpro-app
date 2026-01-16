@@ -30,6 +30,14 @@ type InventoryItem = {
   components?: InventoryComponent[];
 };
 
+type ParsedAiItem = {
+  name: string;
+  unit: string;
+  quantity: number;
+  purchasePrice: number;
+  calculatedPricePerUnit: number;
+};
+
 const initialItems: InventoryItem[] = [
   {
     id: "zukauf-tomatendose",
@@ -116,6 +124,11 @@ export function InventoryManager() {
   const [editingComponents, setEditingComponents] = useState<
     InventoryComponent[]
   >([]);
+  const [aiText, setAiText] = useState("");
+  const [aiIsParsing, setAiIsParsing] = useState(false);
+  const [aiParsed, setAiParsed] = useState<ParsedAiItem | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiIsSaving, setAiIsSaving] = useState(false);
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -321,6 +334,81 @@ export function InventoryManager() {
     }
   }
 
+  async function handleAiParse(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!aiText.trim()) {
+      return;
+    }
+    try {
+      setAiIsParsing(true);
+      setAiError(null);
+      setAiParsed(null);
+      const response = await fetch("/api/ai-parse-item", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: aiText }),
+      });
+      if (!response.ok) {
+        throw new Error("Fehler bei der KI-Auswertung");
+      }
+      const data = (await response.json()) as {
+        name: string;
+        unit: string;
+        quantity: number;
+        purchase_price: number;
+        calculated_price_per_unit: number;
+      };
+      setAiParsed({
+        name: data.name,
+        unit: data.unit,
+        quantity: data.quantity,
+        purchasePrice: data.purchase_price,
+        calculatedPricePerUnit: data.calculated_price_per_unit,
+      });
+    } catch {
+      setAiError("Die KI konnte den Text nicht auswerten.");
+    } finally {
+      setAiIsParsing(false);
+    }
+  }
+
+  async function handleAiSave() {
+    if (!aiParsed) {
+      return;
+    }
+    try {
+      setAiIsSaving(true);
+      setAiError(null);
+      const response = await fetch("/api/inventory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: aiParsed.name,
+          type: "zukauf" as InventoryType,
+          unit: aiParsed.unit,
+          purchasePrice: aiParsed.purchasePrice,
+          components: [],
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Fehler beim Speichern");
+      }
+      const created = (await response.json()) as InventoryItem;
+      setItems((previous) => [...previous, created]);
+      setSelectedItemId(created.id);
+      setAiText("");
+      setAiParsed(null);
+    } catch {
+      setAiError("Fehler beim Speichern des KI-Artikels.");
+    } finally {
+      setAiIsSaving(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-background to-muted px-4 py-6 text-foreground md:px-8 md:py-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
@@ -384,6 +472,87 @@ export function InventoryManager() {
                   {error}
                 </div>
               )}
+              <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-semibold">
+                    KI-Schnellimport
+                  </div>
+                  {aiError && (
+                    <span className="text-[11px] text-destructive">
+                      {aiError}
+                    </span>
+                  )}
+                </div>
+                <form
+                  className="space-y-2"
+                  onSubmit={handleAiParse}
+                >
+                  <textarea
+                    value={aiText}
+                    onChange={(event) => setAiText(event.target.value)}
+                    rows={2}
+                    className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    placeholder='Beispiel: 3kg Sack Mehl Type 405 für 4,50€ bei Metro'
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={aiIsParsing || !aiText.trim()}
+                    >
+                      {aiIsParsing ? "Analysiere..." : "Analysieren"}
+                    </Button>
+                  </div>
+                </form>
+                {aiParsed && (
+                  <div className="space-y-1 rounded-md border bg-background px-3 py-2 text-[11px]">
+                    <div className="font-semibold">
+                      Vorschau
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        Name
+                      </span>
+                      <span>{aiParsed.name}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        Menge
+                      </span>
+                      <span>
+                        {aiParsed.quantity} {aiParsed.unit}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        EK-Gesamt
+                      </span>
+                      <span>
+                        {aiParsed.purchasePrice.toFixed(2)} €
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        EK pro Einheit
+                      </span>
+                      <span>
+                        {aiParsed.calculatedPricePerUnit.toFixed(4)} € /{" "}
+                        {aiParsed.unit}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={aiIsSaving}
+                        onClick={handleAiSave}
+                      >
+                        {aiIsSaving ? "Speichere..." : "Als Zukaufartikel speichern"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <form
                 className="grid gap-2 rounded-md border bg-card/60 p-3 text-xs md:grid-cols-[2fr_1fr_1fr_auto]"
                 onSubmit={handleCreateItem}
