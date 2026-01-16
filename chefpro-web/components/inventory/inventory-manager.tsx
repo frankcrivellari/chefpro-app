@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -100,22 +100,79 @@ const initialItems: InventoryItem[] = [
 type FilterType = "all" | InventoryType;
 
 export function InventoryManager() {
+  const [items, setItems] = useState<InventoryItem[]>([]);
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(
-    initialItems[0]?.id ?? null
-  );
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemType, setNewItemType] = useState<InventoryType>("zukauf");
+  const [newItemUnit, setNewItemUnit] = useState("");
+  const [newItemPrice, setNewItemPrice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEditingComponents, setIsEditingComponents] = useState(false);
+  const [componentSearch, setComponentSearch] = useState("");
+  const [editingComponents, setEditingComponents] = useState<
+    InventoryComponent[]
+  >([]);
+
+  const effectiveItems = items.length > 0 ? items : initialItems;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await fetch("/api/inventory");
+        if (!response.ok) {
+          throw new Error("Fehler beim Laden");
+        }
+        const data = (await response.json()) as InventoryItem[];
+        if (!cancelled) {
+          if (data.length > 0) {
+            setItems(data);
+          } else {
+            setItems(initialItems);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setError("Fehler beim Laden der Artikel. Es werden Demo-Daten angezeigt.");
+          setItems(initialItems);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedItemId && effectiveItems[0]) {
+      setSelectedItemId(effectiveItems[0].id);
+    }
+  }, [effectiveItems, selectedItemId]);
 
   const itemsById = useMemo(() => {
     const map = new Map<string, InventoryItem>();
-    for (const item of initialItems) {
+    for (const item of effectiveItems) {
       map.set(item.id, item);
     }
     return map;
-  }, []);
+  }, [effectiveItems]);
 
   const filteredItems = useMemo(() => {
-    return initialItems.filter((item) => {
+    return effectiveItems.filter((item) => {
       if (filterType !== "all" && item.type !== filterType) {
         return false;
       }
@@ -128,12 +185,141 @@ export function InventoryManager() {
         item.unit.toLowerCase().includes(value)
       );
     });
-  }, [filterType, search]);
+  }, [effectiveItems, filterType, search]);
 
   const selectedItem =
     filteredItems.find((item) => item.id === selectedItemId) ??
     filteredItems[0] ??
     null;
+
+  const componentSearchResults = useMemo(() => {
+    if (!componentSearch.trim() || !selectedItem) {
+      return [];
+    }
+    const term = componentSearch.toLowerCase();
+    return effectiveItems.filter((item) => {
+      if (item.id === selectedItem.id) {
+        return false;
+      }
+      if (
+        editingComponents.some((component) => component.itemId === item.id)
+      ) {
+        return false;
+      }
+      return (
+        item.name.toLowerCase().includes(term) ||
+        item.unit.toLowerCase().includes(term)
+      );
+    });
+  }, [componentSearch, effectiveItems, editingComponents, selectedItem]);
+
+  async function handleCreateItem(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!newItemName.trim() || !newItemUnit.trim()) {
+      return;
+    }
+
+    const parsedPrice = Number(
+      newItemPrice.replace(",", ".").trim() || "0"
+    );
+
+    try {
+      setIsSaving(true);
+      setError(null);
+
+      const response = await fetch("/api/inventory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: newItemName.trim(),
+          type: newItemType,
+          unit: newItemUnit.trim(),
+          purchasePrice: parsedPrice,
+          components: [],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Fehler beim Speichern");
+      }
+
+      const created = (await response.json()) as InventoryItem;
+      setItems((prev) => [...prev, created]);
+      setSelectedItemId(created.id);
+      setNewItemName("");
+      setNewItemUnit("");
+      setNewItemPrice("");
+      setNewItemType("zukauf");
+    } catch {
+      setError("Fehler beim Speichern des Artikels.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleSaveComponents() {
+    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
+      return;
+    }
+
+    const cleanedComponents = editingComponents
+      .map((component) => ({
+        itemId: component.itemId,
+        quantity: Number(
+          String(component.quantity).toString().replace(",", ".")
+        ),
+        unit: component.unit.trim(),
+      }))
+      .filter(
+        (component) =>
+          component.itemId &&
+          component.unit &&
+          !Number.isNaN(component.quantity) &&
+          component.quantity > 0
+      );
+
+    try {
+      setIsSaving(true);
+      setError(null);
+
+      const response = await fetch("/api/recipe-structure", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          parentItemId: selectedItem.id,
+          components: cleanedComponents,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Fehler beim Speichern");
+      }
+
+      const updatedComponents = (await response.json()) as InventoryComponent[];
+
+      setItems((previousItems) =>
+        previousItems.map((item) =>
+          item.id === selectedItem.id
+            ? {
+                ...item,
+                components: updatedComponents,
+              }
+            : item
+        )
+      );
+
+      setEditingComponents(updatedComponents);
+      setIsEditingComponents(false);
+    } catch {
+      setError("Fehler beim Speichern der Komponenten.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-background to-muted px-4 py-6 text-foreground md:px-8 md:py-10">
@@ -193,12 +379,61 @@ export function InventoryManager() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
+              {error && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                  {error}
+                </div>
+              )}
+              <form
+                className="grid gap-2 rounded-md border bg-card/60 p-3 text-xs md:grid-cols-[2fr_1fr_1fr_auto]"
+                onSubmit={handleCreateItem}
+              >
+                <Input
+                  placeholder="Neuer Artikelname"
+                  value={newItemName}
+                  onChange={(event) => setNewItemName(event.target.value)}
+                />
+                <Input
+                  placeholder="Einheit"
+                  value={newItemUnit}
+                  onChange={(event) => setNewItemUnit(event.target.value)}
+                />
+                <Input
+                  placeholder="EK-Preis"
+                  value={newItemPrice}
+                  onChange={(event) => setNewItemPrice(event.target.value)}
+                />
+                <div className="flex items-center gap-2">
+                  <select
+                    value={newItemType}
+                    onChange={(event) =>
+                      setNewItemType(event.target.value as InventoryType)
+                    }
+                    className="h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    <option value="zukauf">Zukauf</option>
+                    <option value="eigenproduktion">Eigenproduktion</option>
+                  </select>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isSaving || !newItemName.trim() || !newItemUnit.trim()}
+                  >
+                    {isSaving ? "Speichern..." : "Anlegen"}
+                  </Button>
+                </div>
+              </form>
               <Input
                 placeholder="Suchen nach Name oder Einheit"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
               <div className="max-h-[480px] space-y-1 overflow-y-auto pr-1">
+                {isLoading && (
+                  <div className="rounded-md border border-dashed bg-muted/60 px-3 py-3 text-center text-xs text-muted-foreground">
+                    Lade Artikel aus der Datenbank ...
+                  </div>
+                )}
                 {filteredItems.length === 0 && (
                   <div className="rounded-md border border-dashed bg-muted/60 px-3 py-8 text-center text-sm text-muted-foreground">
                     Keine Artikel für die aktuelle Auswahl gefunden.
@@ -276,9 +511,27 @@ export function InventoryManager() {
 
                   {selectedItem.type === "eigenproduktion" && (
                     <div className="space-y-3">
-                      <h3 className="text-sm font-semibold">
-                        Komponentenstruktur
-                      </h3>
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold">
+                          Komponentenstruktur
+                        </h3>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsEditingComponents((value) => !value);
+                            setComponentSearch("");
+                            setEditingComponents(
+                              selectedItem.components ?? []
+                            );
+                          }}
+                        >
+                          {isEditingComponents
+                            ? "Bearbeitung schließen"
+                            : "Komponenten bearbeiten"}
+                        </Button>
+                      </div>
                       {selectedItem.components &&
                       selectedItem.components.length > 0 ? (
                         <ComponentTree
@@ -289,6 +542,160 @@ export function InventoryManager() {
                         <div className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
                           Für diese Eigenproduktion sind noch keine Komponenten
                           hinterlegt.
+                        </div>
+                      )}
+                      {isEditingComponents && (
+                        <div className="space-y-3 rounded-md border bg-muted/40 p-3 text-xs">
+                          <div className="space-y-2">
+                            <Input
+                              placeholder="Komponenten suchen"
+                              value={componentSearch}
+                              onChange={(event) =>
+                                setComponentSearch(event.target.value)
+                              }
+                            />
+                            {componentSearchResults.length > 0 && (
+                              <div className="max-h-40 space-y-1 overflow-y-auto">
+                                {componentSearchResults.map((item) => (
+                                  <button
+                                    key={item.id}
+                                    type="button"
+                                    className="flex w-full items-center justify-between gap-2 rounded-md border bg-card px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
+                                    onClick={() =>
+                                      setEditingComponents((components) => [
+                                        ...components,
+                                        {
+                                          itemId: item.id,
+                                          quantity: 1,
+                                          unit: item.unit,
+                                        },
+                                      ])
+                                    }
+                                  >
+                                    <span className="truncate text-[11px] font-medium">
+                                      {item.name}
+                                    </span>
+                                    <TypeBadge type={item.type} />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            {editingComponents.length === 0 && (
+                              <div className="rounded-md border border-dashed bg-card px-2 py-2 text-[11px] text-muted-foreground">
+                                Noch keine Komponenten hinzugefügt.
+                              </div>
+                            )}
+                            {editingComponents.map((component, index) => {
+                              const item = itemsById.get(component.itemId);
+                              if (!item) {
+                                return null;
+                              }
+                              return (
+                                <div
+                                  key={component.itemId}
+                                  className="flex items-center gap-2 rounded-md border bg-card px-2 py-2"
+                                >
+                                  <div className="flex min-w-0 flex-1 flex-col">
+                                    <div className="flex items-center gap-2">
+                                      <span className="truncate text-[11px] font-medium">
+                                        {item.name}
+                                      </span>
+                                      <TypeBadge type={item.type} />
+                                    </div>
+                                    <div className="mt-1 flex gap-2">
+                                      <Input
+                                        type="number"
+                                        value={String(component.quantity)}
+                                        onChange={(event) => {
+                                          const value = Number(
+                                            event.target.value.replace(
+                                              ",",
+                                              "."
+                                            )
+                                          );
+                                          setEditingComponents(
+                                            (components) =>
+                                              components.map(
+                                                (currentComponent, current) =>
+                                                  current === index
+                                                    ? {
+                                                        ...currentComponent,
+                                                        quantity: Number.isNaN(
+                                                          value
+                                                        )
+                                                          ? 0
+                                                          : value,
+                                                      }
+                                                    : currentComponent
+                                              )
+                                          );
+                                        }}
+                                        className="h-8 w-20 text-[11px]"
+                                      />
+                                      <Input
+                                        value={component.unit}
+                                        onChange={(event) =>
+                                          setEditingComponents(
+                                            (components) =>
+                                              components.map(
+                                                (currentComponent, current) =>
+                                                  current === index
+                                                    ? {
+                                                        ...currentComponent,
+                                                        unit: event.target.value,
+                                                      }
+                                                    : currentComponent
+                                              )
+                                          )
+                                        }
+                                        className="h-8 w-20 text-[11px]"
+                                      />
+                                    </div>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      setEditingComponents((components) =>
+                                        components.filter(
+                                          (_, current) => current !== index
+                                        )
+                                      )
+                                    }
+                                  >
+                                    Entfernen
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setIsEditingComponents(false);
+                                setComponentSearch("");
+                                setEditingComponents(
+                                  selectedItem.components ?? []
+                                );
+                              }}
+                            >
+                              Abbrechen
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={isSaving}
+                              onClick={handleSaveComponents}
+                            >
+                              {isSaving ? "Speichern..." : "Komponenten speichern"}
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
