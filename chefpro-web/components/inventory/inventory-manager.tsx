@@ -140,10 +140,22 @@ export function InventoryManager() {
         setIsLoading(true);
         setError(null);
         const response = await fetch("/api/inventory");
-        if (!response.ok) {
-          throw new Error("Fehler beim Laden");
+        let payload: unknown = null;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = null;
         }
-        const data = (await response.json()) as InventoryItem[];
+        if (!response.ok) {
+          let message = "Fehler beim Laden der Artikel.";
+          const data = payload as { error?: unknown } | null;
+          if (data && typeof data.error === "string") {
+            message = data.error;
+          }
+          throw new Error(message);
+        }
+        const data =
+          (payload as InventoryItem[] | null) ?? [];
         if (!cancelled) {
           if (data.length > 0) {
             setItems(data);
@@ -151,9 +163,15 @@ export function InventoryManager() {
             setItems(initialItems);
           }
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
-          setError("Fehler beim Laden der Artikel. Es werden Demo-Daten angezeigt.");
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Fehler beim Laden der Artikel.";
+          setError(
+            `${message} Es werden Demo-Daten angezeigt.`
+          );
           setItems(initialItems);
         }
       } finally {
@@ -255,7 +273,20 @@ export function InventoryManager() {
       });
 
       if (!response.ok) {
-        throw new Error("Fehler beim Speichern");
+        let message = "Fehler beim Speichern des Artikels.";
+        try {
+          const payload = (await response.json()) as {
+            error?: unknown;
+          };
+          if (
+            payload &&
+            typeof payload.error === "string"
+          ) {
+            message = payload.error;
+          }
+        } catch {
+        }
+        throw new Error(message);
       }
 
       const created = (await response.json()) as InventoryItem;
@@ -265,8 +296,12 @@ export function InventoryManager() {
       setNewItemUnit("");
       setNewItemPrice("");
       setNewItemType("zukauf");
-    } catch {
-      setError("Fehler beim Speichern des Artikels.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Fehler beim Speichern des Artikels.";
+      setError(message);
     } finally {
       setIsSaving(false);
     }
@@ -309,7 +344,20 @@ export function InventoryManager() {
       });
 
       if (!response.ok) {
-        throw new Error("Fehler beim Speichern");
+        let message = "Fehler beim Speichern der Komponenten.";
+        try {
+          const payload = (await response.json()) as {
+            error?: unknown;
+          };
+          if (
+            payload &&
+            typeof payload.error === "string"
+          ) {
+            message = payload.error;
+          }
+        } catch {
+        }
+        throw new Error(message);
       }
 
       const updatedComponents = (await response.json()) as InventoryComponent[];
@@ -327,8 +375,12 @@ export function InventoryManager() {
 
       setEditingComponents(updatedComponents);
       setIsEditingComponents(false);
-    } catch {
-      setError("Fehler beim Speichern der Komponenten.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Fehler beim Speichern der Komponenten.";
+      setError(message);
     } finally {
       setIsSaving(false);
     }
@@ -351,7 +403,20 @@ export function InventoryManager() {
         body: JSON.stringify({ text: aiText }),
       });
       if (!response.ok) {
-        throw new Error("Fehler bei der KI-Auswertung");
+        let message = "Fehler bei der KI-Auswertung.";
+        try {
+          const payload = (await response.json()) as {
+            error?: unknown;
+          };
+          if (
+            payload &&
+            typeof payload.error === "string"
+          ) {
+            message = payload.error;
+          }
+        } catch {
+        }
+        throw new Error(message);
       }
       const data = (await response.json()) as {
         name: string;
@@ -367,8 +432,12 @@ export function InventoryManager() {
         purchasePrice: data.purchase_price,
         calculatedPricePerUnit: data.calculated_price_per_unit,
       });
-    } catch {
-      setAiError("Die KI konnte den Text nicht auswerten.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Die KI konnte den Text nicht auswerten.";
+      setAiError(message);
     } finally {
       setAiIsParsing(false);
     }
@@ -395,15 +464,32 @@ export function InventoryManager() {
         }),
       });
       if (!response.ok) {
-        throw new Error("Fehler beim Speichern");
+        let message = "Fehler beim Speichern des KI-Artikels.";
+        try {
+          const payload = (await response.json()) as {
+            error?: unknown;
+          };
+          if (
+            payload &&
+            typeof payload.error === "string"
+          ) {
+            message = payload.error;
+          }
+        } catch {
+        }
+        throw new Error(message);
       }
       const created = (await response.json()) as InventoryItem;
       setItems((previous) => [...previous, created]);
       setSelectedItemId(created.id);
       setAiText("");
       setAiParsed(null);
-    } catch {
-      setAiError("Fehler beim Speichern des KI-Artikels.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Fehler beim Speichern des KI-Artikels.";
+      setAiError(message);
     } finally {
       setAiIsSaving(false);
     }
