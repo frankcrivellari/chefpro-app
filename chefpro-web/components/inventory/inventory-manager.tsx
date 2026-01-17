@@ -38,6 +38,14 @@ type ParsedAiItem = {
   calculatedPricePerUnit: number;
 };
 
+type ParsedDocumentItem = {
+  name: string;
+  unit: string;
+  purchasePrice: number;
+  allergens: string[];
+  fileUrl: string;
+};
+
 const initialItems: InventoryItem[] = [
   {
     id: "zukauf-tomatendose",
@@ -129,6 +137,11 @@ export function InventoryManager() {
   const [aiParsed, setAiParsed] = useState<ParsedAiItem | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiIsSaving, setAiIsSaving] = useState(false);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docIsUploading, setDocIsUploading] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [docParsed, setDocParsed] =
+    useState<ParsedDocumentItem | null>(null);
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -558,6 +571,162 @@ export function InventoryManager() {
                   {error}
                 </div>
               )}
+              <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-semibold">
+                    Dokumenten-Upload
+                  </div>
+                  {docError && (
+                    <span className="text-[11px] text-destructive">
+                      {docError}
+                    </span>
+                  )}
+                </div>
+                <form
+                  className="space-y-2"
+                  onSubmit={async (event) => {
+                    event.preventDefault();
+                    if (!docFile) {
+                      return;
+                    }
+                    try {
+                      setDocIsUploading(true);
+                      setDocError(null);
+                      setDocParsed(null);
+                      const formData = new FormData();
+                      formData.append("file", docFile);
+                      formData.append("filename", docFile.name);
+                      const response = await fetch(
+                        "/api/document-vision-upload",
+                        {
+                          method: "POST",
+                          body: formData,
+                        }
+                      );
+                      const payload = (await response.json()) as {
+                        error?: unknown;
+                        item?: InventoryItem;
+                        extracted?: {
+                          name: string;
+                          unit: string;
+                          purchase_price: number;
+                          allergens: string[];
+                        };
+                        fileUrl?: string;
+                      };
+                      if (!response.ok) {
+                        let message =
+                          "Fehler bei der Dokumenten-Auswertung.";
+                        if (
+                          payload &&
+                          typeof payload.error === "string"
+                        ) {
+                          message = payload.error;
+                        }
+                        throw new Error(message);
+                      }
+                      if (payload.item) {
+                        const created = payload.item;
+                        setItems((previous) => [
+                          ...previous,
+                          created,
+                        ]);
+                        setSelectedItemId(created.id);
+                      }
+                      if (payload.extracted && payload.fileUrl) {
+                        setDocParsed({
+                          name: payload.extracted.name,
+                          unit: payload.extracted.unit,
+                          purchasePrice:
+                            payload.extracted.purchase_price,
+                          allergens: payload.extracted.allergens,
+                          fileUrl: payload.fileUrl,
+                        });
+                      }
+                      setDocFile(null);
+                    } catch (uploadError) {
+                      const message =
+                        uploadError instanceof Error
+                          ? uploadError.message
+                          : "Fehler beim Dokumenten-Upload.";
+                      setDocError(message);
+                    } finally {
+                      setDocIsUploading(false);
+                    }
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(event) => {
+                      const file =
+                        event.target.files &&
+                        event.target.files[0]
+                          ? event.target.files[0]
+                          : null;
+                      setDocFile(file);
+                      setDocParsed(null);
+                      setDocError(null);
+                    }}
+                    className="block w-full text-[11px] text-foreground file:mr-2 file:rounded-md file:border file:border-input file:bg-background file:px-2 file:py-1 file:text-[11px] file:font-medium file:text-foreground hover:file:bg-accent"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={docIsUploading || !docFile}
+                    >
+                      {docIsUploading
+                        ? "Lade hoch..."
+                        : "Dokument auswerten"}
+                    </Button>
+                  </div>
+                </form>
+                {docParsed && (
+                  <div className="space-y-1 rounded-md border bg-background px-3 py-2 text-[11px]">
+                    <div className="font-semibold">
+                      Erkanntes Produkt
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        Name
+                      </span>
+                      <span>{docParsed.name}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        Einheit
+                      </span>
+                      <span>{docParsed.unit}</span>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        EK-Gesamt
+                      </span>
+                      <span>
+                        {docParsed.purchasePrice.toFixed(2)} €
+                      </span>
+                    </div>
+                    {docParsed.allergens.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-muted-foreground">
+                          Allergene
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {docParsed.allergens.map((allergen) => (
+                            <span
+                              key={allergen}
+                              className="rounded-md bg-muted px-2 py-0.5 text-[10px]"
+                            >
+                              {allergen}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-semibold">
