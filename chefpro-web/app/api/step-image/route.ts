@@ -40,7 +40,7 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-image-1",
+          model: "dall-e-3",
           prompt,
           size: "1024x1024",
           n: 1,
