@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,6 +40,14 @@ type StandardPreparation = {
   components: StandardPreparationComponent[];
 };
 
+type PreparationStep = {
+  id: string;
+  text: string;
+  duration?: string | null;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+};
+
 type NutritionTotals = {
   energyKcal: number;
   fat: number;
@@ -59,7 +74,7 @@ type InventoryItem = {
   ingredients?: string | null;
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
-  preparationSteps?: string | null;
+  preparationSteps?: string | PreparationStep[] | null;
   nutritionPerUnit?: NutritionTotals | null;
   standardPreparation?: StandardPreparation | null;
   components?: InventoryComponent[];
@@ -160,6 +175,57 @@ const initialItems: InventoryItem[] = [
 
 type FilterType = "all" | InventoryType;
 
+function createPreparationStepId() {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof (crypto as Crypto & { randomUUID?: () => string }).randomUUID ===
+      "function"
+  ) {
+    return (crypto as Crypto & { randomUUID?: () => string }).randomUUID();
+  }
+  return `step-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function renderTaggedText(
+  text: string,
+  options: { id: string; name: string }[]
+): ReactNode {
+  if (!text) {
+    return null;
+  }
+  const names = options
+    .map((option) => option.name)
+    .filter((name) => name.trim().length > 0);
+  if (names.length === 0) {
+    return <span className="whitespace-pre-line">{text}</span>;
+  }
+  const escaped = names
+    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  const regex = new RegExp(`\\b(${escaped})\\b`, "gi");
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let key = 0;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(
+        <span key={`t-${key++}`}>{text.slice(lastIndex, match.index)}</span>
+      );
+    }
+    parts.push(
+      <span key={`h-${key++}`} className="font-semibold text-primary">
+        {match[0]}
+      </span>
+    );
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(<span key={`t-${key++}`}>{text.slice(lastIndex)}</span>);
+  }
+  return <span className="whitespace-pre-line">{parts}</span>;
+}
+
 export function InventoryManager() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filterType, setFilterType] = useState<FilterType>("all");
@@ -214,6 +280,17 @@ export function InventoryManager() {
   const [adHocSelectedItemId, setAdHocSelectedItemId] = useState<string | null>(
     null
   );
+  const [preparationStepsInput, setPreparationStepsInput] = useState<
+    PreparationStep[]
+  >([]);
+  const [draggedPreparationStepId, setDraggedPreparationStepId] = useState<
+    string | null
+  >(null);
+  const [activeTagStepId, setActiveTagStepId] = useState<string | null>(null);
+  const [tagSearch, setTagSearch] = useState("");
+  const [isGeneratingImageStepId, setIsGeneratingImageStepId] = useState<
+    string | null
+  >(null);
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -586,6 +663,11 @@ export function InventoryManager() {
       setStandardPreparationComponents([]);
       setTargetPortionsInput("");
       setTargetSalesPriceInput("");
+      setPreparationStepsInput([]);
+      setDraggedPreparationStepId(null);
+      setActiveTagStepId(null);
+      setTagSearch("");
+      setIsGeneratingImageStepId(null);
       return;
     }
     setNameInput(selectedItem.name);
@@ -598,7 +680,78 @@ export function InventoryManager() {
     setProIngredientsInput(selectedItem.ingredients ?? "");
     setProDosageInput(selectedItem.dosageInstructions ?? "");
     setProYieldInput(selectedItem.yieldInfo ?? "");
-    setProPreparationInput(selectedItem.preparationSteps ?? "");
+    if (selectedItem.type === "eigenproduktion") {
+      const raw = selectedItem.preparationSteps;
+      let source: unknown = raw;
+      if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+          try {
+            source = JSON.parse(trimmed) as PreparationStep[];
+          } catch {
+            source = trimmed;
+          }
+        } else {
+          source = trimmed;
+        }
+      }
+      if (Array.isArray(source)) {
+        const steps = source
+          .map((step, index) => ({
+            id:
+              typeof step.id === "string" && step.id.trim().length > 0
+                ? step.id
+                : `step-${index}-${createPreparationStepId()}`,
+            text: typeof step.text === "string" ? step.text : "",
+            duration:
+              typeof step.duration === "string" &&
+              step.duration.trim().length > 0
+                ? step.duration.trim()
+                : null,
+            imageUrl:
+              typeof step.imageUrl === "string" &&
+              step.imageUrl.trim().length > 0
+                ? step.imageUrl.trim()
+                : null,
+            videoUrl:
+              typeof step.videoUrl === "string" &&
+              step.videoUrl.trim().length > 0
+                ? step.videoUrl.trim()
+                : null,
+          }))
+          .filter((step) => step.text.trim().length > 0);
+        setPreparationStepsInput(steps);
+      } else if (typeof source === "string" && source.length > 0) {
+        setPreparationStepsInput([
+          {
+            id: createPreparationStepId(),
+            text: source,
+            duration: null,
+            imageUrl: null,
+            videoUrl: null,
+          },
+        ]);
+      } else {
+        setPreparationStepsInput([]);
+      }
+      setProPreparationInput("");
+    } else {
+      const raw = selectedItem.preparationSteps;
+      if (typeof raw === "string" && raw.trim().length > 0) {
+        setProPreparationInput(raw);
+      } else if (Array.isArray(raw) && raw.length > 0) {
+        const combined = raw
+          .map((step) => step.text)
+          .filter(
+            (value) => typeof value === "string" && value.trim().length > 0
+          )
+          .join("\n\n");
+        setProPreparationInput(combined);
+      } else {
+        setProPreparationInput("");
+      }
+      setPreparationStepsInput([]);
+    }
     const stdPrep = selectedItem.standardPreparation;
     if (stdPrep && Array.isArray(stdPrep.components)) {
       setStandardPreparationComponents(
@@ -694,6 +847,54 @@ export function InventoryManager() {
     return null;
   }, [adHocName, effectiveItems]);
 
+  const ingredientTagOptions = useMemo(() => {
+    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
+      return [];
+    }
+    const rootItem: InventoryItem = {
+      ...selectedItem,
+      components: isEditingComponents
+        ? editingComponents
+        : selectedItem.components,
+    };
+    const visited = new Set<string>();
+    const items = new Map<string, { id: string; name: string }>();
+
+    function visit(item: InventoryItem) {
+      if (visited.has(item.id)) {
+        return;
+      }
+      visited.add(item.id);
+      const components = item.components ?? [];
+      for (const component of components) {
+        if (!component.itemId) {
+          continue;
+        }
+        const child = itemsById.get(component.itemId);
+        if (!child) {
+          continue;
+        }
+        if (!items.has(child.id)) {
+          items.set(child.id, { id: child.id, name: child.name });
+        }
+        if (child.components && child.components.length > 0) {
+          visit(child);
+        }
+      }
+    }
+
+    visit(rootItem);
+
+    return Array.from(items.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "de")
+    );
+  }, [
+    editingComponents,
+    isEditingComponents,
+    itemsById,
+    selectedItem,
+  ]);
+
   async function handleCreateItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!newItemName.trim() || !newItemUnit.trim()) {
@@ -754,6 +955,177 @@ export function InventoryManager() {
       setError(message);
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  function handleAddPreparationStep() {
+    setPreparationStepsInput((steps) => [
+      ...steps,
+      {
+        id: createPreparationStepId(),
+        text: "",
+        duration: null,
+        imageUrl: null,
+        videoUrl: null,
+      },
+    ]);
+  }
+
+  function handlePreparationStepTextChange(
+    stepId: string,
+    event: ChangeEvent<HTMLTextAreaElement>
+  ) {
+    const value = event.target.value;
+    setPreparationStepsInput((steps) =>
+      steps.map((step) =>
+        step.id === stepId ? { ...step, text: value } : step
+      )
+    );
+    const match = value.match(/@([^@\n]*)$/);
+    if (match) {
+      setActiveTagStepId(stepId);
+      setTagSearch(match[1].trim().toLowerCase());
+    } else if (activeTagStepId === stepId) {
+      setActiveTagStepId(null);
+      setTagSearch("");
+    }
+  }
+
+  function handlePreparationStepDurationChange(
+    stepId: string,
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    const value = event.target.value;
+    setPreparationStepsInput((steps) =>
+      steps.map((step) =>
+        step.id === stepId
+          ? {
+              ...step,
+              duration: value.trim().length > 0 ? value : null,
+            }
+          : step
+      )
+    );
+  }
+
+  function handlePreparationStepImageUrlChange(
+    stepId: string,
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    const value = event.target.value;
+    setPreparationStepsInput((steps) =>
+      steps.map((step) =>
+        step.id === stepId
+          ? {
+              ...step,
+              imageUrl: value.trim().length > 0 ? value : null,
+            }
+          : step
+      )
+    );
+  }
+
+  function handlePreparationStepVideoUrlChange(
+    stepId: string,
+    event: ChangeEvent<HTMLInputElement>
+  ) {
+    const value = event.target.value;
+    setPreparationStepsInput((steps) =>
+      steps.map((step) =>
+        step.id === stepId
+          ? {
+              ...step,
+              videoUrl: value.trim().length > 0 ? value : null,
+            }
+          : step
+      )
+    );
+  }
+
+  function handleRemovePreparationStep(stepId: string) {
+    setPreparationStepsInput((steps) =>
+      steps.filter((step) => step.id !== stepId)
+    );
+    if (activeTagStepId === stepId) {
+      setActiveTagStepId(null);
+      setTagSearch("");
+    }
+  }
+
+  function handleInsertIngredientTag(stepId: string, ingredientName: string) {
+    setPreparationStepsInput((steps) =>
+      steps.map((step) => {
+        if (step.id !== stepId) {
+          return step;
+        }
+        const text = step.text ?? "";
+        const newText = text.replace(/@([^@\n]*)$/, ingredientName);
+        return {
+          ...step,
+          text: newText,
+        };
+      })
+    );
+    setActiveTagStepId(null);
+    setTagSearch("");
+  }
+
+  async function handleGenerateStepImage(stepId: string) {
+    const step = preparationStepsInput.find(
+      (value) => value.id === stepId
+    );
+    if (!step || !step.text.trim()) {
+      return;
+    }
+    try {
+      setIsGeneratingImageStepId(stepId);
+      setError(null);
+      const response = await fetch("/api/step-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: step.text,
+        }),
+      });
+      if (!response.ok) {
+        let message = "Fehler bei der KI-Bildgenerierung.";
+        try {
+          const payload = (await response.json()) as {
+            error?: unknown;
+          };
+          if (payload && typeof payload.error === "string") {
+            message = payload.error;
+          }
+        } catch {
+        }
+        throw new Error(message);
+      }
+      const payload = (await response.json()) as {
+        imageUrl?: string;
+      };
+      if (!payload.imageUrl) {
+        throw new Error("Antwort enthielt keine Bild-URL.");
+      }
+      setPreparationStepsInput((steps) =>
+        steps.map((value) =>
+          value.id === stepId
+            ? {
+                ...value,
+                imageUrl: payload.imageUrl ?? null,
+              }
+            : value
+        )
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Fehler bei der KI-Bildgenerierung.";
+      setError(message);
+    } finally {
+      setIsGeneratingImageStepId(null);
     }
   }
 
@@ -1028,6 +1400,38 @@ export function InventoryManager() {
         }
       }
 
+      let preparationStepsValue: string | undefined;
+      if (selectedItem.type === "eigenproduktion") {
+        const cleanedSteps = preparationStepsInput
+          .map((step) => {
+            const text = step.text.trim();
+            const duration =
+              step.duration && step.duration.trim().length > 0
+                ? step.duration.trim()
+                : null;
+            const imageUrl =
+              step.imageUrl && step.imageUrl.trim().length > 0
+                ? step.imageUrl.trim()
+                : null;
+            const videoUrl =
+              step.videoUrl && step.videoUrl.trim().length > 0
+                ? step.videoUrl.trim()
+                : null;
+            return {
+              id: step.id,
+              text,
+              duration,
+              imageUrl,
+              videoUrl,
+            };
+          })
+          .filter((step) => step.text.length > 0);
+        preparationStepsValue =
+          cleanedSteps.length > 0 ? JSON.stringify(cleanedSteps) : "";
+      } else {
+        preparationStepsValue = proPreparationInput.trim();
+      }
+
       const response = await fetch("/api/item-details", {
         method: "POST",
         headers: {
@@ -1041,7 +1445,7 @@ export function InventoryManager() {
           ingredients: proIngredientsInput.trim(),
           dosageInstructions: proDosageInput.trim(),
           yieldInfo: proYieldInput.trim(),
-          preparationSteps: proPreparationInput.trim(),
+          preparationSteps: preparationStepsValue,
           targetPortions,
           targetSalesPrice,
           category: categoryValue,
@@ -2301,23 +2705,23 @@ export function InventoryManager() {
                                         });
                                         setComponentSearch("");
                                       }}
-                                    >
-                                      <div className="flex flex-1 flex-col">
-                                        <div className="flex items-center gap-2">
-                                          <span className="truncate text-[11px] font-medium">
-                                            {item.name}
-                                          </span>
-                                          <TypeBadge type={item.type} />
+                                      >
+                                        <div className="flex flex-1 flex-col">
+                                          <div className="flex items-center gap-2">
+                                            <span className="truncate text-[11px] font-medium">
+                                              {item.name}
+                                            </span>
+                                            <TypeBadge type={item.type} />
+                                          </div>
+                                          <div className="text-[10px] text-muted-foreground">
+                                            EK: {item.purchasePrice.toFixed(2)} € /{" "}
+                                            {item.unit}
+                                          </div>
                                         </div>
-                                        <div className="text-[10px] text-muted-foreground">
-                                          EK: {item.purchasePrice.toFixed(2)} € /{" "}
-                                          {item.unit}
-                                        </div>
-                                      </div>
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                             </div>
                             {selectedItem.type === "eigenproduktion" && (
                               <div className="space-y-2 rounded-md border border-sky-300 bg-sky-50 px-3 py-3 text-[11px]">
@@ -2614,15 +3018,254 @@ export function InventoryManager() {
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                         <div className="flex items-center justify-between gap-2">
                           <h3 className="text-xs font-semibold">Zubereitung</h3>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={handleAddPreparationStep}
+                          >
+                            Schritt hinzufügen
+                          </Button>
                         </div>
-                        <textarea
-                          rows={4}
-                          value={proPreparationInput}
-                          onChange={(event) =>
-                            setProPreparationInput(event.target.value)
-                          }
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                        />
+                        {preparationStepsInput.length === 0 ? (
+                          <div className="rounded-md border border-dashed bg-background/60 px-3 py-2 text-[11px] text-muted-foreground">
+                            Lege die Zubereitung als Schritte an. Nutze @, um
+                            Zutaten aus dem Rezept zu verlinken.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {preparationStepsInput.map((step, index) => {
+                              const isDragging =
+                                draggedPreparationStepId === step.id;
+                              const showTagDropdown =
+                                activeTagStepId === step.id &&
+                                ingredientTagOptions.length > 0;
+                              const filteredTags =
+                                tagSearch.trim().length > 0
+                                  ? ingredientTagOptions.filter((option) =>
+                                      option.name
+                                        .toLowerCase()
+                                        .includes(tagSearch)
+                                    )
+                                  : ingredientTagOptions;
+                              return (
+                                <div
+                                  key={step.id}
+                                  draggable
+                                  onDragStart={() =>
+                                    setDraggedPreparationStepId(step.id)
+                                  }
+                                  onDragOver={(event) => {
+                                    event.preventDefault();
+                                  }}
+                                  onDrop={() => {
+                                    if (
+                                      !draggedPreparationStepId ||
+                                      draggedPreparationStepId === step.id
+                                    ) {
+                                      return;
+                                    }
+                                    setPreparationStepsInput((steps) => {
+                                      const currentIndex = steps.findIndex(
+                                        (candidate) => candidate.id === step.id
+                                      );
+                                      const sourceIndex = steps.findIndex(
+                                        (candidate) =>
+                                          candidate.id ===
+                                          draggedPreparationStepId
+                                      );
+                                      if (
+                                        currentIndex === -1 ||
+                                        sourceIndex === -1 ||
+                                        currentIndex === sourceIndex
+                                      ) {
+                                        return steps;
+                                      }
+                                      const next = [...steps];
+                                      const [moved] = next.splice(
+                                        sourceIndex,
+                                        1
+                                      );
+                                      next.splice(currentIndex, 0, moved);
+                                      return next;
+                                    });
+                                    setDraggedPreparationStepId(null);
+                                  }}
+                                  onDragEnd={() => {
+                                    setDraggedPreparationStepId(null);
+                                  }}
+                                  className={cn(
+                                    "space-y-2 rounded-md border bg-background/60 px-3 py-2",
+                                    isDragging &&
+                                      "border-primary/60 bg-primary/5"
+                                  )}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                      <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
+                                        {index + 1}
+                                      </span>
+                                      <span>Schritt</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {step.duration && (
+                                        <span className="text-[11px] text-muted-foreground">
+                                          Dauer: {step.duration}
+                                        </span>
+                                      )}
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-[10px]"
+                                        onClick={() =>
+                                          handleRemovePreparationStep(step.id)
+                                        }
+                                      >
+                                        ×
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <textarea
+                                      rows={3}
+                                      value={step.text}
+                                      onChange={(event) =>
+                                        handlePreparationStepTextChange(
+                                          step.id,
+                                          event
+                                        )
+                                      }
+                                      className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                      placeholder="Beschreibe diesen Schritt. Tippe @, um Zutaten aus dem Rezept zu verlinken."
+                                    />
+                                    {showTagDropdown &&
+                                      filteredTags.length > 0 && (
+                                        <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border bg-popover p-2 text-[11px] shadow-sm">
+                                          {filteredTags.map((option) => (
+                                            <button
+                                              key={option.id}
+                                              type="button"
+                                              className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
+                                              onClick={() =>
+                                                handleInsertIngredientTag(
+                                                  step.id,
+                                                  option.name
+                                                )
+                                              }
+                                            >
+                                              <span>{option.name}</span>
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    <div className="space-y-1 rounded-md bg-muted/40 px-2 py-1">
+                                      <div className="text-[10px] text-muted-foreground">
+                                        Vorschau mit markierten Zutaten
+                                      </div>
+                                      <div className="text-[11px]">
+                                        {renderTaggedText(
+                                          step.text,
+                                          ingredientTagOptions
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="grid gap-2 md:grid-cols-3">
+                                      <div className="space-y-1">
+                                        <div className="text-[11px] text-muted-foreground">
+                                          Dauer (optional)
+                                        </div>
+                                        <Input
+                                          type="text"
+                                          value={step.duration ?? ""}
+                                          onChange={(
+                                            event: ChangeEvent<HTMLInputElement>
+                                          ) =>
+                                            handlePreparationStepDurationChange(
+                                              step.id,
+                                              event
+                                            )
+                                          }
+                                          className="h-7 px-2 py-1 text-[11px]"
+                                          placeholder="z. B. 10 Minuten"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="text-[11px] text-muted-foreground">
+                                            Bild-URL (optional)
+                                          </span>
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            className="h-6 px-2 text-[10px]"
+                                            disabled={
+                                              isGeneratingImageStepId ===
+                                                step.id || !step.text.trim()
+                                            }
+                                            onClick={() =>
+                                              handleGenerateStepImage(step.id)
+                                            }
+                                          >
+                                            {isGeneratingImageStepId ===
+                                            step.id
+                                              ? "Generiere..."
+                                              : "KI-Bild generieren"}
+                                          </Button>
+                                        </div>
+                                        <Input
+                                          type="text"
+                                          value={step.imageUrl ?? ""}
+                                          onChange={(
+                                            event: ChangeEvent<HTMLInputElement>
+                                          ) =>
+                                            handlePreparationStepImageUrlChange(
+                                              step.id,
+                                              event
+                                            )
+                                          }
+                                          className="h-7 px-2 py-1 text-[11px]"
+                                          placeholder="https://..."
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <div className="text-[11px] text-muted-foreground">
+                                          Video-URL (optional)
+                                        </div>
+                                        <Input
+                                          type="text"
+                                          value={step.videoUrl ?? ""}
+                                          onChange={(
+                                            event: ChangeEvent<HTMLInputElement>
+                                          ) =>
+                                            handlePreparationStepVideoUrlChange(
+                                              step.id,
+                                              event
+                                            )
+                                          }
+                                          className="h-7 px-2 py-1 text-[11px]"
+                                          placeholder="https://..."
+                                        />
+                                      </div>
+                                    </div>
+                                    {step.imageUrl && (
+                                      <div className="mt-1">
+                                        <div className="text-[10px] text-muted-foreground">
+                                          Vorschau
+                                        </div>
+                                        <img
+                                          src={step.imageUrl}
+                                          alt={`Schritt ${index + 1}`}
+                                          className="mt-1 max-h-40 w-full rounded-md object-cover"
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                       {nutritionSummary && (
                         <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
@@ -3091,9 +3734,41 @@ export function InventoryManager() {
                               <div className="text-[11px] text-muted-foreground">
                                 Zubereitung
                               </div>
-                              <div className="mt-1 whitespace-pre-line text-[11px]">
-                                {specItem.preparationSteps}
-                              </div>
+                              {Array.isArray(specItem.preparationSteps) ? (
+                                <div className="mt-1 space-y-1 text-[11px]">
+                                  {specItem.preparationSteps.map(
+                                    (step, index) => (
+                                      <div
+                                        key={
+                                          typeof step.id === "string" &&
+                                          step.id.trim().length > 0
+                                            ? step.id
+                                            : `spec-step-${index}`
+                                        }
+                                        className="flex gap-2"
+                                      >
+                                        <span className="mt-[1px] text-[10px] text-muted-foreground">
+                                          {index + 1}.
+                                        </span>
+                                        <div className="space-y-0.5">
+                                          <div className="whitespace-pre-line">
+                                            {step.text}
+                                          </div>
+                                          {step.duration && (
+                                            <div className="text-[10px] text-muted-foreground">
+                                              Dauer: {step.duration}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="mt-1 whitespace-pre-line text-[11px]">
+                                  {specItem.preparationSteps}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
