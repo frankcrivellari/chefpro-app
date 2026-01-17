@@ -2098,151 +2098,34 @@ export function InventoryManager() {
                               </span>
                             </div>
                           )}
-                        </div>
-                      )}
-                      {nutritionSummary && (
-                        <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
-                          <div className="flex items-center justify-between gap-2">
-                            <h3 className="text-xs font-semibold">
-                              Nährwerte &amp; Bilanz
-                            </h3>
-                            {nutritionSummary.hasMissingData && (
-                              <span className="text-[11px] text-muted-foreground">
-                                Nährwerte unvollständig – fehlende Daten werden
-                                teilweise geschätzt.
-                              </span>
-                            )}
-                          </div>
-                          {nutritionSummary.perRecipe ? (
-                            <>
-                              <div className="grid gap-1 text-[11px] md:grid-cols-2">
-                                <div className="flex justify-between gap-2">
-                                  <span className="text-muted-foreground">
-                                    Energie gesamt (Rezept)
-                                  </span>
-                                  <span className="font-medium">
-                                    {nutritionSummary.perRecipe.energyKcal.toFixed(
-                                      0
-                                    )}{" "}
-                                    kcal
-                                  </span>
-                                </div>
-                                <div className="flex justify-between gap-2">
-                                  <span className="text-muted-foreground">
-                                    Fett gesamt (Rezept)
-                                  </span>
-                                  <span className="font-medium">
-                                    {nutritionSummary.perRecipe.fat.toFixed(
-                                      1
-                                    )}{" "}
-                                    g
-                                  </span>
-                                </div>
-                                <div className="flex justify-between gap-2">
-                                  <span className="text-muted-foreground">
-                                    Kohlenhydrate gesamt (Rezept)
-                                  </span>
-                                  <span className="font-medium">
-                                    {nutritionSummary.perRecipe.carbs.toFixed(
-                                      1
-                                    )}{" "}
-                                    g
-                                  </span>
-                                </div>
-                                <div className="flex justify-between gap-2">
-                                  <span className="text-muted-foreground">
-                                    Eiweiß gesamt (Rezept)
-                                  </span>
-                                  <span className="font-medium">
-                                    {nutritionSummary.perRecipe.protein.toFixed(
-                                      1
-                                    )}{" "}
-                                    g
-                                  </span>
-                                </div>
-                                <div className="flex justify-between gap-2">
-                                  <span className="text-muted-foreground">
-                                    Salz gesamt (Rezept)
-                                  </span>
-                                  <span className="font-medium">
-                                    {nutritionSummary.perRecipe.salt.toFixed(
-                                      2
-                                    )}{" "}
-                                    g
-                                  </span>
-                                </div>
+                          <div className="mt-3 grid gap-2 md:grid-cols-2">
+                            <div className="space-y-1">
+                              <div className="text-[11px] text-muted-foreground">
+                                Allergene (kommagetrennt)
                               </div>
-                              {nutritionSummary.perPortion && (
-                                <>
-                                  <div className="mt-2 text-[11px] font-semibold">
-                                    pro Portion
-                                  </div>
-                                  <div className="grid gap-1 text-[11px] md:grid-cols-2">
-                                    <div className="flex justify-between gap-2">
-                                      <span className="text-muted-foreground">
-                                        Energie
-                                      </span>
-                                      <span className="font-medium">
-                                        {nutritionSummary.perPortion.energyKcal.toFixed(
-                                          0
-                                        )}{" "}
-                                        kcal
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between gap-2">
-                                      <span className="text-muted-foreground">
-                                        Fett
-                                      </span>
-                                      <span className="font-medium">
-                                        {nutritionSummary.perPortion.fat.toFixed(
-                                          1
-                                        )}{" "}
-                                        g
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between gap-2">
-                                      <span className="text-muted-foreground">
-                                        Kohlenhydrate
-                                      </span>
-                                      <span className="font-medium">
-                                        {nutritionSummary.perPortion.carbs.toFixed(
-                                          1
-                                        )}{" "}
-                                        g
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between gap-2">
-                                      <span className="text-muted-foreground">
-                                        Eiweiß
-                                      </span>
-                                      <span className="font-medium">
-                                        {nutritionSummary.perPortion.protein.toFixed(
-                                          1
-                                        )}{" "}
-                                        g
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between gap-2">
-                                      <span className="text-muted-foreground">
-                                        Salz
-                                      </span>
-                                      <span className="font-medium">
-                                        {nutritionSummary.perPortion.salt.toFixed(
-                                          2
-                                        )}{" "}
-                                        g
-                                      </span>
-                                    </div>
-                                  </div>
-                                </>
-                              )}
-                            </>
-                          ) : (
-                            <div className="text-[11px] text-muted-foreground">
-                              Noch keine Nährwertdaten für die Zutaten
-                              hinterlegt.
+                              <textarea
+                                rows={2}
+                                value={proAllergensInput}
+                                onChange={(event) =>
+                                  setProAllergensInput(event.target.value)
+                                }
+                                className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                              />
                             </div>
-                          )}
+                            <div className="space-y-1">
+                              <div className="text-[11px] text-muted-foreground">
+                                Ausbeute / Yield
+                              </div>
+                              <textarea
+                                rows={2}
+                                value={proYieldInput}
+                                onChange={(event) =>
+                                  setProYieldInput(event.target.value)
+                                }
+                                className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                              />
+                            </div>
+                          </div>
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-2">
@@ -2728,6 +2611,164 @@ export function InventoryManager() {
                           </div>
                         </div>
                       )}
+                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-semibold">Zubereitung</h3>
+                        </div>
+                        <textarea
+                          rows={4}
+                          value={proPreparationInput}
+                          onChange={(event) =>
+                            setProPreparationInput(event.target.value)
+                          }
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        />
+                      </div>
+                      {nutritionSummary && (
+                        <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-xs font-semibold">
+                              Nährwerte &amp; Bilanz
+                            </h3>
+                            {nutritionSummary.hasMissingData && (
+                              <span className="text-[11px] text-muted-foreground">
+                                Nährwerte unvollständig – fehlende Daten werden
+                                teilweise geschätzt.
+                              </span>
+                            )}
+                          </div>
+                          {nutritionSummary.perRecipe ? (
+                            <>
+                              <div className="grid gap-1 text-[11px] md:grid-cols-2">
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    Energie gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.energyKcal.toFixed(
+                                      0
+                                    )}{" "}
+                                    kcal
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    Fett gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.fat.toFixed(
+                                      1
+                                    )}{" "}
+                                    g
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    Kohlenhydrate gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.carbs.toFixed(
+                                      1
+                                    )}{" "}
+                                    g
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    Eiweiß gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.protein.toFixed(
+                                      1
+                                    )}{" "}
+                                    g
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    Salz gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.salt.toFixed(
+                                      2
+                                    )}{" "}
+                                    g
+                                  </span>
+                                </div>
+                              </div>
+                              {nutritionSummary.perPortion && (
+                                <>
+                                  <div className="mt-2 text-[11px] font-semibold">
+                                    pro Portion
+                                  </div>
+                                  <div className="grid gap-1 text-[11px] md:grid-cols-2">
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        Energie
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.energyKcal.toFixed(
+                                          0
+                                        )}{" "}
+                                        kcal
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        Fett
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.fat.toFixed(
+                                          1
+                                        )}{" "}
+                                        g
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        Kohlenhydrate
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.carbs.toFixed(
+                                          1
+                                        )}{" "}
+                                        g
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        Eiweiß
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.protein.toFixed(
+                                          1
+                                        )}{" "}
+                                        g
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        Salz
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.salt.toFixed(
+                                          2
+                                        )}{" "}
+                                        g
+                                      </span>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            <div className="text-[11px] text-muted-foreground">
+                              Noch keine Nährwertdaten für die Zutaten
+                              hinterlegt.
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="flex items-center justify-between gap-2">
@@ -2796,51 +2837,51 @@ export function InventoryManager() {
                       </Button>
                     )}
                   </div>
-                  <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-xs font-semibold">
-                        Profi-Daten
-                      </h3>
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={isSaving}
-                        onClick={handleSaveProfiData}
-                      >
-                        {isSaving
-                          ? "Speichern..."
-                          : "Profi-Daten speichern"}
-                      </Button>
-                    </div>
-                    <div className="grid gap-2 md:grid-cols-2">
-                      <div className="space-y-1">
-                        <div className="text-[11px] text-muted-foreground">
-                          Allergene (kommagetrennt)
-                        </div>
-                        <textarea
-                          rows={2}
-                          value={proAllergensInput}
-                          onChange={(event) =>
-                            setProAllergensInput(event.target.value)
-                          }
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                        />
+                  {selectedItem.type !== "eigenproduktion" && (
+                    <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-xs font-semibold">
+                          Profi-Daten
+                        </h3>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={isSaving}
+                          onClick={handleSaveProfiData}
+                        >
+                          {isSaving
+                            ? "Speichern..."
+                            : "Profi-Daten speichern"}
+                        </Button>
                       </div>
-                      <div className="space-y-1">
-                        <div className="text-[11px] text-muted-foreground">
-                          Ausbeute / Yield
+                      <div className="grid gap-2 md:grid-cols-2">
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Allergene (kommagetrennt)
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={proAllergensInput}
+                            onChange={(event) =>
+                              setProAllergensInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
                         </div>
-                        <textarea
-                          rows={2}
-                          value={proYieldInput}
-                          onChange={(event) =>
-                            setProYieldInput(event.target.value)
-                          }
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                        />
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Ausbeute / Yield
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={proYieldInput}
+                            onChange={(event) =>
+                              setProYieldInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
+                        </div>
                       </div>
-                    </div>
-                    {selectedItem.type !== "eigenproduktion" && (
                       <div className="space-y-2">
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
@@ -2882,8 +2923,8 @@ export function InventoryManager() {
                           />
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   {selectedItem.type === "eigenproduktion" && (
                     <div className="mt-4 space-y-2 rounded-md border border-red-500/40 bg-red-500/5 p-3 text-xs">
                       <div className="font-semibold text-red-700">
