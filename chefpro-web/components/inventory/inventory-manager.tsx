@@ -163,6 +163,8 @@ export function InventoryManager() {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingComponents, setIsEditingComponents] = useState(false);
   const [componentSearch, setComponentSearch] = useState("");
+  const [componentQuantityInput, setComponentQuantityInput] = useState("1");
+  const [componentUnitInput, setComponentUnitInput] = useState("");
   const [editingComponents, setEditingComponents] = useState<
     InventoryComponent[]
   >([]);
@@ -191,6 +193,7 @@ export function InventoryManager() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSwapMode, setIsSwapMode] = useState(false);
   const [swapGhostName, setSwapGhostName] = useState<string>("");
+  const [adHocQuantity, setAdHocQuantity] = useState("");
   const [adHocName, setAdHocName] = useState("");
   const [adHocUnit, setAdHocUnit] = useState("");
   const [adHocPrice, setAdHocPrice] = useState("");
@@ -707,6 +710,15 @@ export function InventoryManager() {
       setIsSaving(true);
       setError(null);
 
+      const rawQuantity = adHocQuantity.trim();
+      let quantityValue = 1;
+      if (rawQuantity) {
+        const parsedQuantity = Number(rawQuantity.replace(",", "."));
+        if (Number.isFinite(parsedQuantity) && parsedQuantity > 0) {
+          quantityValue = parsedQuantity;
+        }
+      }
+
       if (adHocSelectedItemId) {
         const selectedItemForAdHoc = itemsById.get(adHocSelectedItemId);
         const unit =
@@ -721,10 +733,11 @@ export function InventoryManager() {
           ...previous,
           {
             itemId: adHocSelectedItemId,
-            quantity: 1,
+            quantity: quantityValue,
             unit,
           },
         ]);
+        setAdHocQuantity("");
         setAdHocName("");
         setAdHocUnit("");
         setAdHocPrice("");
@@ -786,11 +799,12 @@ export function InventoryManager() {
         ...previous,
         {
           itemId: createdAdHoc.id,
-          quantity: 1,
+          quantity: quantityValue,
           unit: createdAdHoc.unit,
         },
       ]);
 
+      setAdHocQuantity("");
       setAdHocName("");
       setAdHocUnit("");
       setAdHocPrice("");
@@ -1854,9 +1868,7 @@ export function InventoryManager() {
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-semibold">
-                          Komponentenstruktur
-                        </h3>
+                        <h3 className="text-sm font-semibold">Zutaten</h3>
                         <Button
                           type="button"
                           variant="outline"
@@ -1871,7 +1883,7 @@ export function InventoryManager() {
                         >
                           {isEditingComponents
                             ? "Bearbeitung schließen"
-                            : "Komponenten bearbeiten"}
+                            : "Zutaten bearbeiten"}
                         </Button>
                       </div>
                       {selectedItem.components &&
@@ -1894,17 +1906,34 @@ export function InventoryManager() {
                         <div className="space-y-3 rounded-md border bg-muted/40 p-3 text-xs">
                           <div className="space-y-3">
                             <div className="space-y-2">
-                              <Input
-                                placeholder={
-                                  isSwapMode && swapGhostName
-                                    ? `Ersatz für "${swapGhostName}" suchen`
-                                    : "Komponenten suchen"
-                                }
-                                value={componentSearch}
-                                onChange={(event) =>
-                                  setComponentSearch(event.target.value)
-                                }
-                              />
+                              <div className="grid gap-2 md:grid-cols-[80px_100px_minmax(0,1fr)]">
+                                <Input
+                                  type="number"
+                                  placeholder="Menge"
+                                  value={componentQuantityInput}
+                                  onChange={(event) =>
+                                    setComponentQuantityInput(event.target.value)
+                                  }
+                                />
+                                <Input
+                                  placeholder="Einheit"
+                                  value={componentUnitInput}
+                                  onChange={(event) =>
+                                    setComponentUnitInput(event.target.value)
+                                  }
+                                />
+                                <Input
+                                  placeholder={
+                                    isSwapMode && swapGhostName
+                                      ? `Ersatz für "${swapGhostName}" suchen`
+                                      : "Artikelsuche"
+                                  }
+                                  value={componentSearch}
+                                  onChange={(event) =>
+                                    setComponentSearch(event.target.value)
+                                  }
+                                />
+                              </div>
                               {componentSearchResults.length > 0 && (
                                 <div className="max-h-40 space-y-1 overflow-y-auto">
                                   {componentSearchResults.map((item) => (
@@ -1981,14 +2010,33 @@ export function InventoryManager() {
                                           }
                                           return;
                                         }
-                                        setEditingComponents((components) => [
-                                          ...components,
-                                          {
-                                            itemId: item.id,
-                                            quantity: 1,
-                                            unit: item.unit,
-                                          },
-                                        ]);
+                                        setEditingComponents((components) => {
+                                          const rawQuantity =
+                                            componentQuantityInput.trim();
+                                          let quantityValue = 1;
+                                          if (rawQuantity) {
+                                            const parsedQuantity = Number(
+                                              rawQuantity.replace(",", ".")
+                                            );
+                                            if (
+                                              Number.isFinite(parsedQuantity) &&
+                                              parsedQuantity > 0
+                                            ) {
+                                              quantityValue = parsedQuantity;
+                                            }
+                                          }
+                                          const unitValue =
+                                            componentUnitInput.trim() ||
+                                            item.unit;
+                                          return [
+                                            ...components,
+                                            {
+                                              itemId: item.id,
+                                              quantity: quantityValue,
+                                              unit: unitValue,
+                                            },
+                                          ];
+                                        });
                                         setComponentSearch("");
                                       }}
                                     >
@@ -2014,13 +2062,14 @@ export function InventoryManager() {
                                 <div className="text-[11px] font-semibold text-sky-900">
                                   Nicht gefunden? Neue Zutat direkt hier anlegen
                                 </div>
-                                <div className="grid gap-2 md:grid-cols-[2fr_1fr_1fr]">
+                                <div className="grid gap-2 md:grid-cols-[80px_80px_minmax(0,2fr)_1fr]">
                                   <Input
-                                    placeholder="Neue Zutat ad-hoc hinzufügen"
-                                    value={adHocName}
+                                    type="number"
+                                    placeholder="Menge"
+                                    value={adHocQuantity}
                                     onChange={(event) => {
                                       setAdHocSelectedItemId(null);
-                                      setAdHocName(event.target.value);
+                                      setAdHocQuantity(event.target.value);
                                     }}
                                   />
                                   <Input
@@ -2029,6 +2078,14 @@ export function InventoryManager() {
                                     onChange={(event) => {
                                       setAdHocSelectedItemId(null);
                                       setAdHocUnit(event.target.value);
+                                    }}
+                                  />
+                                  <Input
+                                    placeholder="Name der neuen Zutat"
+                                    value={adHocName}
+                                    onChange={(event) => {
+                                      setAdHocSelectedItemId(null);
+                                      setAdHocName(event.target.value);
                                     }}
                                   />
                                   <Input
@@ -2210,9 +2267,7 @@ export function InventoryManager() {
                                         </div>
                                         <div className="flex gap-2 text-[11px] text-muted-foreground">
                                           <span>
-                                            Benötigte Menge im Rezept:{" "}
-                                            {component.quantity}{" "}
-                                            {component.unit}
+                                            {component.quantity} {component.unit}
                                           </span>
                                           <button
                                             type="button"
@@ -2643,15 +2698,15 @@ function ComponentTree({ rootItem, itemsById }: ComponentTreeProps) {
             <div className="flex items-start justify-between gap-3">
               <div className="flex flex-1 items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-primary" />
-                <div className="space-y-0.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{item.name}</span>
-                    <TypeBadge type={item.type} />
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Benötigte Menge im Rezept: {component.quantity}{" "}
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="inline-flex min-w-[3rem] justify-end rounded bg-muted px-1 py-0.5 font-mono tabular-nums">
+                    {component.quantity}
+                  </span>
+                  <span className="inline-flex rounded bg-muted px-1 py-0.5">
                     {component.unit}
-                  </div>
+                  </span>
+                  <span className="font-medium">{item.name}</span>
+                  <TypeBadge type={item.type} />
                 </div>
               </div>
               {item.components && item.components.length > 0 && (
