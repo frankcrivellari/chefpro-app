@@ -496,6 +496,24 @@ export function InventoryManager() {
     );
   }, [docParsed, effectiveItems]);
 
+  const recentRecipes = useMemo(() => {
+    const recipes = effectiveItems.filter(
+      (item) => item.type === "eigenproduktion"
+    );
+    if (recipes.length === 0) {
+      return [];
+    }
+    const sorted = [...recipes].sort((first, second) => {
+      const firstInternal = first.internalId ?? 0;
+      const secondInternal = second.internalId ?? 0;
+      if (firstInternal !== secondInternal) {
+        return secondInternal - firstInternal;
+      }
+      return second.name.localeCompare(first.name);
+    });
+    return sorted.slice(0, 5);
+  }, [effectiveItems]);
+
   useEffect(() => {
     if (!selectedItemId && filteredItems[0]) {
       setSelectedItemId(filteredItems[0].id);
@@ -1922,7 +1940,68 @@ export function InventoryManager() {
               "md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.8fr)]"
           )}
         >
-          {!isDetailView && (
+          {activeSection === "dashboard" && !isDetailView && (
+            <Card className="flex flex-col">
+              <CardHeader>
+                <CardTitle>Dashboard</CardTitle>
+                <CardDescription>
+                  Überblick über zuletzt bearbeitete Rezepte.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {recentRecipes.length === 0 && (
+                  <div className="rounded-md border border-dashed bg-muted/40 px-3 py-6 text-center text-xs text-muted-foreground">
+                    Es wurden noch keine Rezepte angelegt.
+                  </div>
+                )}
+                {recentRecipes.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">
+                      Letzte 5 Rezepte
+                    </div>
+                    <div className="space-y-1">
+                      {recentRecipes.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedItemId(item.id);
+                            setIsDetailView(true);
+                          }}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground",
+                            selectedItem?.id === item.id &&
+                              "border-primary bg-primary/5"
+                          )}
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">
+                                {item.name}
+                              </span>
+                              <TypeBadge type={item.type} />
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">
+                              Einheit: {item.unit}
+                            </div>
+                          </div>
+                          <div className="text-right text-[11px] text-muted-foreground">
+                            <div>
+                              Intern: {formatInternalId(item.internalId ?? null)}
+                            </div>
+                            <div>
+                              EK: {item.purchasePrice.toFixed(2)} €
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          {activeSection !== "dashboard" && !isDetailView && (
             <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle>Artikelübersicht</CardTitle>
