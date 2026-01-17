@@ -9,6 +9,8 @@ type SupabaseItemRow = {
   item_type: InventoryType;
   unit: string;
   purchase_price: number;
+  target_portions: number | null;
+  target_sales_price: number | null;
   internal_id: number | null;
   manufacturer_article_number: string | null;
   ean: string | null;
@@ -26,6 +28,8 @@ type InventoryItem = {
   type: InventoryType;
   unit: string;
   purchasePrice: number;
+  targetPortions?: number | null;
+  targetSalesPrice?: number | null;
   manufacturerArticleNumber?: string | null;
   ean?: string | null;
   allergens?: string[];
@@ -56,6 +60,8 @@ export async function POST(request: Request) {
     dosageInstructions?: string;
     yieldInfo?: string;
     preparationSteps?: string;
+     targetPortions?: number | null;
+     targetSalesPrice?: number | null;
   };
 
   if (!body.id) {
@@ -72,6 +78,8 @@ export async function POST(request: Request) {
     dosage_instructions?: string | null;
     yield_info?: string | null;
     preparation_steps?: string | null;
+    target_portions?: number | null;
+    target_sales_price?: number | null;
   } = {};
 
   if (typeof body.manufacturerArticleNumber === "string") {
@@ -114,6 +122,20 @@ export async function POST(request: Request) {
         : null;
   }
 
+  if (typeof body.targetPortions === "number") {
+    updates.target_portions =
+      Number.isFinite(body.targetPortions) && body.targetPortions > 0
+        ? body.targetPortions
+        : null;
+  }
+
+  if (typeof body.targetSalesPrice === "number") {
+    updates.target_sales_price =
+      Number.isFinite(body.targetSalesPrice) && body.targetSalesPrice > 0
+        ? body.targetSalesPrice
+        : null;
+  }
+
   const updateResponse = await client
     .from("items")
     .update(updates)
@@ -141,6 +163,8 @@ export async function POST(request: Request) {
     type: row.item_type,
     unit: row.unit,
     purchasePrice: row.purchase_price,
+    targetPortions: row.target_portions,
+    targetSalesPrice: row.target_sales_price,
     manufacturerArticleNumber: row.manufacturer_article_number,
     ean: row.ean,
     allergens: row.allergens ?? undefined,

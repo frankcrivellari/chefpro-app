@@ -4,9 +4,10 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 type InventoryType = "zukauf" | "eigenproduktion";
 
 type InventoryComponent = {
-  itemId: string;
+  itemId: string | null;
   quantity: number;
   unit: string;
+  deletedItemName?: string | null;
 };
 
 type InventoryItem = {
@@ -16,6 +17,8 @@ type InventoryItem = {
   type: InventoryType;
   unit: string;
   purchasePrice: number;
+  targetPortions?: number | null;
+  targetSalesPrice?: number | null;
   manufacturerArticleNumber?: string | null;
   ean?: string | null;
   allergens?: string[];
@@ -23,6 +26,7 @@ type InventoryItem = {
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
   preparationSteps?: string | null;
+  hasGhostComponents?: boolean;
   components?: InventoryComponent[];
 };
 
@@ -32,6 +36,8 @@ type SupabaseItemRow = {
   item_type: InventoryType;
   unit: string;
   purchase_price: number;
+  target_portions: number | null;
+  target_sales_price: number | null;
   internal_id: number | null;
   manufacturer_article_number: string | null;
   ean: string | null;
@@ -45,9 +51,10 @@ type SupabaseItemRow = {
 type SupabaseRecipeStructureRow = {
   id: string;
   parent_item_id: string;
-  component_item_id: string;
+  component_item_id: string | null;
   quantity: number;
   unit: string;
+  deleted_item_name: string | null;
 };
 
 export async function GET() {
@@ -117,6 +124,8 @@ export async function GET() {
         type: row.item_type,
         unit: row.unit,
         purchasePrice: row.purchase_price,
+        targetPortions: row.target_portions,
+        targetSalesPrice: row.target_sales_price,
         manufacturerArticleNumber: row.manufacturer_article_number,
         ean: row.ean,
         allergens: row.allergens ?? undefined,
@@ -135,6 +144,7 @@ export async function GET() {
         itemId: rel.component_item_id,
         quantity: rel.quantity,
         unit: rel.unit,
+        deletedItemName: rel.deleted_item_name,
       });
       componentsByParent.set(rel.parent_item_id, existing);
     }
@@ -145,6 +155,14 @@ export async function GET() {
         continue;
       }
       item.components = components;
+      const hasGhost = components.some(
+        (component) =>
+          !component.itemId && !!component.deletedItemName
+      );
+      if (hasGhost) {
+        (item as InventoryItem & { hasGhostComponents?: boolean }).hasGhostComponents =
+          true;
+      }
     }
 
     const result = Array.from(itemsById.values());
@@ -264,6 +282,8 @@ export async function POST(request: Request) {
       type: createdItemRow.item_type,
       unit: createdItemRow.unit,
       purchasePrice: createdItemRow.purchase_price,
+      targetPortions: createdItemRow.target_portions,
+      targetSalesPrice: createdItemRow.target_sales_price,
       manufacturerArticleNumber: createdItemRow.manufacturer_article_number,
       ean: createdItemRow.ean,
       components,
@@ -285,17 +305,6 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const body = (await request.json()) as {
-      id: string;
-    };
-
-    if (!body.id) {
-      return NextResponse.json(
-        { error: "id ist erforderlich" },
-        { status: 400 }
-      );
-    }
-
     const client = getSupabaseServerClient();
 
     if (!client) {
@@ -311,23 +320,77 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const deleteRelationsResponse = await client
+    const body = (await request.json()) as {
+      id: string;
+    };
+
+    if (!body.id) {
+      return NextResponse.json(
+        { error: "id ist erforderlich" },
+        { status: 400 }
+      );
+    }
+
+    const itemResponse = await client
+      .from("items")
+      .select("id,name")
+      .eq("id", body.id)
+      .single();
+
+    if (itemResponse.error || !itemResponse.data) {
+      const status =
+        itemResponse.error?.code === "PGRST116" ? 404 : 500;
+      return NextResponse.json(
+        {
+          error:
+            itemResponse.error?.message ??
+            'Artikel wurde nicht gefunden und kann nicht gelöscht werden',
+        },
+        { status }
+      );
+    }
+
+    const itemName =
+      (itemResponse.data as { name: string }).name;
+
+    const deleteParentRelationsResponse = await client
       .from("recipe_structure")
       .delete()
-      .or(
-        `parent_item_id.eq.${body.id},component_item_id.eq.${body.id}`
-      );
+      .eq("parent_item_id", body.id);
 
-    if (deleteRelationsResponse.error) {
+    if (deleteParentRelationsResponse.error) {
       console.error("Supabase delete recipe_structure error", {
         table: "recipe_structure",
-        error: deleteRelationsResponse.error,
+        error: deleteParentRelationsResponse.error,
       });
       return NextResponse.json(
         {
           error:
-            deleteRelationsResponse.error.message ??
+            deleteParentRelationsResponse.error.message ??
             'Fehler beim Löschen der Komponenten in Tabelle "recipe_structure"',
+        },
+        { status: 500 }
+      );
+    }
+
+    const updateComponentRelationsResponse = await client
+      .from("recipe_structure")
+      .update({
+        component_item_id: null,
+        deleted_item_name: itemName,
+      })
+      .eq("component_item_id", body.id);
+
+    if (updateComponentRelationsResponse.error) {
+      console.error("Supabase update recipe_structure error", {
+        table: "recipe_structure",
+        error: updateComponentRelationsResponse.error,
+      });
+      return NextResponse.json(
+        {
+          error:
+            updateComponentRelationsResponse.error.message ??
+            'Fehler beim Aktualisieren der Komponenten in Tabelle "recipe_structure"',
         },
         { status: 500 }
       );

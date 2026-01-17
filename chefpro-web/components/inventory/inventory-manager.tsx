@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -16,9 +17,10 @@ import { cn } from "@/lib/utils";
 type InventoryType = "zukauf" | "eigenproduktion";
 
 type InventoryComponent = {
-  itemId: string;
+  itemId: string | null;
   quantity: number;
   unit: string;
+  deletedItemName?: string | null;
 };
 
 type InventoryItem = {
@@ -28,6 +30,8 @@ type InventoryItem = {
   type: InventoryType;
   unit: string;
   purchasePrice: number;
+  targetPortions?: number | null;
+  targetSalesPrice?: number | null;
   manufacturerArticleNumber?: string | null;
   ean?: string | null;
   allergens?: string[];
@@ -36,6 +40,7 @@ type InventoryItem = {
   yieldInfo?: string | null;
   preparationSteps?: string | null;
   components?: InventoryComponent[];
+  hasGhostComponents?: boolean;
 };
 
 type ParsedAiItem = {
@@ -159,7 +164,11 @@ export function InventoryManager() {
   const [proYieldInput, setProYieldInput] = useState("");
   const [proPreparationInput, setProPreparationInput] = useState("");
   const [manufacturerInput, setManufacturerInput] = useState("");
+  const [targetPortionsInput, setTargetPortionsInput] = useState("");
+  const [targetSalesPriceInput, setTargetSalesPriceInput] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSwapMode, setIsSwapMode] = useState(false);
+  const [swapGhostName, setSwapGhostName] = useState<string>("");
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -254,6 +263,102 @@ export function InventoryManager() {
     filteredItems[0] ??
     null;
 
+  const recipeCalculation = useMemo(() => {
+    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
+      return null;
+    }
+    if (!selectedItem.components || selectedItem.components.length === 0) {
+      return {
+        totalCost: 0,
+        costPerPortion: null as number | null,
+        marginPerPortion: null as number | null,
+        goodsSharePercent: null as number | null,
+        hasMissingPrices: true,
+      };
+    }
+
+    const visited = new Set<string>();
+
+    function computeItemCost(
+      item: InventoryItem
+    ): { cost: number; missing: boolean } {
+      if (visited.has(item.id)) {
+        return { cost: 0, missing: true };
+      }
+      visited.add(item.id);
+
+      if (!item.components || item.components.length === 0) {
+        const price = Number(item.purchasePrice);
+        if (!Number.isFinite(price) || price <= 0) {
+          return { cost: 0, missing: true };
+        }
+        return { cost: price, missing: false };
+      }
+
+      let total = 0;
+      let missing = false;
+
+      for (const component of item.components ?? []) {
+        if (!component.itemId) {
+          missing = true;
+          continue;
+        }
+        const componentItem = itemsById.get(component.itemId);
+        if (!componentItem) {
+          missing = true;
+          continue;
+        }
+        const quantity = Number(
+          String(component.quantity).toString().replace(",", ".")
+        );
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          missing = true;
+          continue;
+        }
+        const child = computeItemCost(componentItem);
+        if (child.missing) {
+          missing = true;
+        }
+        total += child.cost * quantity;
+      }
+
+      return { cost: total, missing };
+    }
+
+    const { cost: totalCost, missing } = computeItemCost(selectedItem);
+
+    const portions = selectedItem.targetPortions ?? null;
+    const validPortions =
+      portions != null && Number.isFinite(portions) && portions > 0
+        ? portions
+        : null;
+
+    const costPerPortion =
+      validPortions != null ? totalCost / validPortions : null;
+
+    const sales = selectedItem.targetSalesPrice ?? null;
+    const validSales =
+      sales != null && Number.isFinite(sales) && sales > 0 ? sales : null;
+
+    const marginPerPortion =
+      costPerPortion != null && validSales != null
+        ? validSales - costPerPortion
+        : null;
+
+    const goodsSharePercent =
+      costPerPortion != null && validSales != null && validSales > 0
+        ? (costPerPortion / validSales) * 100
+        : null;
+
+    return {
+      totalCost,
+      costPerPortion,
+      marginPerPortion,
+      goodsSharePercent,
+      hasMissingPrices: missing,
+    };
+  }, [itemsById, selectedItem]);
+
   useEffect(() => {
     if (!selectedItem) {
       setManufacturerInput("");
@@ -262,6 +367,8 @@ export function InventoryManager() {
       setProDosageInput("");
       setProYieldInput("");
       setProPreparationInput("");
+      setTargetPortionsInput("");
+      setTargetSalesPriceInput("");
       return;
     }
     setManufacturerInput(selectedItem.manufacturerArticleNumber ?? "");
@@ -271,6 +378,16 @@ export function InventoryManager() {
     setProDosageInput(selectedItem.dosageInstructions ?? "");
     setProYieldInput(selectedItem.yieldInfo ?? "");
     setProPreparationInput(selectedItem.preparationSteps ?? "");
+    setTargetPortionsInput(
+      selectedItem.targetPortions != null
+        ? String(selectedItem.targetPortions)
+        : ""
+    );
+    setTargetSalesPriceInput(
+      selectedItem.targetSalesPrice != null
+        ? String(selectedItem.targetSalesPrice)
+        : ""
+    );
   }, [selectedItem]);
 
   const componentSearchResults = useMemo(() => {
@@ -283,7 +400,9 @@ export function InventoryManager() {
         return false;
       }
       if (
-        editingComponents.some((component) => component.itemId === item.id)
+        editingComponents.some(
+          (component) => component.itemId === item.id
+        )
       ) {
         return false;
       }
@@ -922,6 +1041,10 @@ export function InventoryManager() {
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{item.name}</span>
                         <TypeBadge type={item.type} />
+                        {item.type === "eigenproduktion" &&
+                          item.hasGhostComponents && (
+                            <AlertTriangle className="h-3 w-3 text-red-500" />
+                          )}
                       </div>
                       <div className="space-y-0.5 text-[11px] text-muted-foreground">
                         <div>
@@ -1047,6 +1170,94 @@ export function InventoryManager() {
 
                   {selectedItem.type === "eigenproduktion" && (
                     <div className="space-y-3">
+                      {recipeCalculation && (
+                        <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-xs font-semibold">
+                              Kalkulation
+                            </h3>
+                            <div className="flex gap-2 text-[11px] text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <span>Portionen:</span>
+                                <Input
+                                  type="text"
+                                  value={targetPortionsInput}
+                                  onChange={(event) =>
+                                    setTargetPortionsInput(event.target.value)
+                                  }
+                                  className="h-7 w-16 px-2 py-1 text-[11px]"
+                                />
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span>VK/Portion (€):</span>
+                                <Input
+                                  type="text"
+                                  value={targetSalesPriceInput}
+                                  onChange={(event) =>
+                                    setTargetSalesPriceInput(event.target.value)
+                                  }
+                                  className="h-7 w-24 px-2 py-1 text-[11px]"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid gap-1 text-[11px] md:grid-cols-2">
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">
+                                Gesamtkosten Rezept
+                              </span>
+                              <span className="font-medium">
+                                {recipeCalculation.totalCost.toFixed(2)} €
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">
+                                Kosten pro Portion
+                              </span>
+                              <span className="font-medium">
+                                {recipeCalculation.costPerPortion != null
+                                  ? `${recipeCalculation.costPerPortion.toFixed(
+                                      2
+                                    )} €`
+                                  : "—"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">
+                                Marge pro Portion
+                              </span>
+                              <span className="font-medium">
+                                {recipeCalculation.marginPerPortion != null
+                                  ? `${recipeCalculation.marginPerPortion.toFixed(
+                                      2
+                                    )} €`
+                                  : "—"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">
+                                Wareneinsatz
+                              </span>
+                              <span className="font-medium">
+                                {recipeCalculation.goodsSharePercent != null
+                                  ? `${recipeCalculation.goodsSharePercent.toFixed(
+                                      1
+                                    )} %`
+                                  : "—"}
+                              </span>
+                            </div>
+                          </div>
+                          {recipeCalculation.hasMissingPrices && (
+                            <div className="mt-1 flex items-center gap-1 text-[11px] text-red-600">
+                              <AlertTriangle className="h-3 w-3" />
+                              <span>
+                                Achtung: Mindestens eine Komponente hat keinen
+                                EK-Preis. Die Kalkulation ist unvollständig.
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="text-sm font-semibold">
                           Komponentenstruktur
@@ -1084,7 +1295,11 @@ export function InventoryManager() {
                         <div className="space-y-3 rounded-md border bg-muted/40 p-3 text-xs">
                           <div className="space-y-2">
                             <Input
-                              placeholder="Komponenten suchen"
+                              placeholder={
+                                isSwapMode && swapGhostName
+                                  ? `Ersatz für "${swapGhostName}" suchen`
+                                  : "Komponenten suchen"
+                              }
                               value={componentSearch}
                               onChange={(event) =>
                                 setComponentSearch(event.target.value)
@@ -1097,7 +1312,75 @@ export function InventoryManager() {
                                     key={item.id}
                                     type="button"
                                     className="flex w-full items-center justify-between gap-2 rounded-md border bg-card px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
-                                    onClick={() =>
+                                    onClick={async () => {
+                                      if (isSwapMode && selectedItem) {
+                                        if (!swapGhostName) {
+                                          return;
+                                        }
+                                        const confirmed = window.confirm(
+                                          `Möchtest du "${swapGhostName}" in ALLEN Rezepten durch "${item.name}" ersetzen?`
+                                        );
+                                        if (!confirmed) {
+                                          return;
+                                        }
+                                        try {
+                                          setIsSaving(true);
+                                          setError(null);
+                                          const response = await fetch(
+                                            "/api/recipe-structure",
+                                            {
+                                              method: "PATCH",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                              },
+                                              body: JSON.stringify({
+                                                deletedItemName: swapGhostName,
+                                                newItemId: item.id,
+                                              }),
+                                            }
+                                          );
+                                          const payload =
+                                            (await response.json()) as {
+                                              error?: unknown;
+                                              replacedCount?: number;
+                                            };
+                                          if (!response.ok) {
+                                            let message =
+                                              "Fehler beim globalen Ersetzen der Zutat.";
+                                            if (
+                                              payload &&
+                                              typeof payload.error === "string"
+                                            ) {
+                                              message = payload.error;
+                                            }
+                                            throw new Error(message);
+                                          }
+                                          const inventoryResponse =
+                                            await fetch("/api/inventory");
+                                          if (inventoryResponse.ok) {
+                                            const inventoryPayload =
+                                              (await inventoryResponse.json()) as InventoryItem[];
+                                            setItems(
+                                              inventoryPayload.length > 0
+                                                ? inventoryPayload
+                                                : initialItems
+                                            );
+                                          }
+                                        } catch (swapError) {
+                                          const message =
+                                            swapError instanceof Error
+                                              ? swapError.message
+                                              : "Fehler beim globalen Ersetzen der Zutat.";
+                                          setError(message);
+                                        } finally {
+                                          setIsSaving(false);
+                                          setIsSwapMode(false);
+                                          setSwapGhostName("");
+                                          setComponentSearch("");
+                                        }
+                                        return;
+                                      }
                                       setEditingComponents((components) => [
                                         ...components,
                                         {
@@ -1105,8 +1388,8 @@ export function InventoryManager() {
                                           quantity: 1,
                                           unit: item.unit,
                                         },
-                                      ])
-                                    }
+                                      ]);
+                                    }}
                                   >
                                     <span className="truncate text-[11px] font-medium">
                                       {item.name}
@@ -1124,86 +1407,142 @@ export function InventoryManager() {
                               </div>
                             )}
                             {editingComponents.map((component, index) => {
-                              const item = itemsById.get(component.itemId);
-                              if (!item) {
+                              const item = component.itemId
+                                ? itemsById.get(component.itemId)
+                                : undefined;
+                              if (!item && !component.deletedItemName) {
                                 return null;
                               }
                               return (
                                 <div
-                                  key={component.itemId}
+                                  key={
+                                    component.itemId ??
+                                    component.deletedItemName ??
+                                    index
+                                  }
                                   className="flex items-center gap-2 rounded-md border bg-card px-2 py-2"
                                 >
                                   <div className="flex min-w-0 flex-1 flex-col">
-                                    <div className="flex items-center gap-2">
-                                      <span className="truncate text-[11px] font-medium">
-                                        {item.name}
-                                      </span>
-                                      <TypeBadge type={item.type} />
-                                    </div>
-                                    <div className="mt-1 flex gap-2">
-                                      <Input
-                                        type="number"
-                                        value={String(component.quantity)}
-                                        onChange={(event) => {
-                                          const value = Number(
-                                            event.target.value.replace(
-                                              ",",
-                                              "."
-                                            )
-                                          );
-                                          setEditingComponents(
-                                            (components) =>
-                                              components.map(
-                                                (currentComponent, current) =>
-                                                  current === index
-                                                    ? {
-                                                        ...currentComponent,
-                                                        quantity: Number.isNaN(
-                                                          value
-                                                        )
-                                                          ? 0
-                                                          : value,
-                                                      }
-                                                    : currentComponent
+                                    {item && (
+                                      <>
+                                        <div className="flex items-center gap-2">
+                                          <span className="truncate text-[11px] font-medium">
+                                            {item.name}
+                                          </span>
+                                          <TypeBadge type={item.type} />
+                                        </div>
+                                        <div className="mt-1 flex gap-2">
+                                          <Input
+                                            type="number"
+                                            value={String(
+                                              component.quantity
+                                            )}
+                                            onChange={(event) => {
+                                              const value = Number(
+                                                event.target.value.replace(
+                                                  ",",
+                                                  "."
+                                                )
+                                              );
+                                              setEditingComponents(
+                                                (components) =>
+                                                  components.map(
+                                                    (
+                                                      currentComponent,
+                                                      current
+                                                    ) =>
+                                                      current === index
+                                                        ? {
+                                                            ...currentComponent,
+                                                            quantity:
+                                                              Number.isNaN(
+                                                                value
+                                                              )
+                                                                ? 0
+                                                                : value,
+                                                          }
+                                                        : currentComponent
+                                                  )
+                                              );
+                                            }}
+                                            className="h-8 w-20 text-[11px]"
+                                          />
+                                          <Input
+                                            value={component.unit}
+                                            onChange={(event) =>
+                                              setEditingComponents(
+                                                (components) =>
+                                                  components.map(
+                                                    (
+                                                      currentComponent,
+                                                      current
+                                                    ) =>
+                                                      current === index
+                                                        ? {
+                                                            ...currentComponent,
+                                                            unit: event.target
+                                                              .value,
+                                                          }
+                                                        : currentComponent
+                                                  )
                                               )
-                                          );
-                                        }}
-                                        className="h-8 w-20 text-[11px]"
-                                      />
-                                      <Input
-                                        value={component.unit}
-                                        onChange={(event) =>
-                                          setEditingComponents(
-                                            (components) =>
-                                              components.map(
-                                                (currentComponent, current) =>
-                                                  current === index
-                                                    ? {
-                                                        ...currentComponent,
-                                                        unit: event.target.value,
-                                                      }
-                                                    : currentComponent
-                                              )
-                                          )
-                                        }
-                                        className="h-8 w-20 text-[11px]"
-                                      />
-                                    </div>
+                                            }
+                                            className="h-8 w-20 text-[11px]"
+                                          />
+                                        </div>
+                                      </>
+                                    )}
+                                    {!item && component.deletedItemName && (
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-1 text-[11px] text-red-600">
+                                          <AlertTriangle className="h-3 w-3" />
+                                          <span>
+                                            ACHTUNG: Zutat{" "}
+                                            {component.deletedItemName} wurde
+                                            entfernt – bitte Ersatz wählen.
+                                          </span>
+                                        </div>
+                                        <div className="flex gap-2 text-[11px] text-muted-foreground">
+                                          <span>
+                                            Menge: {component.quantity}{" "}
+                                            {component.unit}
+                                          </span>
+                                          <button
+                                            type="button"
+                                            className="underline"
+                                            onClick={() => {
+                                              setIsSwapMode(true);
+                                              setSwapGhostName(
+                                                component.deletedItemName ??
+                                                  ""
+                                              );
+                                              setComponentSearch("");
+                                            }}
+                                          >
+                                            Ersatz auswählen
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      setEditingComponents((components) =>
-                                        components.filter(
-                                          (_, current) => current !== index
+                                  {item && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        setEditingComponents(
+                                          (components) =>
+                                            components.filter(
+                                              (_, current) =>
+                                                current !== index
+                                            )
                                         )
-                                      )
-                                    }
-                                  >
-                                    Entfernen
-                                  </Button>
+                                      }
+                                    >
+                                      Entfernen
+                                    </Button>
+                                  )}
                                 </div>
                               );
                             })}
@@ -1333,6 +1672,22 @@ export function InventoryManager() {
                               .split(",")
                               .map((value) => value.trim())
                               .filter((value) => value.length > 0);
+                            const parsedTargetPortions = Number(
+                              targetPortionsInput.replace(",", ".")
+                            );
+                            const targetPortions =
+                              Number.isFinite(parsedTargetPortions) &&
+                              parsedTargetPortions > 0
+                                ? parsedTargetPortions
+                                : null;
+                            const parsedTargetSalesPrice = Number(
+                              targetSalesPriceInput.replace(",", ".")
+                            );
+                            const targetSalesPrice =
+                              Number.isFinite(parsedTargetSalesPrice) &&
+                              parsedTargetSalesPrice > 0
+                                ? parsedTargetSalesPrice
+                                : null;
                             const response = await fetch(
                               "/api/item-details",
                               {
@@ -1350,6 +1705,8 @@ export function InventoryManager() {
                                   yieldInfo: proYieldInput.trim(),
                                   preparationSteps:
                                     proPreparationInput.trim(),
+                                  targetPortions,
+                                  targetSalesPrice,
                                 }),
                               }
                             );

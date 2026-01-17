@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 type InventoryComponent = {
-  itemId: string;
+  itemId: string | null;
   quantity: number;
   unit: string;
 };
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
   }
 
   const saved = insertResponse.data.map((row) => ({
-    itemId: row.component_item_id as string,
+    itemId: row.component_item_id as string | null,
     quantity: row.quantity as number,
     unit: row.unit as string,
   }));
@@ -68,3 +68,57 @@ export async function POST(request: Request) {
   return NextResponse.json<InventoryComponent[]>(saved);
 }
 
+export async function PATCH(request: Request) {
+  const client = getSupabaseServerClient();
+
+  if (!client) {
+    return NextResponse.json(
+      { error: "Supabase ist nicht konfiguriert" },
+      { status: 500 }
+    );
+  }
+
+  const body = (await request.json()) as {
+    deletedItemName: string;
+    newItemId: string;
+  };
+
+  if (!body.deletedItemName || !body.newItemId) {
+    return NextResponse.json(
+      {
+        error:
+          "deletedItemName und newItemId sind erforderlich, um einen Ersatz vorzunehmen",
+      },
+      { status: 400 }
+    );
+  }
+
+  const updateResponse = await client
+    .from("recipe_structure")
+    .update({
+      component_item_id: body.newItemId,
+      deleted_item_name: null,
+    })
+    .eq("deleted_item_name", body.deletedItemName)
+    .is("component_item_id", null)
+    .select("id");
+
+  if (updateResponse.error) {
+    return NextResponse.json(
+      {
+        error:
+          updateResponse.error.message ??
+          "Fehler beim globalen Ersetzen der Komponenten",
+      },
+      { status: 500 }
+    );
+  }
+
+  const count = Array.isArray(updateResponse.data)
+    ? updateResponse.data.length
+    : 0;
+
+  return NextResponse.json({
+    replacedCount: count,
+  });
+}
