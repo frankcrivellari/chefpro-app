@@ -80,6 +80,15 @@ type InventoryItem = {
   nutritionPerUnit?: NutritionTotals | null;
   standardPreparation?: StandardPreparation | null;
   components?: InventoryComponent[];
+  isBio?: boolean;
+  isDeklarationsfrei?: boolean;
+  isAllergenfrei?: boolean;
+  isCookChill?: boolean;
+  isFreezeThawStable?: boolean;
+  isPalmOilFree?: boolean;
+  isYeastFree?: boolean;
+  isLactoseFree?: boolean;
+  isGlutenFree?: boolean;
   hasGhostComponents?: boolean;
 };
 
@@ -99,6 +108,15 @@ type ParsedDocumentItem = {
   purchasePrice: number;
   allergens: string[];
   fileUrl: string;
+  isBio?: boolean;
+  isDeklarationsfrei?: boolean;
+  isAllergenfrei?: boolean;
+  isCookChill?: boolean;
+  isFreezeThawStable?: boolean;
+  isPalmOilFree?: boolean;
+  isYeastFree?: boolean;
+  isLactoseFree?: boolean;
+  isGlutenFree?: boolean;
 };
 
 const recipeCategories = ["Vorspeise", "Hauptgang", "Dessert"];
@@ -356,6 +374,17 @@ export function InventoryManager() {
   const [nutritionTagsInput, setNutritionTagsInput] = useState<string[]>([]);
   const [targetPortionsInput, setTargetPortionsInput] = useState("");
   const [targetSalesPriceInput, setTargetSalesPriceInput] = useState("");
+  const [isBioInput, setIsBioInput] = useState(false);
+  const [isDeklarationsfreiInput, setIsDeklarationsfreiInput] =
+    useState(false);
+  const [isAllergenfreiInput, setIsAllergenfreiInput] = useState(false);
+  const [isCookChillInput, setIsCookChillInput] = useState(false);
+  const [isFreezeThawStableInput, setIsFreezeThawStableInput] =
+    useState(false);
+  const [isPalmOilFreeInput, setIsPalmOilFreeInput] = useState(false);
+  const [isYeastFreeInput, setIsYeastFreeInput] = useState(false);
+  const [isLactoseFreeInput, setIsLactoseFreeInput] = useState(false);
+  const [isGlutenFreeInput, setIsGlutenFreeInput] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSwapMode, setIsSwapMode] = useState(false);
   const [swapGhostName, setSwapGhostName] = useState<string>("");
@@ -829,6 +858,15 @@ export function InventoryManager() {
       setStandardPreparationComponents([]);
       setTargetPortionsInput("");
       setTargetSalesPriceInput("");
+      setIsBioInput(false);
+      setIsDeklarationsfreiInput(false);
+      setIsAllergenfreiInput(false);
+      setIsCookChillInput(false);
+      setIsFreezeThawStableInput(false);
+      setIsPalmOilFreeInput(false);
+      setIsYeastFreeInput(false);
+      setIsLactoseFreeInput(false);
+      setIsGlutenFreeInput(false);
       setPreparationStepsInput([]);
       setDraggedPreparationStepId(null);
       setActiveTagStepId(null);
@@ -842,6 +880,17 @@ export function InventoryManager() {
     setPortionUnitInput(selectedItem.portionUnit ?? "");
     setNutritionTagsInput(selectedItem.nutritionTags ?? []);
     setManufacturerInput(selectedItem.manufacturerArticleNumber ?? "");
+    setIsBioInput(selectedItem.isBio ?? false);
+    setIsDeklarationsfreiInput(selectedItem.isDeklarationsfrei ?? false);
+    setIsAllergenfreiInput(selectedItem.isAllergenfrei ?? false);
+    setIsCookChillInput(selectedItem.isCookChill ?? false);
+    setIsFreezeThawStableInput(
+      selectedItem.isFreezeThawStable ?? false
+    );
+    setIsPalmOilFreeInput(selectedItem.isPalmOilFree ?? false);
+    setIsYeastFreeInput(selectedItem.isYeastFree ?? false);
+    setIsLactoseFreeInput(selectedItem.isLactoseFree ?? false);
+    setIsGlutenFreeInput(selectedItem.isGlutenFree ?? false);
     const allergensText = (selectedItem.allergens ?? []).join(", ");
     setProAllergensInput(allergensText);
     setProIngredientsInput(selectedItem.ingredients ?? "");
@@ -1635,6 +1684,15 @@ export function InventoryManager() {
             selectedItem.type === "zukauf"
               ? parsedStandardPreparation
               : undefined,
+          isBio: isBioInput,
+          isDeklarationsfrei: isDeklarationsfreiInput,
+          isAllergenfrei: isAllergenfreiInput,
+          isCookChill: isCookChillInput,
+          isFreezeThawStable: isFreezeThawStableInput,
+          isPalmOilFree: isPalmOilFreeInput,
+          isYeastFree: isYeastFreeInput,
+          isLactoseFree: isLactoseFreeInput,
+          isGlutenFree: isGlutenFreeInput,
         }),
       });
       const payload = (await response.json()) as {
@@ -2055,6 +2113,15 @@ export function InventoryManager() {
                             unit: string;
                             purchase_price: number;
                             allergens: string[];
+                            is_bio?: boolean;
+                            is_deklarationsfrei?: boolean;
+                            is_allergenfrei?: boolean;
+                            is_cook_chill?: boolean;
+                            is_freeze_thaw_stable?: boolean;
+                            is_palm_oil_free?: boolean;
+                            is_yeast_free?: boolean;
+                            is_lactose_free?: boolean;
+                            is_gluten_free?: boolean;
                           };
                           fileUrl?: string;
                         };
@@ -2085,6 +2152,23 @@ export function InventoryManager() {
                               payload.extracted.purchase_price,
                             allergens: payload.extracted.allergens,
                             fileUrl: payload.fileUrl,
+                            isBio: payload.extracted.is_bio ?? false,
+                            isDeklarationsfrei:
+                              payload.extracted.is_deklarationsfrei ?? false,
+                            isAllergenfrei:
+                              payload.extracted.is_allergenfrei ?? false,
+                            isCookChill:
+                              payload.extracted.is_cook_chill ?? false,
+                            isFreezeThawStable:
+                              payload.extracted.is_freeze_thaw_stable ?? false,
+                            isPalmOilFree:
+                              payload.extracted.is_palm_oil_free ?? false,
+                            isYeastFree:
+                              payload.extracted.is_yeast_free ?? false,
+                            isLactoseFree:
+                              payload.extracted.is_lactose_free ?? false,
+                            isGlutenFree:
+                              payload.extracted.is_gluten_free ?? false,
                           });
                         }
                         setDocFile(null);
@@ -2151,6 +2235,68 @@ export function InventoryManager() {
                           {docParsed.purchasePrice.toFixed(2)} €
                         </span>
                       </div>
+                      {(docParsed.isBio ||
+                        docParsed.isDeklarationsfrei ||
+                        docParsed.isAllergenfrei ||
+                        docParsed.isCookChill ||
+                        docParsed.isFreezeThawStable ||
+                        docParsed.isPalmOilFree ||
+                        docParsed.isYeastFree ||
+                        docParsed.isLactoseFree ||
+                        docParsed.isGlutenFree) && (
+                        <div className="space-y-1">
+                          <div className="text-muted-foreground">
+                            Eigenschaften
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {docParsed.isBio && (
+                              <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
+                                BIO
+                              </Badge>
+                            )}
+                            {docParsed.isDeklarationsfrei && (
+                              <Badge className="px-2 py-0.5 text-[10px]">
+                                deklarationsfrei
+                              </Badge>
+                            )}
+                            {docParsed.isAllergenfrei && (
+                              <Badge className="px-2 py-0.5 text-[10px]">
+                                allergenfrei
+                              </Badge>
+                            )}
+                            {docParsed.isCookChill && (
+                              <Badge className="px-2 py-0.5 text-[10px]">
+                                cook &amp; chill
+                              </Badge>
+                            )}
+                            {docParsed.isFreezeThawStable && (
+                              <Badge className="px-2 py-0.5 text-[10px]">
+                                freeze/thaw-stable
+                              </Badge>
+                            )}
+                            {docParsed.isPalmOilFree && (
+                              <Badge className="px-2 py-0.5 text-[10px]">
+                                palmöl-frei
+                              </Badge>
+                            )}
+                            {docParsed.isYeastFree && (
+                              <Badge className="px-2 py-0.5 text-[10px]">
+                                hefefrei
+                              </Badge>
+                            )}
+                            {docParsed.isLactoseFree && (
+                              <Badge className="px-2 py-0.5 text-[10px]">
+                                laktosefrei
+                              </Badge>
+                            )}
+                            {docParsed.isGlutenFree && (
+                              <Badge className="px-2 py-0.5 text-[10px]">
+                                glutenfrei
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       {docParsed.allergens.length > 0 && (
                         <div className="space-y-1">
                           <div className="text-muted-foreground">
@@ -2447,28 +2593,33 @@ export function InventoryManager() {
               )}
               {selectedItem && (
                 <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      {selectedItem.type === "eigenproduktion" ? (
-                        <>
-                          <Input
-                            value={nameInput}
-                            onChange={(event) =>
-                              setNameInput(event.target.value)
-                            }
-                            className="h-8 w-64 px-2 py-1 text-sm font-semibold"
-                          />
-                          <TypeBadge type={selectedItem.type} />
-                        </>
-                      ) : (
-                        <>
-                          <h2 className="text-lg font-semibold">
-                            {selectedItem.name}
-                          </h2>
-                          <TypeBadge type={selectedItem.type} />
-                        </>
-                      )}
-                    </div>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        {selectedItem.type === "eigenproduktion" ? (
+                          <>
+                            <Input
+                              value={nameInput}
+                              onChange={(event) =>
+                                setNameInput(event.target.value)
+                              }
+                              className="h-8 w-64 px-2 py-1 text-sm font-semibold"
+                            />
+                            <TypeBadge type={selectedItem.type} />
+                          </>
+                        ) : (
+                          <>
+                            <h2 className="text-lg font-semibold">
+                              {selectedItem.name}
+                            </h2>
+                            <TypeBadge type={selectedItem.type} />
+                          </>
+                        )}
+                        {isBioInput && (
+                          <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
+                            BIO
+                          </Badge>
+                        )}
+                      </div>
                     <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
                       <div>
                         Intern:{" "}
@@ -2557,6 +2708,133 @@ export function InventoryManager() {
                         })}
                       </div>
                     )}
+                    <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                      <span>Eigenschaften:</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsBioInput((current) => !current)}
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[10px]",
+                          isBioInput
+                            ? "border-emerald-600 bg-emerald-600 text-emerald-50"
+                            : "border-muted-foreground/40 text-muted-foreground"
+                        )}
+                      >
+                        BIO
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsDeklarationsfreiInput((current) => !current)
+                        }
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[10px]",
+                          isDeklarationsfreiInput
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 text-muted-foreground"
+                        )}
+                      >
+                        deklarationsfrei
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsAllergenfreiInput((current) => !current)
+                        }
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[10px]",
+                          isAllergenfreiInput
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 text-muted-foreground"
+                        )}
+                      >
+                        allergenfrei
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsCookChillInput((current) => !current)
+                        }
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[10px]",
+                          isCookChillInput
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 text-muted-foreground"
+                        )}
+                      >
+                        cook &amp; chill
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsFreezeThawStableInput((current) => !current)
+                        }
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[10px]",
+                          isFreezeThawStableInput
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 text-muted-foreground"
+                        )}
+                      >
+                        freeze/thaw-stable
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsPalmOilFreeInput((current) => !current)
+                        }
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[10px]",
+                          isPalmOilFreeInput
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 text-muted-foreground"
+                        )}
+                      >
+                        palmöl-frei
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsYeastFreeInput((current) => !current)
+                        }
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[10px]",
+                          isYeastFreeInput
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 text-muted-foreground"
+                        )}
+                      >
+                        hefefrei
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsLactoseFreeInput((current) => !current)
+                        }
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[10px]",
+                          isLactoseFreeInput
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 text-muted-foreground"
+                        )}
+                      >
+                        laktosefrei
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setIsGlutenFreeInput((current) => !current)
+                        }
+                        className={cn(
+                          "rounded-full border px-2 py-0.5 text-[10px]",
+                          isGlutenFreeInput
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-muted-foreground/40 text-muted-foreground"
+                        )}
+                      >
+                        glutenfrei
+                      </button>
+                    </div>
                     {selectedItem.allergens &&
                       selectedItem.allergens.length > 0 && (
                         <div className="flex flex-wrap gap-1">

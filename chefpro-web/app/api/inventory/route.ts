@@ -51,6 +51,15 @@ type InventoryItem = {
   preparationSteps?: string | null;
   nutritionPerUnit?: NutritionTotals | null;
   standardPreparation?: StandardPreparation | null;
+  isBio?: boolean;
+  isDeklarationsfrei?: boolean;
+  isAllergenfrei?: boolean;
+  isCookChill?: boolean;
+  isFreezeThawStable?: boolean;
+  isPalmOilFree?: boolean;
+  isYeastFree?: boolean;
+  isLactoseFree?: boolean;
+  isGlutenFree?: boolean;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
 };
@@ -76,6 +85,15 @@ type SupabaseItemRow = {
   preparation_steps: string | null;
   standard_preparation: StandardPreparation | null;
   nutrition_per_unit: NutritionTotals | null;
+  is_bio: boolean | null;
+  is_deklarationsfrei: boolean | null;
+  is_allergenfrei: boolean | null;
+  is_cook_chill: boolean | null;
+  is_freeze_thaw_stable: boolean | null;
+  is_palm_oil_free: boolean | null;
+  is_yeast_free: boolean | null;
+  is_lactose_free: boolean | null;
+  is_gluten_free: boolean | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -166,8 +184,17 @@ export async function GET() {
         dosageInstructions: row.dosage_instructions,
         yieldInfo: row.yield_info,
         preparationSteps: row.preparation_steps,
-      nutritionPerUnit: row.nutrition_per_unit,
+        nutritionPerUnit: row.nutrition_per_unit,
         standardPreparation: row.standard_preparation,
+        isBio: row.is_bio ?? false,
+        isDeklarationsfrei: row.is_deklarationsfrei ?? false,
+        isAllergenfrei: row.is_allergenfrei ?? false,
+        isCookChill: row.is_cook_chill ?? false,
+        isFreezeThawStable: row.is_freeze_thaw_stable ?? false,
+        isPalmOilFree: row.is_palm_oil_free ?? false,
+        isYeastFree: row.is_yeast_free ?? false,
+        isLactoseFree: row.is_lactose_free ?? false,
+        isGlutenFree: row.is_gluten_free ?? false,
       });
     }
 

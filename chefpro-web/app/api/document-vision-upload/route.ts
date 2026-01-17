@@ -22,6 +22,15 @@ type VisionExtracted = {
   yield_info?: string | null;
   preparation_steps?: string | null;
   nutrition_per_100?: VisionNutritionPer100 | null;
+  is_bio?: boolean;
+  is_deklarationsfrei?: boolean;
+  is_allergenfrei?: boolean;
+  is_cook_chill?: boolean;
+  is_freeze_thaw_stable?: boolean;
+  is_palm_oil_free?: boolean;
+  is_yeast_free?: boolean;
+  is_lactose_free?: boolean;
+  is_gluten_free?: boolean;
 };
 
 type InventoryType = "zukauf" | "eigenproduktion";
@@ -32,6 +41,15 @@ type SupabaseItemRow = {
   item_type: InventoryType;
   unit: string;
   purchase_price: number;
+  is_bio: boolean | null;
+  is_deklarationsfrei: boolean | null;
+  is_allergenfrei: boolean | null;
+  is_cook_chill: boolean | null;
+  is_freeze_thaw_stable: boolean | null;
+  is_palm_oil_free: boolean | null;
+  is_yeast_free: boolean | null;
+  is_lactose_free: boolean | null;
+  is_gluten_free: boolean | null;
 };
 
 const STORAGE_BUCKET = "product-documents";
@@ -144,11 +162,11 @@ export async function POST(request: Request) {
   }
 
   const systemPrompt =
-    "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt mit den Feldern: name (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), yield_info (string), preparation_steps (string), nutrition_per_100 (object). nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml und enthält die Felder: energy_kcal (number), fat (number), saturated_fat (number), carbs (number), sugar (number), protein (number), salt (number). Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge. ingredients sind die Zutaten in der Reihenfolge der Deklaration. dosage_instructions beschreibt Dosier- oder Anwendungsempfehlungen. yield_info beschreibt Ausbeute oder Portionsangaben. preparation_steps beschreibt die Zubereitung in kompakten Sätzen.";
+    "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt mit den Feldern: name (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), yield_info (string), preparation_steps (string), nutrition_per_100 (object), is_bio (boolean), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean). nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml und enthält die Felder: energy_kcal (number), fat (number), saturated_fat (number), carbs (number), sugar (number), protein (number), salt (number). Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge. ingredients sind die Zutaten in der Reihenfolge der Deklaration. dosage_instructions beschreibt Dosier- oder Anwendungsempfehlungen. yield_info beschreibt Ausbeute oder Portionsangaben. preparation_steps beschreibt die Zubereitung in kompakten Sätzen. Setze is_bio nur dann auf true, wenn das Produkt als BIO gekennzeichnet ist (z.B. EU-Bio-Siegel, „Bio“ im Namen oder Text). Setze die übrigen boolean-Felder nur dann auf true, wenn die entsprechende Eigenschaft explizit im Dokument genannt oder eindeutig erkennbar ist.";
 
   const userText =
     promptInputText ??
-    "Analysiere dieses Produktdatenblatt und gib die Felder name, unit, purchase_price, allergens, ingredients, dosage_instructions, yield_info, preparation_steps und nutrition_per_100 zurück. nutrition_per_100 sind die Nährwerte pro 100 g bzw. 100 ml mit energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt.";
+    "Analysiere dieses Produktdatenblatt und gib die Felder name, unit, purchase_price, allergens, ingredients, dosage_instructions, yield_info, preparation_steps, nutrition_per_100 sowie alle boolean-Flags is_bio, is_deklarationsfrei, is_allergenfrei, is_cook_chill, is_freeze_thaw_stable, is_palm_oil_free, is_yeast_free, is_lactose_free, is_gluten_free zurück. nutrition_per_100 sind die Nährwerte pro 100 g bzw. 100 ml mit energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt.";
 
   const messages = [
     {
@@ -293,6 +311,36 @@ export async function POST(request: Request) {
           }
         : null;
 
+    const isBio = typeof parsed.is_bio === "boolean" ? parsed.is_bio : false;
+    const isDeklarationsfrei =
+      typeof parsed.is_deklarationsfrei === "boolean"
+        ? parsed.is_deklarationsfrei
+        : false;
+    const isAllergenfrei =
+      typeof parsed.is_allergenfrei === "boolean"
+        ? parsed.is_allergenfrei
+        : false;
+    const isCookChill =
+      typeof parsed.is_cook_chill === "boolean" ? parsed.is_cook_chill : false;
+    const isFreezeThawStable =
+      typeof parsed.is_freeze_thaw_stable === "boolean"
+        ? parsed.is_freeze_thaw_stable
+        : false;
+    const isPalmOilFree =
+      typeof parsed.is_palm_oil_free === "boolean"
+        ? parsed.is_palm_oil_free
+        : false;
+    const isYeastFree =
+      typeof parsed.is_yeast_free === "boolean" ? parsed.is_yeast_free : false;
+    const isLactoseFree =
+      typeof parsed.is_lactose_free === "boolean"
+        ? parsed.is_lactose_free
+        : false;
+    const isGlutenFree =
+      typeof parsed.is_gluten_free === "boolean"
+        ? parsed.is_gluten_free
+        : false;
+
     const insertItemResponse = await client
       .from("items")
       .insert({
@@ -306,6 +354,15 @@ export async function POST(request: Request) {
         dosage_instructions: dosageInstructions,
         yield_info: yieldInfo,
         preparation_steps: preparationSteps,
+        is_bio: isBio,
+        is_deklarationsfrei: isDeklarationsfrei,
+        is_allergenfrei: isAllergenfrei,
+        is_cook_chill: isCookChill,
+        is_freeze_thaw_stable: isFreezeThawStable,
+        is_palm_oil_free: isPalmOilFree,
+        is_yeast_free: isYeastFree,
+        is_lactose_free: isLactoseFree,
+        is_gluten_free: isGlutenFree,
       })
       .select("*")
       .single();
@@ -341,6 +398,15 @@ export async function POST(request: Request) {
         type: createdItemRow.item_type,
         unit: createdItemRow.unit,
         purchasePrice: createdItemRow.purchase_price,
+        isBio: createdItemRow.is_bio ?? false,
+        isDeklarationsfrei: createdItemRow.is_deklarationsfrei ?? false,
+        isAllergenfrei: createdItemRow.is_allergenfrei ?? false,
+        isCookChill: createdItemRow.is_cook_chill ?? false,
+        isFreezeThawStable: createdItemRow.is_freeze_thaw_stable ?? false,
+        isPalmOilFree: createdItemRow.is_palm_oil_free ?? false,
+        isYeastFree: createdItemRow.is_yeast_free ?? false,
+        isLactoseFree: createdItemRow.is_lactose_free ?? false,
+        isGlutenFree: createdItemRow.is_gluten_free ?? false,
       },
       extracted: {
         name: parsed.name,
@@ -351,6 +417,15 @@ export async function POST(request: Request) {
         dosage_instructions: dosageInstructions,
         yield_info: yieldInfo,
         preparation_steps: preparationSteps,
+        is_bio: isBio,
+        is_deklarationsfrei: isDeklarationsfrei,
+        is_allergenfrei: isAllergenfrei,
+        is_cook_chill: isCookChill,
+        is_freeze_thaw_stable: isFreezeThawStable,
+        is_palm_oil_free: isPalmOilFree,
+        is_yeast_free: isYeastFree,
+        is_lactose_free: isLactoseFree,
+        is_gluten_free: isGlutenFree,
       },
       fileUrl: publicUrl,
     });

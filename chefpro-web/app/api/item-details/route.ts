@@ -33,6 +33,15 @@ type SupabaseItemRow = {
   yield_info: string | null;
   preparation_steps: string | null;
   standard_preparation: StandardPreparation | null;
+  is_bio: boolean | null;
+  is_deklarationsfrei: boolean | null;
+  is_allergenfrei: boolean | null;
+  is_cook_chill: boolean | null;
+  is_freeze_thaw_stable: boolean | null;
+  is_palm_oil_free: boolean | null;
+  is_yeast_free: boolean | null;
+  is_lactose_free: boolean | null;
+  is_gluten_free: boolean | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -71,6 +80,15 @@ type InventoryItem = {
   yieldInfo?: string | null;
   preparationSteps?: string | null;
   standardPreparation?: StandardPreparation | null;
+  isBio?: boolean;
+  isDeklarationsfrei?: boolean;
+  isAllergenfrei?: boolean;
+  isCookChill?: boolean;
+  isFreezeThawStable?: boolean;
+  isPalmOilFree?: boolean;
+  isYeastFree?: boolean;
+  isLactoseFree?: boolean;
+  isGlutenFree?: boolean;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
 };
@@ -103,6 +121,15 @@ export async function POST(request: Request) {
     portionUnit?: string | null;
     nutritionTags?: string[];
     standardPreparation?: StandardPreparation | null;
+    isBio?: boolean;
+    isDeklarationsfrei?: boolean;
+    isAllergenfrei?: boolean;
+    isCookChill?: boolean;
+    isFreezeThawStable?: boolean;
+    isPalmOilFree?: boolean;
+    isYeastFree?: boolean;
+    isLactoseFree?: boolean;
+    isGlutenFree?: boolean;
   };
 
   if (!body.id) {
@@ -126,6 +153,15 @@ export async function POST(request: Request) {
     portion_unit?: string | null;
     nutrition_tags?: string[] | null;
     standard_preparation?: StandardPreparation | null;
+    is_bio?: boolean;
+    is_deklarationsfrei?: boolean;
+    is_allergenfrei?: boolean;
+    is_cook_chill?: boolean;
+    is_freeze_thaw_stable?: boolean;
+    is_palm_oil_free?: boolean;
+    is_yeast_free?: boolean;
+    is_lactose_free?: boolean;
+    is_gluten_free?: boolean;
   } = {};
 
   if (typeof body.name === "string") {
@@ -202,6 +238,34 @@ export async function POST(request: Request) {
   if (body.nutritionTags) {
     updates.nutrition_tags =
       body.nutritionTags.length > 0 ? body.nutritionTags : [];
+  }
+
+  if (typeof body.isBio === "boolean") {
+    updates.is_bio = body.isBio;
+  }
+  if (typeof body.isDeklarationsfrei === "boolean") {
+    updates.is_deklarationsfrei = body.isDeklarationsfrei;
+  }
+  if (typeof body.isAllergenfrei === "boolean") {
+    updates.is_allergenfrei = body.isAllergenfrei;
+  }
+  if (typeof body.isCookChill === "boolean") {
+    updates.is_cook_chill = body.isCookChill;
+  }
+  if (typeof body.isFreezeThawStable === "boolean") {
+    updates.is_freeze_thaw_stable = body.isFreezeThawStable;
+  }
+  if (typeof body.isPalmOilFree === "boolean") {
+    updates.is_palm_oil_free = body.isPalmOilFree;
+  }
+  if (typeof body.isYeastFree === "boolean") {
+    updates.is_yeast_free = body.isYeastFree;
+  }
+  if (typeof body.isLactoseFree === "boolean") {
+    updates.is_lactose_free = body.isLactoseFree;
+  }
+  if (typeof body.isGlutenFree === "boolean") {
+    updates.is_gluten_free = body.isGlutenFree;
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "standardPreparation")) {
@@ -325,6 +389,15 @@ export async function POST(request: Request) {
     yieldInfo: row.yield_info,
     preparationSteps: row.preparation_steps,
     standardPreparation: row.standard_preparation,
+    isBio: row.is_bio ?? false,
+    isDeklarationsfrei: row.is_deklarationsfrei ?? false,
+    isAllergenfrei: row.is_allergenfrei ?? false,
+    isCookChill: row.is_cook_chill ?? false,
+    isFreezeThawStable: row.is_freeze_thaw_stable ?? false,
+    isPalmOilFree: row.is_palm_oil_free ?? false,
+    isYeastFree: row.is_yeast_free ?? false,
+    isLactoseFree: row.is_lactose_free ?? false,
+    isGlutenFree: row.is_gluten_free ?? false,
     hasGhostComponents:
       hasGhostComponents || undefined,
     components,
