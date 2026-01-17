@@ -643,86 +643,6 @@ export function InventoryManager() {
       setIsSaving(true);
       setError(null);
 
-      let finalComponents = cleanedComponents;
-
-      const trimmedAdHocName = adHocName.trim();
-
-      if (trimmedAdHocName.length > 0) {
-        if (adHocSelectedItemId) {
-          const selectedItemForAdHoc = itemsById.get(adHocSelectedItemId);
-          const unit =
-            selectedItemForAdHoc && selectedItemForAdHoc.unit
-              ? selectedItemForAdHoc.unit
-              : adHocUnit.trim();
-          if (unit) {
-            finalComponents = [
-              ...finalComponents,
-              {
-                itemId: adHocSelectedItemId,
-                quantity: 1,
-                unit,
-              },
-            ];
-          }
-          setAdHocName("");
-          setAdHocUnit("");
-          setAdHocPrice("");
-          setAdHocSelectedItemId(null);
-        } else if (
-          adHocUnit.trim().length > 0 &&
-          adHocPrice.trim().length > 0
-        ) {
-          const parsedPrice = Number(adHocPrice.replace(",", ".").trim());
-
-          if (!Number.isNaN(parsedPrice) && parsedPrice > 0) {
-            const createResponse = await fetch("/api/inventory", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                name: trimmedAdHocName,
-                type: "zukauf" as InventoryType,
-                unit: adHocUnit.trim(),
-                purchasePrice: parsedPrice,
-                components: [],
-              }),
-            });
-
-            if (!createResponse.ok) {
-              let message = "Fehler beim Anlegen der Ad-hoc-Zutat.";
-              try {
-                const payload = (await createResponse.json()) as {
-                  error?: unknown;
-                };
-                if (payload && typeof payload.error === "string") {
-                  message = payload.error;
-                }
-              } catch {
-              }
-              throw new Error(message);
-            }
-
-            const createdAdHoc = (await createResponse.json()) as InventoryItem;
-
-            setItems((previous) => [...previous, createdAdHoc]);
-
-            finalComponents = [
-              ...finalComponents,
-              {
-                itemId: createdAdHoc.id,
-                quantity: 1,
-                unit: createdAdHoc.unit,
-              },
-            ];
-
-            setAdHocName("");
-            setAdHocUnit("");
-            setAdHocPrice("");
-          }
-        }
-      }
-
       const response = await fetch("/api/recipe-structure", {
         method: "POST",
         headers: {
@@ -730,7 +650,7 @@ export function InventoryManager() {
         },
         body: JSON.stringify({
           parentItemId: selectedItem.id,
-          components: finalComponents,
+          components: cleanedComponents,
         }),
       });
 
@@ -771,6 +691,114 @@ export function InventoryManager() {
         error instanceof Error
           ? error.message
           : "Fehler beim Speichern der Komponenten.";
+      setError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleAddAdHocComponent() {
+    const trimmedName = adHocName.trim();
+    if (!trimmedName) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setError(null);
+
+      if (adHocSelectedItemId) {
+        const selectedItemForAdHoc = itemsById.get(adHocSelectedItemId);
+        const unit =
+          selectedItemForAdHoc && selectedItemForAdHoc.unit
+            ? selectedItemForAdHoc.unit
+            : adHocUnit.trim();
+        if (!unit) {
+          setIsSaving(false);
+          return;
+        }
+        setEditingComponents((previous) => [
+          ...previous,
+          {
+            itemId: adHocSelectedItemId,
+            quantity: 1,
+            unit,
+          },
+        ]);
+        setAdHocName("");
+        setAdHocUnit("");
+        setAdHocPrice("");
+        setAdHocSelectedItemId(null);
+        return;
+      }
+
+      const trimmedUnit = adHocUnit.trim();
+      const trimmedPrice = adHocPrice.trim();
+
+      if (!trimmedUnit || !trimmedPrice) {
+        setError(
+          "Bitte Einheit und EK-Preis für die neue Zutat ausfüllen."
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      const parsedPrice = Number(trimmedPrice.replace(",", "."));
+      if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+        setError("EK-Preis muss eine positive Zahl sein.");
+        setIsSaving(false);
+        return;
+      }
+
+      const createResponse = await fetch("/api/inventory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: trimmedName,
+          type: "zukauf" as InventoryType,
+          unit: trimmedUnit,
+          purchasePrice: parsedPrice,
+          components: [],
+        }),
+      });
+
+      if (!createResponse.ok) {
+        let message = "Fehler beim Anlegen der Ad-hoc-Zutat.";
+        try {
+          const payload = (await createResponse.json()) as {
+            error?: unknown;
+          };
+          if (payload && typeof payload.error === "string") {
+            message = payload.error;
+          }
+        } catch {
+        }
+        throw new Error(message);
+      }
+
+      const createdAdHoc = (await createResponse.json()) as InventoryItem;
+
+      setItems((previous) => [...previous, createdAdHoc]);
+
+      setEditingComponents((previous) => [
+        ...previous,
+        {
+          itemId: createdAdHoc.id,
+          quantity: 1,
+          unit: createdAdHoc.unit,
+        },
+      ]);
+
+      setAdHocName("");
+      setAdHocUnit("");
+      setAdHocPrice("");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Fehler beim Hinzufügen der Ad-hoc-Zutat.";
       setError(message);
     } finally {
       setIsSaving(false);
@@ -1838,8 +1866,8 @@ export function InventoryManager() {
                       )}
                       {isEditingComponents && (
                         <div className="space-y-3 rounded-md border bg-muted/40 p-3 text-xs">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="flex-1 space-y-2">
+                          <div className="space-y-3">
+                            <div className="space-y-2">
                               <Input
                                 placeholder={
                                   isSwapMode && swapGhostName
@@ -1955,8 +1983,104 @@ export function InventoryManager() {
                                 </div>
                               )}
                             </div>
+                            {selectedItem.type === "eigenproduktion" && (
+                              <div className="space-y-2 rounded-md border border-sky-300 bg-sky-50 px-3 py-3 text-[11px]">
+                                <div className="text-[11px] font-semibold text-sky-900">
+                                  Nicht gefunden? Neue Zutat direkt hier anlegen
+                                </div>
+                                <div className="grid gap-2 md:grid-cols-[2fr_1fr_1fr]">
+                                  <Input
+                                    placeholder="Neue Zutat ad-hoc hinzufügen"
+                                    value={adHocName}
+                                    onChange={(event) => {
+                                      setAdHocSelectedItemId(null);
+                                      setAdHocName(event.target.value);
+                                    }}
+                                  />
+                                  <Input
+                                    placeholder="Einheit"
+                                    value={adHocUnit}
+                                    onChange={(event) => {
+                                      setAdHocSelectedItemId(null);
+                                      setAdHocUnit(event.target.value);
+                                    }}
+                                  />
+                                  <Input
+                                    placeholder="EK-Preis"
+                                    value={adHocPrice}
+                                    onChange={(event) => {
+                                      setAdHocSelectedItemId(null);
+                                      setAdHocPrice(event.target.value);
+                                    }}
+                                  />
+                                </div>
+                                {adHocSuggestions.length > 0 && (
+                                  <div className="max-h-32 space-y-1 overflow-y-auto">
+                                    {adHocSuggestions.map((item) => (
+                                      <button
+                                        key={item.id}
+                                        type="button"
+                                        className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
+                                        onClick={() => {
+                                          setAdHocSelectedItemId(item.id);
+                                          setAdHocName(item.name);
+                                          setAdHocUnit(item.unit);
+                                          setAdHocPrice(
+                                            item.purchasePrice.toFixed(2)
+                                          );
+                                        }}
+                                      >
+                                        <div className="flex flex-1 flex-col">
+                                          <div className="flex items-center gap-1">
+                                            <span className="truncate text-[11px] font-medium">
+                                              {item.name}
+                                            </span>
+                                            <TypeBadge type={item.type} />
+                                          </div>
+                                          <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                                            <span>
+                                              EK: {item.purchasePrice.toFixed(2)}{" "}
+                                              € / {item.unit}
+                                            </span>
+                                            {item.internalId != null && (
+                                              <span>
+                                                Intern: INT-{item.internalId}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                {adHocExactMatchItem &&
+                                  (!adHocSelectedItemId ||
+                                    adHocSelectedItemId !==
+                                      adHocExactMatchItem.id) && (
+                                    <div className="text-[10px] text-amber-700">
+                                      Artikel bereits vorhanden. Vorhandenen
+                                      Artikel nutzen?
+                                    </div>
+                                  )}
+                                <div className="flex justify-end">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={isSaving}
+                                    onClick={handleAddAdHocComponent}
+                                  >
+                                    Zutat zum Rezept hinzufügen
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                           <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="text-xs font-semibold">
+                                Zutaten im Rezept
+                              </h4>
+                            </div>
                             {editingComponents.length === 0 && (
                               <div className="rounded-md border border-dashed bg-card px-2 py-2 text-[11px] text-muted-foreground">
                                 Noch keine Komponenten hinzugefügt.
@@ -2114,87 +2238,6 @@ export function InventoryManager() {
                               );
                             })}
                           </div>
-                          {selectedItem.type === "eigenproduktion" && (
-                            <div className="mt-3 space-y-2 rounded-md border border-sky-300 bg-sky-50 px-3 py-3 text-[11px]">
-                              <div className="text-[11px] font-semibold text-sky-900">
-                                Nicht gefunden? Neue Zutat direkt hier anlegen
-                              </div>
-                              <div className="grid gap-2 md:grid-cols-[2fr_1fr_1fr]">
-                                <Input
-                                  placeholder="Neue Zutat ad-hoc hinzufügen"
-                                  value={adHocName}
-                                  onChange={(event) => {
-                                    setAdHocSelectedItemId(null);
-                                    setAdHocName(event.target.value);
-                                  }}
-                                />
-                                <Input
-                                  placeholder="Einheit"
-                                  value={adHocUnit}
-                                  onChange={(event) => {
-                                    setAdHocSelectedItemId(null);
-                                    setAdHocUnit(event.target.value);
-                                  }}
-                                />
-                                <Input
-                                  placeholder="EK-Preis"
-                                  value={adHocPrice}
-                                  onChange={(event) => {
-                                    setAdHocSelectedItemId(null);
-                                    setAdHocPrice(event.target.value);
-                                  }}
-                                />
-                              </div>
-                              {adHocSuggestions.length > 0 && (
-                                <div className="max-h-32 space-y-1 overflow-y-auto">
-                                  {adHocSuggestions.map((item) => (
-                                    <button
-                                      key={item.id}
-                                      type="button"
-                                      className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
-                                      onClick={() => {
-                                        setAdHocSelectedItemId(item.id);
-                                        setAdHocName(item.name);
-                                        setAdHocUnit(item.unit);
-                                        setAdHocPrice(
-                                          item.purchasePrice.toFixed(2)
-                                        );
-                                      }}
-                                    >
-                                      <div className="flex flex-1 flex-col">
-                                        <div className="flex items-center gap-1">
-                                          <span className="truncate text-[11px] font-medium">
-                                            {item.name}
-                                          </span>
-                                          <TypeBadge type={item.type} />
-                                        </div>
-                                        <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                                          <span>
-                                            EK: {item.purchasePrice.toFixed(2)}{" "}
-                                            € / {item.unit}
-                                          </span>
-                                          {item.internalId != null && (
-                                            <span>
-                                              Intern: INT-{item.internalId}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                              {adHocExactMatchItem &&
-                                (!adHocSelectedItemId ||
-                                  adHocSelectedItemId !==
-                                    adHocExactMatchItem.id) && (
-                                  <div className="text-[10px] text-amber-700">
-                                    Artikel bereits vorhanden. Vorhandenen
-                                    Artikel nutzen?
-                                  </div>
-                                )}
-                            </div>
-                          )}
                           <div className="flex justify-end gap-2">
                             <Button
                               type="button"
