@@ -58,6 +58,20 @@ type NutritionTotals = {
   salt: number;
 };
 
+type RecipeCalculation = {
+  totalCost: number;
+  costPerPortion: number | null;
+  marginPerPortion: number | null;
+  goodsSharePercent: number | null;
+  hasMissingPrices: boolean;
+};
+
+type RecipeNutritionSummary = {
+  perRecipe: NutritionTotals | null;
+  perPortion: NutritionTotals | null;
+  hasMissingData: boolean;
+};
+
 type InventoryItem = {
   id: string;
   internalId?: number | null;
@@ -194,6 +208,8 @@ const initialItems: InventoryItem[] = [
 ];
 
 type FilterType = "all" | InventoryType;
+
+type RecipeViewMode = "list" | "grid" | "detailed";
 
 function createPreparationStepId() {
   if (
@@ -411,6 +427,24 @@ export function InventoryManager() {
     stepId: string;
     imageUrl: string;
   } | null>(null);
+  const [recipeViewMode, setRecipeViewMode] =
+    useState<RecipeViewMode>("list");
+  const [isRecipeSidebarOpen, setIsRecipeSidebarOpen] = useState(true);
+  const [recipeCategoryFilter, setRecipeCategoryFilter] = useState<string | null>(
+    null
+  );
+  const [recipeProFilter, setRecipeProFilter] = useState<
+    | "bio"
+    | "deklarationsfrei"
+    | "allergenfrei"
+    | "glutenfrei"
+    | "laktosefrei"
+    | "hefefrei"
+    | "palmoelfrei"
+    | null
+  >(null);
+  const [isRecipePresentationMode, setIsRecipePresentationMode] =
+    useState(false);
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -485,6 +519,36 @@ export function InventoryManager() {
       }
       const query = search.trim().toLowerCase();
       if (!query) {
+        if (activeSection === "rezepte") {
+          if (
+            recipeCategoryFilter &&
+            (item.category ?? "").toLowerCase() !==
+              recipeCategoryFilter.toLowerCase()
+          ) {
+            return false;
+          }
+          if (recipeProFilter === "bio" && !item.isBio) {
+            return false;
+          }
+          if (recipeProFilter === "deklarationsfrei" && !item.isDeklarationsfrei) {
+            return false;
+          }
+          if (recipeProFilter === "allergenfrei" && !item.isAllergenfrei) {
+            return false;
+          }
+          if (recipeProFilter === "glutenfrei" && !item.isGlutenFree) {
+            return false;
+          }
+          if (recipeProFilter === "laktosefrei" && !item.isLactoseFree) {
+            return false;
+          }
+          if (recipeProFilter === "hefefrei" && !item.isYeastFree) {
+            return false;
+          }
+          if (recipeProFilter === "palmoelfrei" && !item.isPalmOilFree) {
+            return false;
+          }
+        }
         return true;
       }
       const manufacturer =
@@ -513,7 +577,14 @@ export function InventoryManager() {
         internalId.includes(query)
       );
     });
-  }, [effectiveItems, filterType, search]);
+  }, [
+    activeSection,
+    effectiveItems,
+    filterType,
+    recipeCategoryFilter,
+    recipeProFilter,
+    search,
+  ]);
 
   const docMatch = useMemo(() => {
     if (!docParsed) {
@@ -611,7 +682,7 @@ export function InventoryManager() {
     );
   }, [editingComponents, isEditingComponents, itemsById, selectedItem]);
 
-  const recipeCalculation = useMemo(() => {
+  const recipeCalculation = useMemo<RecipeCalculation | null>(() => {
     if (!selectedItem || selectedItem.type !== "eigenproduktion") {
       return null;
     }
@@ -713,7 +784,7 @@ export function InventoryManager() {
     };
   }, [editingComponents, isEditingComponents, itemsById, selectedItem]);
 
-  const nutritionSummary = useMemo(() => {
+  const nutritionSummary = useMemo<RecipeNutritionSummary | null>(() => {
     if (!selectedItem || selectedItem.type !== "eigenproduktion") {
       return null;
     }
@@ -844,6 +915,7 @@ export function InventoryManager() {
 
   useEffect(() => {
     setSpecItem(null);
+    setIsRecipePresentationMode(false);
     if (!selectedItem) {
       setManufacturerInput("");
       setProAllergensInput("");
@@ -2061,11 +2133,46 @@ export function InventoryManager() {
           )}
           {activeSection !== "dashboard" && !isDetailView && (
             <Card className="flex flex-col">
-              <CardHeader>
-                <CardTitle>Artikelübersicht</CardTitle>
-                <CardDescription>
-                  Filtere nach Typ und wähle einen Artikel aus.
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
+                <div>
+                  <CardTitle>Artikelübersicht</CardTitle>
+                  <CardDescription>
+                    Filtere nach Typ und wähle einen Artikel aus.
+                  </CardDescription>
+                </div>
+                {activeSection === "rezepte" && (
+                  <div className="inline-flex rounded-md border bg-muted/40 p-1 text-[11px]">
+                    <Button
+                      type="button"
+                      variant={recipeViewMode === "list" ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setRecipeViewMode("list")}
+                    >
+                      List View
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={recipeViewMode === "grid" ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setRecipeViewMode("grid")}
+                    >
+                      Grid View
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        recipeViewMode === "detailed" ? "default" : "outline"
+                      }
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setRecipeViewMode("detailed")}
+                    >
+                      Detailed List
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 {error && (
@@ -2461,86 +2568,404 @@ export function InventoryManager() {
                     <Button
                       type="submit"
                       size="sm"
-                      disabled={isSaving || !newItemName.trim() || !newItemUnit.trim()}
+                      disabled={
+                        isSaving || !newItemName.trim() || !newItemUnit.trim()
+                      }
                     >
                       {isSaving ? "Speichern..." : "Anlegen"}
                     </Button>
                   </div>
                 </form>
-                <div className="max-h-[480px] space-y-1 overflow-y-auto pr-1">
-                  {isLoading && (
-                    <div className="rounded-md border border-dashed bg-muted/60 px-3 py-3 text-center text-xs text-muted-foreground">
-                      Lade Artikel aus der Datenbank ...
-                    </div>
-                  )}
-                  {filteredItems.length === 0 && (
-                    <div className="rounded-md border border-dashed bg-muted/60 px-3 py-8 text-center text-sm text-muted-foreground">
-                      Keine Artikel für die aktuelle Auswahl gefunden.
-                    </div>
-                  )}
-                  {filteredItems.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedItemId(item.id);
-                        setIsDetailView(true);
-                      }}
+                <div className="flex gap-3">
+                  {activeSection === "rezepte" && (
+                    <div
                       className={cn(
-                        "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                        selectedItem?.id === item.id &&
-                          "border-primary bg-primary/5"
+                        "w-52 shrink-0 rounded-md border bg-card/80 p-3 text-[11px] transition-all",
+                        !isRecipeSidebarOpen && "w-10 px-2"
                       )}
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{item.name}</span>
-                          <TypeBadge type={item.type} />
-                          {item.type === "eigenproduktion" &&
-                            item.hasGhostComponents && (
-                              <AlertTriangle className="h-3 w-3 text-red-500" />
-                            )}
-                        </div>
-                        <div className="space-y-0.5 text-[11px] text-muted-foreground">
-                          <div>
-                            Intern: {formatInternalId(item.internalId ?? null)}
-                          </div>
-                          <div>
-                            Hersteller-Art.-Nr.:{" "}
-                            {item.manufacturerArticleNumber && item.manufacturerArticleNumber.trim().length > 0
-                              ? item.manufacturerArticleNumber
-                              : "—"}
-                          </div>
-                          <div>
-                            EAN:{" "}
-                            {item.ean && item.ean.trim().length > 0
-                              ? item.ean
-                              : "—"}
-                          </div>
-                        </div>
-                          {item.allergens && item.allergens.length > 0 && (
-                            <div className="flex flex-wrap gap-1 text-[10px]">
-                              {item.allergens.map((allergen) => (
-                                <span
-                                  key={`${item.id}-${allergen}`}
-                                  className="rounded-md bg-amber-100 px-2 py-0.5 text-amber-900"
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={cn(
+                            "font-semibold",
+                            !isRecipeSidebarOpen && "truncate"
+                          )}
+                        >
+                          Filter
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-[10px]"
+                          onClick={() =>
+                            setIsRecipeSidebarOpen((current) => !current)
+                          }
+                        >
+                          {isRecipeSidebarOpen ? "–" : "+"}
+                        </Button>
+                      </div>
+                      {isRecipeSidebarOpen && (
+                        <div className="mt-2 space-y-3">
+                          <div className="space-y-1">
+                            <div className="text-[10px] text-muted-foreground">
+                              Kategorien
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setRecipeCategoryFilter(null)}
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[10px]",
+                                  !recipeCategoryFilter
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40 text-muted-foreground"
+                                )}
+                              >
+                                Alle
+                              </button>
+                              {recipeCategories.map((category) => (
+                                <button
+                                  key={category}
+                                  type="button"
+                                  onClick={() =>
+                                    setRecipeCategoryFilter(category)
+                                  }
+                                  className={cn(
+                                    "rounded-full border px-2 py-0.5 text-[10px]",
+                                    recipeCategoryFilter === category
+                                      ? "border-primary bg-primary text-primary-foreground"
+                                      : "border-muted-foreground/40 text-muted-foreground"
+                                  )}
                                 >
-                                  {allergen}
-                                </span>
+                                  {category}
+                                </button>
                               ))}
                             </div>
-                          )}
-                        <div className="text-xs text-muted-foreground">
-                          Einheit: {item.unit}
-                        </div>
-                      </div>
-                      {item.components && (
-                        <div className="text-xs text-muted-foreground">
-                          {item.components.length} Komponenten
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-[10px] text-muted-foreground">
+                              Profi-Eigenschaften
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setRecipeProFilter(null)}
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[10px]",
+                                  !recipeProFilter
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40 text-muted-foreground"
+                                )}
+                              >
+                                Alle
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRecipeProFilter("bio")}
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[10px]",
+                                  recipeProFilter === "bio"
+                                    ? "border-emerald-600 bg-emerald-600 text-emerald-50"
+                                    : "border-muted-foreground/40 text-muted-foreground"
+                                )}
+                              >
+                                BIO
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRecipeProFilter("deklarationsfrei")
+                                }
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[10px]",
+                                  recipeProFilter === "deklarationsfrei"
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40 text-muted-foreground"
+                                )}
+                              >
+                                deklarationsfrei
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRecipeProFilter("allergenfrei")
+                                }
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[10px]",
+                                  recipeProFilter === "allergenfrei"
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40 text-muted-foreground"
+                                )}
+                              >
+                                allergenfrei
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRecipeProFilter("glutenfrei")
+                                }
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[10px]",
+                                  recipeProFilter === "glutenfrei"
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40 text-muted-foreground"
+                                )}
+                              >
+                                glutenfrei
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRecipeProFilter("laktosefrei")
+                                }
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[10px]",
+                                  recipeProFilter === "laktosefrei"
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40 text-muted-foreground"
+                                )}
+                              >
+                                laktosefrei
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRecipeProFilter("hefefrei")}
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[10px]",
+                                  recipeProFilter === "hefefrei"
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40 text-muted-foreground"
+                                )}
+                              >
+                                hefefrei
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRecipeProFilter("palmoelfrei")
+                                }
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[10px]",
+                                  recipeProFilter === "palmoelfrei"
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-muted-foreground/40 text-muted-foreground"
+                                )}
+                              >
+                                palmöl-frei
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       )}
-                    </button>
-                  ))}
+                    </div>
+                  )}
+                  <div className="max-h-[480px] flex-1 space-y-1 overflow-y-auto pr-1">
+                    {isLoading && (
+                      <div className="rounded-md border border-dashed bg-muted/60 px-3 py-3 text-center text-xs text-muted-foreground">
+                        Lade Artikel aus der Datenbank ...
+                      </div>
+                    )}
+                    {filteredItems.length === 0 && (
+                      <div className="rounded-md border border-dashed bg-muted/60 px-3 py-8 text-center text-sm text-muted-foreground">
+                        Keine Artikel für die aktuelle Auswahl gefunden.
+                      </div>
+                    )}
+                    {activeSection === "rezepte" &&
+                      recipeViewMode === "grid" && (
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {filteredItems.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedItemId(item.id);
+                                setIsDetailView(true);
+                              }}
+                              className={cn(
+                                "flex flex-col items-start gap-2 rounded-md border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                                selectedItem?.id === item.id &&
+                                  "border-primary bg-primary/5"
+                              )}
+                            >
+                              <div className="flex w-full items-center justify-between gap-2">
+                                <span className="line-clamp-2 text-sm font-medium">
+                                  {item.name}
+                                </span>
+                                <TypeBadge type={item.type} />
+                              </div>
+                              <div className="flex flex-wrap gap-1 text-[10px] text-muted-foreground">
+                                {item.category && (
+                                  <span>{item.category}</span>
+                                )}
+                                {item.isBio && (
+                                  <Badge className="bg-emerald-600 px-2 py-0.5 text-[9px] font-semibold text-emerald-50">
+                                    BIO
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground">
+                                Einheit: {item.unit}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    {!(activeSection === "rezepte" && recipeViewMode === "grid") &&
+                      filteredItems.map((item) => {
+                        const isRecipeDetailed =
+                          activeSection === "rezepte" &&
+                          recipeViewMode === "detailed";
+                        if (isRecipeDetailed && item.type === "eigenproduktion") {
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedItemId(item.id);
+                                setIsDetailView(true);
+                              }}
+                              className={cn(
+                                "flex w-full items-stretch gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                                selectedItem?.id === item.id &&
+                                  "border-primary bg-primary/5"
+                              )}
+                            >
+                              <div className="flex-1 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-medium">
+                                    {item.name}
+                                  </span>
+                                  <TypeBadge type={item.type} />
+                                  {item.isBio && (
+                                    <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
+                                      BIO
+                                    </Badge>
+                                  )}
+                                  {item.hasGhostComponents && (
+                                    <AlertTriangle className="h-3 w-3 text-red-500" />
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+                                  <div>
+                                    Intern:{" "}
+                                    <span className="font-medium">
+                                      {formatInternalId(item.internalId ?? null)}
+                                    </span>
+                                  </div>
+                                  {item.category && (
+                                    <div>Kategorie: {item.category}</div>
+                                  )}
+                                  <div>Einheit: {item.unit}</div>
+                                  {item.components && (
+                                    <div>
+                                      {item.components.length} Komponenten
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="space-y-0.5 text-[11px] text-muted-foreground">
+                                  <div>
+                                    Hersteller-Art.-Nr.:{" "}
+                                    {item.manufacturerArticleNumber &&
+                                    item.manufacturerArticleNumber
+                                      .trim()
+                                      .length > 0
+                                      ? item.manufacturerArticleNumber
+                                      : "—"}
+                                  </div>
+                                  <div>
+                                    EAN:{" "}
+                                    {item.ean && item.ean.trim().length > 0
+                                      ? item.ean
+                                      : "—"}
+                                  </div>
+                                </div>
+                                {item.allergens &&
+                                  item.allergens.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 text-[10px]">
+                                      {item.allergens.map((allergen) => (
+                                        <span
+                                          key={`${item.id}-${allergen}`}
+                                          className="rounded-md bg-amber-100 px-2 py-0.5 text-amber-900"
+                                        >
+                                          {allergen}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                              </div>
+                            </button>
+                          );
+                        }
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedItemId(item.id);
+                              setIsDetailView(true);
+                            }}
+                            className={cn(
+                              "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                              selectedItem?.id === item.id &&
+                                "border-primary bg-primary/5"
+                            )}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{item.name}</span>
+                                <TypeBadge type={item.type} />
+                                {item.type === "eigenproduktion" &&
+                                  item.hasGhostComponents && (
+                                    <AlertTriangle className="h-3 w-3 text-red-500" />
+                                  )}
+                              </div>
+                              <div className="space-y-0.5 text-[11px] text-muted-foreground">
+                                <div>
+                                  Intern:{" "}
+                                  {formatInternalId(item.internalId ?? null)}
+                                </div>
+                                <div>
+                                  Hersteller-Art.-Nr.:{" "}
+                                  {item.manufacturerArticleNumber &&
+                                  item.manufacturerArticleNumber
+                                    .trim()
+                                    .length > 0
+                                    ? item.manufacturerArticleNumber
+                                    : "—"}
+                                </div>
+                                <div>
+                                  EAN:{" "}
+                                  {item.ean && item.ean.trim().length > 0
+                                    ? item.ean
+                                    : "—"}
+                                </div>
+                              </div>
+                              {item.allergens && item.allergens.length > 0 && (
+                                <div className="flex flex-wrap gap-1 text-[10px]">
+                                  {item.allergens.map((allergen) => (
+                                    <span
+                                      key={`${item.id}-${allergen}`}
+                                      className="rounded-md bg-amber-100 px-2 py-0.5 text-amber-900"
+                                    >
+                                      {allergen}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              <div className="text-xs text-muted-foreground">
+                                Einheit: {item.unit}
+                              </div>
+                            </div>
+                            {item.components && (
+                              <div className="text-xs text-muted-foreground">
+                                {item.components.length} Komponenten
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -2569,20 +2994,46 @@ export function InventoryManager() {
                 </div>
               </div>
               {selectedItem && selectedItem.type === "eigenproduktion" && (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-emerald-600 px-3 py-1 text-[11px] font-medium text-emerald-50 hover:bg-emerald-700"
-                  disabled={isSaving}
-                  onClick={async () => {
-                    await handleSaveProfiData();
-                    if (isEditingComponents) {
-                      await handleSaveComponents();
-                    }
-                  }}
-                >
-                  {isSaving ? "Speichere..." : "Rezept fertigstellen"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex rounded-md border bg-muted/40 p-1 text-[11px]">
+                    <Button
+                      type="button"
+                      variant={
+                        isRecipePresentationMode ? "outline" : "default"
+                      }
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setIsRecipePresentationMode(false)}
+                    >
+                      Bearbeiten
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        isRecipePresentationMode ? "default" : "outline"
+                      }
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setIsRecipePresentationMode(true)}
+                    >
+                      Präsentation
+                    </Button>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-emerald-600 px-3 py-1 text-[11px] font-medium text-emerald-50 hover:bg-emerald-700"
+                    disabled={isSaving}
+                    onClick={async () => {
+                      await handleSaveProfiData();
+                      if (isEditingComponents) {
+                        await handleSaveComponents();
+                      }
+                    }}
+                  >
+                    {isSaving ? "Speichere..." : "Rezept fertigstellen"}
+                  </Button>
+                </div>
               )}
             </CardHeader>
             <CardContent className="flex flex-1 flex-col gap-4">
@@ -2591,7 +3042,272 @@ export function InventoryManager() {
                   Wähle links einen Artikel aus, um Details zu sehen.
                 </div>
               )}
-              {selectedItem && (
+              {selectedItem &&
+                selectedItem.type === "eigenproduktion" &&
+                isRecipePresentationMode && (
+                  <div className="space-y-3 text-xs">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-semibold">
+                          {selectedItem.name}
+                        </h2>
+                        <TypeBadge type={selectedItem.type} />
+                        {selectedItem.isBio && (
+                          <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
+                            BIO
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                        <div>
+                          Intern:{" "}
+                          <span className="font-medium">
+                            {formatInternalId(selectedItem.internalId ?? null)}
+                          </span>
+                        </div>
+                        {selectedItem.category && (
+                          <div>Kategorie: {selectedItem.category}</div>
+                        )}
+                        {selectedItem.targetPortions != null &&
+                          Number.isFinite(selectedItem.targetPortions) &&
+                          selectedItem.targetPortions > 0 &&
+                          selectedItem.portionUnit && (
+                            <div>
+                              {selectedItem.targetPortions}{" "}
+                              {selectedItem.portionUnit}
+                            </div>
+                          )}
+                      </div>
+                      {(selectedItem.isDeklarationsfrei ||
+                        selectedItem.isAllergenfrei ||
+                        selectedItem.isCookChill ||
+                        selectedItem.isFreezeThawStable ||
+                        selectedItem.isPalmOilFree ||
+                        selectedItem.isYeastFree ||
+                        selectedItem.isLactoseFree ||
+                        selectedItem.isGlutenFree) && (
+                        <div className="flex flex-wrap gap-1 text-[10px]">
+                          {selectedItem.isDeklarationsfrei && (
+                            <Badge className="px-2 py-0.5">
+                              deklarationsfrei
+                            </Badge>
+                          )}
+                          {selectedItem.isAllergenfrei && (
+                            <Badge className="px-2 py-0.5">
+                              allergenfrei
+                            </Badge>
+                          )}
+                          {selectedItem.isCookChill && (
+                            <Badge className="px-2 py-0.5">
+                              cook &amp; chill
+                            </Badge>
+                          )}
+                          {selectedItem.isFreezeThawStable && (
+                            <Badge className="px-2 py-0.5">
+                              freeze/thaw-stable
+                            </Badge>
+                          )}
+                          {selectedItem.isPalmOilFree && (
+                            <Badge className="px-2 py-0.5">
+                              palmöl-frei
+                            </Badge>
+                          )}
+                          {selectedItem.isYeastFree && (
+                            <Badge className="px-2 py-0.5">
+                              hefefrei
+                            </Badge>
+                          )}
+                          {selectedItem.isLactoseFree && (
+                            <Badge className="px-2 py-0.5">
+                              laktosefrei
+                            </Badge>
+                          )}
+                          {selectedItem.isGlutenFree && (
+                            <Badge className="px-2 py-0.5">
+                              glutenfrei
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {recipeCalculation && (
+                      <div className="space-y-1 rounded-md border bg-muted/40 px-3 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-semibold">
+                            Kalkulation
+                          </h3>
+                          <div className="text-[11px] text-muted-foreground">
+                            Zielpreis/Portion:{" "}
+                            {selectedItem.targetSalesPrice != null &&
+                            Number.isFinite(selectedItem.targetSalesPrice)
+                              ? `${selectedItem.targetSalesPrice.toFixed(2)} €`
+                              : "—"}
+                          </div>
+                        </div>
+                        <div className="grid gap-1 text-[11px] md:grid-cols-2">
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Gesamtkosten Rezept
+                            </span>
+                            <span className="font-medium">
+                              {recipeCalculation.totalCost.toFixed(2)} €
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Kosten pro Portion
+                            </span>
+                            <span className="font-medium">
+                              {recipeCalculation.costPerPortion != null
+                                ? `${recipeCalculation.costPerPortion.toFixed(
+                                    2
+                                  )} €`
+                                : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Marge pro Portion
+                            </span>
+                            <span className="font-medium">
+                              {recipeCalculation.marginPerPortion != null
+                                ? `${recipeCalculation.marginPerPortion.toFixed(
+                                    2
+                                  )} €`
+                                : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Wareneinsatz
+                            </span>
+                            <span className="font-medium">
+                              {recipeCalculation.goodsSharePercent != null
+                                ? `${recipeCalculation.goodsSharePercent.toFixed(
+                                    1
+                                  )} %`
+                                : "—"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {selectedItem.components &&
+                      selectedItem.components.length > 0 && (
+                        <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-xs font-semibold">
+                              Zutatenstruktur
+                            </h3>
+                            <div className="text-[11px] text-muted-foreground">
+                              Komponentenübersicht ohne Bearbeitung
+                            </div>
+                          </div>
+                          <ComponentTree
+                            rootItem={selectedItem}
+                            itemsById={itemsById}
+                            onSelectItem={setSpecItem}
+                          />
+                        </div>
+                      )}
+                    {preparationStepsInput.length > 0 && (
+                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-semibold">Zubereitung</h3>
+                          <div className="text-[11px] text-muted-foreground">
+                            Präsentationsansicht
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {preparationStepsInput.map((step, index) => (
+                            <div
+                              key={step.id}
+                              className="flex gap-2 rounded-md bg-background/60 px-3 py-2"
+                            >
+                              <span className="mt-[1px] text-[10px] text-muted-foreground">
+                                {index + 1}.
+                              </span>
+                              <div className="space-y-1">
+                                <div className="text-[11px]">
+                                  {renderTaggedText(
+                                    step.text,
+                                    ingredientTagOptions
+                                  )}
+                                </div>
+                                {step.duration && (
+                                  <div className="text-[10px] text-muted-foreground">
+                                    Dauer: {step.duration}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {nutritionSummary && (
+                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-semibold">
+                            Nährwerte
+                          </h3>
+                          {nutritionSummary.hasMissingData && (
+                            <span className="text-[11px] text-muted-foreground">
+                              unvollständige Daten
+                            </span>
+                          )}
+                        </div>
+                        {nutritionSummary.perRecipe ? (
+                          <div className="grid gap-1 text-[11px] md:grid-cols-2">
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">
+                                Energie gesamt (Rezept)
+                              </span>
+                              <span className="font-medium">
+                                {nutritionSummary.perRecipe.energyKcal.toFixed(
+                                  0
+                                )}{" "}
+                                kcal
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">
+                                Fett gesamt (Rezept)
+                              </span>
+                              <span className="font-medium">
+                                {nutritionSummary.perRecipe.fat.toFixed(1)} g
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">
+                                Kohlenhydrate gesamt (Rezept)
+                              </span>
+                              <span className="font-medium">
+                                {nutritionSummary.perRecipe.carbs.toFixed(1)} g
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span className="text-muted-foreground">
+                                Eiweiß gesamt (Rezept)
+                              </span>
+                              <span className="font-medium">
+                                {nutritionSummary.perRecipe.protein.toFixed(1)}{" "}
+                                g
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-muted-foreground">
+                            Noch keine Nährwertdaten für die Zutaten hinterlegt.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              {selectedItem &&
+                !(selectedItem.type === "eigenproduktion" &&
+                  isRecipePresentationMode) && (
                 <>
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
