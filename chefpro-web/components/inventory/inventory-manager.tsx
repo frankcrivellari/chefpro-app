@@ -3324,61 +3324,59 @@ export function InventoryManager() {
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="space-y-2 text-[11px]">
-                                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                    <div className="text-[11px]">
+                                      <div className="flex items-center gap-3">
                                         <div className="flex-1">
                                           {renderTaggedText(
                                             step.text,
                                             ingredientTagOptions
                                           )}
                                         </div>
-                                        <div className="mt-1 flex flex-wrap items-center gap-3 md:mt-0 md:ml-4">
-                                          {step.duration && (
-                                            <span className="text-[11px] text-muted-foreground">
-                                              Dauer: {step.duration}
-                                            </span>
-                                          )}
-                                          {step.imageUrl && (
-                                            <button
-                                              type="button"
-                                              className="group relative"
-                                              onClick={() =>
-                                                setImageViewer({
-                                                  stepId: step.id,
-                                                  imageUrl:
-                                                    step.imageUrl as string,
-                                                })
-                                              }
-                                            >
-                                              <img
-                                                src={step.imageUrl}
-                                                alt={`Schritt ${index + 1}`}
-                                                className="h-12 w-12 rounded-md object-cover"
-                                              />
-                                            </button>
-                                          )}
-                                          {step.videoUrl && (
-                                            <a
-                                              href={step.videoUrl}
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              className="text-[10px] text-sky-700 underline"
-                                            >
-                                              Video öffnen
-                                            </a>
-                                          )}
-                                          <Button
+                                        {step.duration && (
+                                          <span className="text-[11px] text-muted-foreground">
+                                            Dauer: {step.duration}
+                                          </span>
+                                        )}
+                                        {step.imageUrl && (
+                                          <button
                                             type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-6 px-2 text-[10px]"
+                                            className="group relative"
                                             onClick={() =>
-                                              setEditingStepId(step.id)
+                                              setImageViewer({
+                                                stepId: step.id,
+                                                imageUrl:
+                                                  step.imageUrl as string,
+                                              })
                                             }
                                           >
-                                            Bearbeiten
-                                          </Button>
-                                        </div>
+                                            <img
+                                              src={step.imageUrl}
+                                              alt={`Schritt ${index + 1}`}
+                                              className="h-[60px] w-[60px] rounded-md object-cover"
+                                            />
+                                          </button>
+                                        )}
+                                        {step.videoUrl && (
+                                          <a
+                                            href={step.videoUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-[10px] text-sky-700 underline"
+                                          >
+                                            Video öffnen
+                                          </a>
+                                        )}
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-6 px-2 text-[10px]"
+                                          onClick={() =>
+                                            setEditingStepId(step.id)
+                                          }
+                                        >
+                                          Bearbeiten
+                                        </Button>
                                       </div>
                                     </div>
                                   )}
