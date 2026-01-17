@@ -19,6 +19,9 @@ type InventoryItem = {
   purchasePrice: number;
   targetPortions?: number | null;
   targetSalesPrice?: number | null;
+  category?: string | null;
+  portionUnit?: string | null;
+  nutritionTags?: string[];
   manufacturerArticleNumber?: string | null;
   ean?: string | null;
   allergens?: string[];
@@ -38,6 +41,9 @@ type SupabaseItemRow = {
   purchase_price: number;
   target_portions: number | null;
   target_sales_price: number | null;
+  category: string | null;
+  portion_unit: string | null;
+  nutrition_tags: string[] | null;
   internal_id: number | null;
   manufacturer_article_number: string | null;
   ean: string | null;
@@ -126,6 +132,9 @@ export async function GET() {
         purchasePrice: row.purchase_price,
         targetPortions: row.target_portions,
         targetSalesPrice: row.target_sales_price,
+        category: row.category,
+        portionUnit: row.portion_unit,
+        nutritionTags: row.nutrition_tags ?? undefined,
         manufacturerArticleNumber: row.manufacturer_article_number,
         ean: row.ean,
         allergens: row.allergens ?? undefined,
@@ -188,6 +197,9 @@ export async function POST(request: Request) {
       type: InventoryType;
       unit: string;
       purchasePrice: number;
+      category?: string | null;
+      portionUnit?: string | null;
+      nutritionTags?: string[];
       components?: InventoryComponent[];
     };
 
@@ -213,6 +225,12 @@ export async function POST(request: Request) {
         item_type: body.type,
         unit: body.unit,
         purchase_price: body.purchasePrice,
+        category: body.category ?? null,
+        portion_unit: body.portionUnit ?? null,
+        nutrition_tags:
+          body.nutritionTags && body.nutritionTags.length > 0
+            ? body.nutritionTags
+            : null,
       })
       .select("*")
       .single();
@@ -284,6 +302,9 @@ export async function POST(request: Request) {
       purchasePrice: createdItemRow.purchase_price,
       targetPortions: createdItemRow.target_portions,
       targetSalesPrice: createdItemRow.target_sales_price,
+      category: createdItemRow.category,
+      portionUnit: createdItemRow.portion_unit,
+      nutritionTags: createdItemRow.nutrition_tags ?? undefined,
       manufacturerArticleNumber: createdItemRow.manufacturer_article_number,
       ean: createdItemRow.ean,
       components,

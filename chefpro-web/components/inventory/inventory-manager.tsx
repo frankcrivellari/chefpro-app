@@ -32,6 +32,9 @@ type InventoryItem = {
   purchasePrice: number;
   targetPortions?: number | null;
   targetSalesPrice?: number | null;
+  category?: string | null;
+  portionUnit?: string | null;
+  nutritionTags?: string[];
   manufacturerArticleNumber?: string | null;
   ean?: string | null;
   allergens?: string[];
@@ -58,6 +61,10 @@ type ParsedDocumentItem = {
   allergens: string[];
   fileUrl: string;
 };
+
+const recipeCategories = ["Vorspeise", "Hauptgang", "Dessert"];
+
+const nutritionOptions = ["Vegan", "Vegetarisch", "Halal", "Glutenfrei"];
 
 const initialItems: InventoryItem[] = [
   {
@@ -164,11 +171,18 @@ export function InventoryManager() {
   const [proYieldInput, setProYieldInput] = useState("");
   const [proPreparationInput, setProPreparationInput] = useState("");
   const [manufacturerInput, setManufacturerInput] = useState("");
+   const [nameInput, setNameInput] = useState("");
+   const [categoryInput, setCategoryInput] = useState("");
+   const [portionUnitInput, setPortionUnitInput] = useState("");
+   const [nutritionTagsInput, setNutritionTagsInput] = useState<string[]>([]);
   const [targetPortionsInput, setTargetPortionsInput] = useState("");
   const [targetSalesPriceInput, setTargetSalesPriceInput] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSwapMode, setIsSwapMode] = useState(false);
   const [swapGhostName, setSwapGhostName] = useState<string>("");
+  const [adHocName, setAdHocName] = useState("");
+  const [adHocUnit, setAdHocUnit] = useState("");
+  const [adHocPrice, setAdHocPrice] = useState("");
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -419,10 +433,18 @@ export function InventoryManager() {
       setProDosageInput("");
       setProYieldInput("");
       setProPreparationInput("");
+      setNameInput("");
+      setCategoryInput("");
+      setPortionUnitInput("");
+      setNutritionTagsInput([]);
       setTargetPortionsInput("");
       setTargetSalesPriceInput("");
       return;
     }
+    setNameInput(selectedItem.name);
+    setCategoryInput(selectedItem.category ?? "");
+    setPortionUnitInput(selectedItem.portionUnit ?? "");
+    setNutritionTagsInput(selectedItem.nutritionTags ?? []);
     setManufacturerInput(selectedItem.manufacturerArticleNumber ?? "");
     const allergensText = (selectedItem.allergens ?? []).join(", ");
     setProAllergensInput(allergensText);
@@ -556,6 +578,64 @@ export function InventoryManager() {
       setIsSaving(true);
       setError(null);
 
+      let finalComponents = cleanedComponents;
+
+      const hasAdHocInput =
+        adHocName.trim().length > 0 &&
+        adHocUnit.trim().length > 0 &&
+        adHocPrice.trim().length > 0;
+
+      if (hasAdHocInput) {
+        const parsedPrice = Number(adHocPrice.replace(",", ".").trim());
+
+        if (!Number.isNaN(parsedPrice) && parsedPrice > 0) {
+          const createResponse = await fetch("/api/inventory", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: adHocName.trim(),
+              type: "zukauf" as InventoryType,
+              unit: adHocUnit.trim(),
+              purchasePrice: parsedPrice,
+              components: [],
+            }),
+          });
+
+          if (!createResponse.ok) {
+            let message = "Fehler beim Anlegen der Ad-hoc-Zutat.";
+            try {
+              const payload = (await createResponse.json()) as {
+                error?: unknown;
+              };
+              if (payload && typeof payload.error === "string") {
+                message = payload.error;
+              }
+            } catch {
+            }
+            throw new Error(message);
+          }
+
+          const createdAdHoc = (await createResponse.json()) as InventoryItem;
+
+          setItems((previous) => [...previous, createdAdHoc]);
+
+          finalComponents = [
+            ...finalComponents,
+            {
+              itemId: createdAdHoc.id,
+              quantity: 1,
+              unit: createdAdHoc.unit,
+            },
+          ];
+
+          setAdHocName("");
+          setAdHocUnit("");
+          setAdHocPrice("");
+        }
+      }
+
       const response = await fetch("/api/recipe-structure", {
         method: "POST",
         headers: {
@@ -563,7 +643,7 @@ export function InventoryManager() {
         },
         body: JSON.stringify({
           parentItemId: selectedItem.id,
-          components: cleanedComponents,
+          components: finalComponents,
         }),
       });
 
@@ -1216,10 +1296,25 @@ export function InventoryManager() {
                 <>
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-semibold">
-                        {selectedItem.name}
-                      </h2>
-                      <TypeBadge type={selectedItem.type} />
+                      {selectedItem.type === "eigenproduktion" ? (
+                        <>
+                          <Input
+                            value={nameInput}
+                            onChange={(event) =>
+                              setNameInput(event.target.value)
+                            }
+                            className="h-8 w-64 px-2 py-1 text-sm font-semibold"
+                          />
+                          <TypeBadge type={selectedItem.type} />
+                        </>
+                      ) : (
+                        <>
+                          <h2 className="text-lg font-semibold">
+                            {selectedItem.name}
+                          </h2>
+                          <TypeBadge type={selectedItem.type} />
+                        </>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
                       <div>
@@ -1228,6 +1323,37 @@ export function InventoryManager() {
                           {formatInternalId(selectedItem.internalId ?? null)}
                         </span>
                       </div>
+                      {selectedItem.type === "eigenproduktion" && (
+                        <>
+                          <div className="flex items-center gap-1">
+                            <span>Kategorie:</span>
+                            <select
+                              value={categoryInput}
+                              onChange={(event) =>
+                                setCategoryInput(event.target.value)
+                              }
+                              className="h-7 rounded-md border border-input bg-background px-2 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            >
+                              <option value="">Keine</option>
+                              {recipeCategories.map((category) => (
+                                <option key={category} value={category}>
+                                  {category}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>Portionseinheit:</span>
+                            <Input
+                              value={portionUnitInput}
+                              onChange={(event) =>
+                                setPortionUnitInput(event.target.value)
+                              }
+                              className="h-7 w-28 px-2 py-1 text-[11px]"
+                            />
+                          </div>
+                        </>
+                      )}
                       <div className="flex items-center gap-1">
                         <span>Hersteller-Art.-Nr.:</span>
                         <Input
@@ -1247,6 +1373,37 @@ export function InventoryManager() {
                         </span>
                       </div>
                     </div>
+                    {selectedItem.type === "eigenproduktion" && (
+                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                        <span>Ernährungsform:</span>
+                        {nutritionOptions.map((option) => {
+                          const active = nutritionTagsInput.includes(option);
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              onClick={() =>
+                                setNutritionTagsInput((current) =>
+                                  current.includes(option)
+                                    ? current.filter(
+                                        (value) => value !== option
+                                      )
+                                    : [...current, option]
+                                )
+                              }
+                              className={cn(
+                                "rounded-full border px-2 py-0.5 text-[10px]",
+                                active
+                                  ? "border-primary bg-primary text-primary-foreground"
+                                  : "border-muted-foreground/40 text-muted-foreground"
+                              )}
+                            >
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                     {selectedItem.allergens &&
                       selectedItem.allergens.length > 0 && (
                         <div className="flex flex-wrap gap-1">
@@ -1304,6 +1461,17 @@ export function InventoryManager() {
                                     setTargetPortionsInput(event.target.value)
                                   }
                                   className="h-7 w-16 px-2 py-1 text-[11px]"
+                                />
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span>Einheit:</span>
+                                <Input
+                                  type="text"
+                                  value={portionUnitInput}
+                                  onChange={(event) =>
+                                    setPortionUnitInput(event.target.value)
+                                  }
+                                  className="h-7 w-20 px-2 py-1 text-[11px]"
                                 />
                               </div>
                               <div className="flex items-center gap-1">
@@ -1673,6 +1841,31 @@ export function InventoryManager() {
                               );
                             })}
                           </div>
+                          {selectedItem.type === "eigenproduktion" && (
+                            <div className="mt-2 grid gap-2 rounded-md border border-dashed bg-card px-2 py-2 text-[11px] md:grid-cols-[2fr_1fr_1fr]">
+                              <Input
+                                placeholder="Neue Zutat ad-hoc hinzufügen"
+                                value={adHocName}
+                                onChange={(event) =>
+                                  setAdHocName(event.target.value)
+                                }
+                              />
+                              <Input
+                                placeholder="Einheit"
+                                value={adHocUnit}
+                                onChange={(event) =>
+                                  setAdHocUnit(event.target.value)
+                                }
+                              />
+                              <Input
+                                placeholder="EK-Preis"
+                                value={adHocPrice}
+                                onChange={(event) =>
+                                  setAdHocPrice(event.target.value)
+                                }
+                              />
+                            </div>
+                          )}
                           <div className="flex justify-end gap-2">
                             <Button
                               type="button"
@@ -1814,6 +2007,22 @@ export function InventoryManager() {
                               parsedTargetSalesPrice > 0
                                 ? parsedTargetSalesPrice
                                 : null;
+                            const nameValue =
+                              selectedItem.type === "eigenproduktion"
+                                ? nameInput.trim()
+                                : undefined;
+                            const categoryValue =
+                              selectedItem.type === "eigenproduktion"
+                                ? categoryInput.trim()
+                                : undefined;
+                            const portionUnitValue =
+                              selectedItem.type === "eigenproduktion"
+                                ? portionUnitInput.trim()
+                                : undefined;
+                            const nutritionTagsValue =
+                              selectedItem.type === "eigenproduktion"
+                                ? nutritionTagsInput
+                                : undefined;
                             const response = await fetch(
                               "/api/item-details",
                               {
@@ -1823,6 +2032,7 @@ export function InventoryManager() {
                                 },
                                 body: JSON.stringify({
                                   id: selectedItem.id,
+                                  name: nameValue,
                                   manufacturerArticleNumber:
                                     manufacturerInput.trim(),
                                   allergens: allergensArray,
@@ -1833,6 +2043,9 @@ export function InventoryManager() {
                                     proPreparationInput.trim(),
                                   targetPortions,
                                   targetSalesPrice,
+                                  category: categoryValue,
+                                  portionUnit: portionUnitValue,
+                                  nutritionTags: nutritionTagsValue,
                                 }),
                               }
                             );
@@ -1987,14 +2200,19 @@ function ComponentTree({ rootItem, itemsById }: ComponentTreeProps) {
 
   return (
     <div className="space-y-1 rounded-md border bg-card/60 p-3 text-sm">
-      {rootItem.components.map((component) => {
-        const item = itemsById.get(component.itemId);
+      {rootItem.components.map((component, index) => {
+        const item = component.itemId
+          ? itemsById.get(component.itemId)
+          : undefined;
         if (!item) {
           return null;
         }
 
         return (
-          <div key={component.itemId} className="space-y-1">
+          <div
+            key={component.itemId ?? `${rootItem.id}-${index}`}
+            className="space-y-1"
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="flex flex-1 items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-primary" />

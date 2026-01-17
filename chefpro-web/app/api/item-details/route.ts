@@ -11,6 +11,9 @@ type SupabaseItemRow = {
   purchase_price: number;
   target_portions: number | null;
   target_sales_price: number | null;
+  category: string | null;
+  portion_unit: string | null;
+  nutrition_tags: string[] | null;
   internal_id: number | null;
   manufacturer_article_number: string | null;
   ean: string | null;
@@ -30,6 +33,9 @@ type InventoryItem = {
   purchasePrice: number;
   targetPortions?: number | null;
   targetSalesPrice?: number | null;
+  category?: string | null;
+  portionUnit?: string | null;
+  nutritionTags?: string[];
   manufacturerArticleNumber?: string | null;
   ean?: string | null;
   allergens?: string[];
@@ -54,14 +60,18 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as {
     id: string;
+    name?: string;
     manufacturerArticleNumber?: string;
     allergens?: string[];
     ingredients?: string;
     dosageInstructions?: string;
     yieldInfo?: string;
     preparationSteps?: string;
-     targetPortions?: number | null;
-     targetSalesPrice?: number | null;
+    targetPortions?: number | null;
+    targetSalesPrice?: number | null;
+    category?: string | null;
+    portionUnit?: string | null;
+    nutritionTags?: string[];
   };
 
   if (!body.id) {
@@ -72,6 +82,7 @@ export async function POST(request: Request) {
   }
 
   const updates: {
+    name?: string;
     manufacturer_article_number?: string | null;
     allergens?: string[] | null;
     ingredients?: string | null;
@@ -80,7 +91,17 @@ export async function POST(request: Request) {
     preparation_steps?: string | null;
     target_portions?: number | null;
     target_sales_price?: number | null;
+    category?: string | null;
+    portion_unit?: string | null;
+    nutrition_tags?: string[] | null;
   } = {};
+
+  if (typeof body.name === "string") {
+    const trimmed = body.name.trim();
+    if (trimmed.length > 0) {
+      updates.name = trimmed;
+    }
+  }
 
   if (typeof body.manufacturerArticleNumber === "string") {
     updates.manufacturer_article_number =
@@ -136,6 +157,21 @@ export async function POST(request: Request) {
         : null;
   }
 
+  if (typeof body.category === "string") {
+    const trimmed = body.category.trim();
+    updates.category = trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (typeof body.portionUnit === "string") {
+    const trimmed = body.portionUnit.trim();
+    updates.portion_unit = trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (body.nutritionTags) {
+    updates.nutrition_tags =
+      body.nutritionTags.length > 0 ? body.nutritionTags : [];
+  }
+
   const updateResponse = await client
     .from("items")
     .update(updates)
@@ -165,6 +201,9 @@ export async function POST(request: Request) {
     purchasePrice: row.purchase_price,
     targetPortions: row.target_portions,
     targetSalesPrice: row.target_sales_price,
+    category: row.category,
+    portionUnit: row.portion_unit,
+    nutritionTags: row.nutrition_tags ?? undefined,
     manufacturerArticleNumber: row.manufacturer_article_number,
     ean: row.ean,
     allergens: row.allergens ?? undefined,
