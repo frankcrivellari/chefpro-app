@@ -8,7 +8,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -3337,25 +3337,31 @@ export function InventoryManager() {
                                             Dauer: {step.duration}
                                           </span>
                                         )}
-                                        {step.imageUrl && (
-                                          <button
-                                            type="button"
-                                            className="group relative"
-                                            onClick={() =>
-                                              setImageViewer({
-                                                stepId: step.id,
-                                                imageUrl:
-                                                  step.imageUrl as string,
-                                              })
-                                            }
-                                          >
-                                            <img
-                                              src={step.imageUrl}
-                                              alt={`Schritt ${index + 1}`}
-                                              className="h-[60px] w-[60px] rounded-md object-cover"
-                                            />
-                                          </button>
-                                        )}
+                                        <div className="flex h-[60px] w-[60px] items-center justify-center rounded-md border border-red-500 bg-muted">
+                                          {step.imageUrl ? (
+                                            <button
+                                              type="button"
+                                              className="h-full w-full"
+                                              onClick={() =>
+                                                setImageViewer({
+                                                  stepId: step.id,
+                                                  imageUrl:
+                                                    step.imageUrl as string,
+                                                })
+                                              }
+                                            >
+                                              <img
+                                                src={step.imageUrl}
+                                                alt={`Schritt ${index + 1}`}
+                                                className="h-full w-full rounded-md object-cover"
+                                              />
+                                            </button>
+                                          ) : (
+                                            <span className="text-muted-foreground">
+                                              <ImageIcon className="h-4 w-4" />
+                                            </span>
+                                          )}
+                                        </div>
                                         {step.videoUrl && (
                                           <a
                                             href={step.videoUrl}
