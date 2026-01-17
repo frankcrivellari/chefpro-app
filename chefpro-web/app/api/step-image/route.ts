@@ -44,6 +44,7 @@ export async function POST(request: Request) {
           prompt,
           size: "1024x1024",
           n: 1,
+          response_format: "b64_json",
         }),
       }
     );
@@ -72,21 +73,23 @@ export async function POST(request: Request) {
       data?: { url?: string; b64_json?: string }[];
     };
 
-    const imageUrl = payload.data?.[0]?.url;
+    const b64 = payload.data?.[0]?.b64_json;
 
-    if (!imageUrl) {
+    if (!b64) {
       console.error(
-        "OpenAI image generation response missing url",
+        "OpenAI image generation response missing b64_json",
         payload
       );
       return NextResponse.json(
         {
           error:
-            "Antwort von OpenAI Bild-API enthielt keine Bild-URL.",
+            "Antwort von OpenAI Bild-API enthielt keine Bild-Daten.",
         },
         { status: 500 }
       );
     }
+
+    const imageUrl = `data:image/png;base64,${b64}`;
 
     return NextResponse.json({ imageUrl });
   } catch (error) {
@@ -101,4 +104,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

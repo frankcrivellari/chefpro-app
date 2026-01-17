@@ -3337,7 +3337,7 @@ export function InventoryManager() {
                                             Dauer: {step.duration}
                                           </span>
                                         )}
-                                        <div className="flex h-[60px] w-[60px] items-center justify-center rounded-md border border-red-500 bg-muted">
+                                        <div className="flex h-[60px] w-[60px] items-center justify-center rounded-md border bg-muted">
                                           {step.imageUrl ? (
                                             <button
                                               type="button"
