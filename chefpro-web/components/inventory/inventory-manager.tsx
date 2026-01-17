@@ -777,6 +777,145 @@ export function InventoryManager() {
     }
   }
 
+  async function handleSaveProfiData() {
+    if (!selectedItem) {
+      return;
+    }
+    try {
+      setIsSaving(true);
+      setError(null);
+      const allergensArray = proAllergensInput
+        .split(",")
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+      const parsedTargetPortions = Number(
+        targetPortionsInput.replace(",", ".")
+      );
+      const targetPortions =
+        Number.isFinite(parsedTargetPortions) &&
+        parsedTargetPortions > 0
+          ? parsedTargetPortions
+          : null;
+      const parsedTargetSalesPrice = Number(
+        targetSalesPriceInput.replace(",", ".")
+      );
+      const targetSalesPrice =
+        Number.isFinite(parsedTargetSalesPrice) &&
+        parsedTargetSalesPrice > 0
+          ? parsedTargetSalesPrice
+          : null;
+      const nameValue =
+        selectedItem.type === "eigenproduktion"
+          ? nameInput.trim()
+          : undefined;
+      const categoryValue =
+        selectedItem.type === "eigenproduktion"
+          ? categoryInput.trim()
+          : undefined;
+      const portionUnitValue =
+        selectedItem.type === "eigenproduktion"
+          ? portionUnitInput.trim()
+          : undefined;
+      const nutritionTagsValue =
+        selectedItem.type === "eigenproduktion"
+          ? nutritionTagsInput
+          : undefined;
+      let parsedStandardPreparation: StandardPreparation | null =
+        null;
+      if (
+        selectedItem.type === "zukauf" &&
+        standardPreparationInput.trim().length > 0
+      ) {
+        try {
+          const parsed = JSON.parse(
+            standardPreparationInput
+          ) as StandardPreparation;
+          if (parsed && Array.isArray(parsed.components)) {
+            parsedStandardPreparation = {
+              components: parsed.components
+                .map((component) => ({
+                  name: String(component.name),
+                  quantity: Number(component.quantity),
+                  unit: String(component.unit),
+                }))
+                .filter(
+                  (component) =>
+                    component.name.trim().length > 0 &&
+                    Number.isFinite(component.quantity) &&
+                    component.quantity > 0 &&
+                    component.unit.trim().length > 0
+                ),
+            };
+            if (parsedStandardPreparation.components.length === 0) {
+              parsedStandardPreparation = null;
+            }
+          } else {
+            throw new Error();
+          }
+        } catch {
+          setError(
+            "Standard-Zubereitung ist kein gültiges JSON mit dem Feld components."
+          );
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      const response = await fetch("/api/item-details", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: selectedItem.id,
+          name: nameValue,
+          manufacturerArticleNumber: manufacturerInput.trim(),
+          allergens: allergensArray,
+          ingredients: proIngredientsInput.trim(),
+          dosageInstructions: proDosageInput.trim(),
+          yieldInfo: proYieldInput.trim(),
+          preparationSteps: proPreparationInput.trim(),
+          targetPortions,
+          targetSalesPrice,
+          category: categoryValue,
+          portionUnit: portionUnitValue,
+          nutritionTags: nutritionTagsValue,
+          standardPreparation:
+            selectedItem.type === "zukauf"
+              ? parsedStandardPreparation
+              : undefined,
+        }),
+      });
+      const payload = (await response.json()) as {
+        error?: unknown;
+        item?: InventoryItem;
+      };
+      if (!response.ok) {
+        let message = "Fehler beim Speichern der Profi-Daten.";
+        if (payload && typeof payload.error === "string") {
+          message = payload.error;
+        }
+        throw new Error(message);
+      }
+      if (payload.item) {
+        const updated = payload.item;
+        setItems((previous) =>
+          previous.map((item) =>
+            item.id === updated.id ? updated : item
+          )
+        );
+      }
+    } catch (saveError) {
+      const message =
+        saveError instanceof Error
+          ? saveError.message
+          : "Fehler beim Speichern der Profi-Daten.";
+      setError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleAiParse(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!aiText.trim()) {
@@ -1367,11 +1506,29 @@ export function InventoryManager() {
           </Card>
 
           <Card className="flex flex-col">
-            <CardHeader>
-              <CardTitle>Artikeldetails</CardTitle>
-              <CardDescription>
-                Sieh dir Struktur und Komponenten der ausgewählten Position an.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <div>
+                <CardTitle>Artikeldetails</CardTitle>
+                <CardDescription>
+                  Sieh dir Struktur und Komponenten der ausgewählten Position an.
+                </CardDescription>
+              </div>
+              {selectedItem && selectedItem.type === "eigenproduktion" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-emerald-600 px-3 py-1 text-[11px] font-medium text-emerald-50 hover:bg-emerald-700"
+                  disabled={isSaving}
+                  onClick={async () => {
+                    await handleSaveProfiData();
+                    if (isEditingComponents) {
+                      await handleSaveComponents();
+                    }
+                  }}
+                >
+                  {isSaving ? "Speichere..." : "Rezept fertigstellen"}
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="flex flex-1 flex-col gap-4">
               {!selectedItem && (
@@ -1798,12 +1955,6 @@ export function InventoryManager() {
                                 </div>
                               )}
                             </div>
-                            <ManufacturerSuggestionButton
-                              selectedItem={selectedItem}
-                              itemsById={itemsById}
-                              editingComponents={editingComponents}
-                              setEditingComponents={setEditingComponents}
-                            />
                           </div>
                           <div className="space-y-2">
                             {editingComponents.length === 0 && (
@@ -1932,29 +2083,42 @@ export function InventoryManager() {
                                     )}
                                   </div>
                                   {item && (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() =>
-                                        setEditingComponents(
-                                          (components) =>
-                                            components.filter(
-                                              (_, current) =>
-                                                current !== index
-                                            )
-                                        )
-                                      }
-                                    >
-                                      Entfernen
-                                    </Button>
+                                    <div className="flex flex-col items-end gap-1">
+                                      <ManufacturerSuggestionButton
+                                        baseItem={item}
+                                        itemsById={itemsById}
+                                        editingComponents={editingComponents}
+                                        setEditingComponents={
+                                          setEditingComponents
+                                        }
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() =>
+                                          setEditingComponents(
+                                            (components) =>
+                                              components.filter(
+                                                (_, current) =>
+                                                  current !== index
+                                              )
+                                          )
+                                        }
+                                      >
+                                        Entfernen
+                                      </Button>
+                                    </div>
                                   )}
                                 </div>
                               );
                             })}
                           </div>
                           {selectedItem.type === "eigenproduktion" && (
-                            <div className="mt-2 space-y-1 rounded-md border border-dashed bg-card px-2 py-2 text-[11px]">
+                            <div className="mt-3 space-y-2 rounded-md border border-sky-300 bg-sky-50 px-3 py-3 text-[11px]">
+                              <div className="text-[11px] font-semibold text-sky-900">
+                                Nicht gefunden? Neue Zutat direkt hier anlegen
+                              </div>
                               <div className="grid gap-2 md:grid-cols-[2fr_1fr_1fr]">
                                 <Input
                                   placeholder="Neue Zutat ad-hoc hinzufügen"
@@ -2134,162 +2298,7 @@ export function InventoryManager() {
                         type="button"
                         size="sm"
                         disabled={isSaving}
-                        onClick={async () => {
-                          if (!selectedItem) {
-                            return;
-                          }
-                          try {
-                            setIsSaving(true);
-                            setError(null);
-                            const allergensArray = proAllergensInput
-                              .split(",")
-                              .map((value) => value.trim())
-                              .filter((value) => value.length > 0);
-                            const parsedTargetPortions = Number(
-                              targetPortionsInput.replace(",", ".")
-                            );
-                            const targetPortions =
-                              Number.isFinite(parsedTargetPortions) &&
-                              parsedTargetPortions > 0
-                                ? parsedTargetPortions
-                                : null;
-                            const parsedTargetSalesPrice = Number(
-                              targetSalesPriceInput.replace(",", ".")
-                            );
-                            const targetSalesPrice =
-                              Number.isFinite(parsedTargetSalesPrice) &&
-                              parsedTargetSalesPrice > 0
-                                ? parsedTargetSalesPrice
-                                : null;
-                            const nameValue =
-                              selectedItem.type === "eigenproduktion"
-                                ? nameInput.trim()
-                                : undefined;
-                            const categoryValue =
-                              selectedItem.type === "eigenproduktion"
-                                ? categoryInput.trim()
-                                : undefined;
-                            const portionUnitValue =
-                              selectedItem.type === "eigenproduktion"
-                                ? portionUnitInput.trim()
-                                : undefined;
-                            const nutritionTagsValue =
-                              selectedItem.type === "eigenproduktion"
-                                ? nutritionTagsInput
-                                : undefined;
-                            let parsedStandardPreparation: StandardPreparation | null =
-                              null;
-                            if (
-                              selectedItem.type === "zukauf" &&
-                              standardPreparationInput.trim().length > 0
-                            ) {
-                              try {
-                                const parsed = JSON.parse(
-                                  standardPreparationInput
-                                ) as StandardPreparation;
-                                if (
-                                  parsed &&
-                                  Array.isArray(parsed.components)
-                                ) {
-                                  parsedStandardPreparation = {
-                                    components: parsed.components
-                                      .map((component) => ({
-                                        name: String(component.name),
-                                        quantity: Number(component.quantity),
-                                        unit: String(component.unit),
-                                      }))
-                                      .filter(
-                                        (component) =>
-                                          component.name.trim().length > 0 &&
-                                          Number.isFinite(
-                                            component.quantity
-                                          ) &&
-                                          component.quantity > 0 &&
-                                          component.unit.trim().length > 0
-                                      ),
-                                  };
-                                  if (
-                                    parsedStandardPreparation.components
-                                      .length === 0
-                                  ) {
-                                    parsedStandardPreparation = null;
-                                  }
-                                } else {
-                                  throw new Error();
-                                }
-                              } catch {
-                                setError(
-                                  "Standard-Zubereitung ist kein gültiges JSON mit dem Feld components."
-                                );
-                                setIsSaving(false);
-                                return;
-                              }
-                            }
-
-                            const response = await fetch(
-                              "/api/item-details",
-                              {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                  id: selectedItem.id,
-                                  name: nameValue,
-                                  manufacturerArticleNumber:
-                                    manufacturerInput.trim(),
-                                  allergens: allergensArray,
-                                  ingredients: proIngredientsInput.trim(),
-                                  dosageInstructions: proDosageInput.trim(),
-                                  yieldInfo: proYieldInput.trim(),
-                                  preparationSteps:
-                                    proPreparationInput.trim(),
-                                  targetPortions,
-                                  targetSalesPrice,
-                                  category: categoryValue,
-                                  portionUnit: portionUnitValue,
-                                  nutritionTags: nutritionTagsValue,
-                                  standardPreparation:
-                                    selectedItem.type === "zukauf"
-                                      ? parsedStandardPreparation
-                                      : undefined,
-                                }),
-                              }
-                            );
-                            const payload =
-                              (await response.json()) as {
-                                error?: unknown;
-                                item?: InventoryItem;
-                              };
-                            if (!response.ok) {
-                              let message =
-                                "Fehler beim Speichern der Profi-Daten.";
-                              if (
-                                payload &&
-                                typeof payload.error === "string"
-                              ) {
-                                message = payload.error;
-                              }
-                              throw new Error(message);
-                            }
-                            if (payload.item) {
-                              const updated = payload.item;
-                              setItems((previous) =>
-                                previous.map((item) =>
-                                  item.id === updated.id ? updated : item
-                                )
-                              );
-                            }
-                          } catch (saveError) {
-                            const message =
-                              saveError instanceof Error
-                                ? saveError.message
-                                : "Fehler beim Speichern der Profi-Daten.";
-                            setError(message);
-                          } finally {
-                            setIsSaving(false);
-                          }
-                        }}
+                        onClick={handleSaveProfiData}
                       >
                         {isSaving
                           ? "Speichern..."
@@ -2473,7 +2482,7 @@ type ComponentTreeProps = {
 };
 
 type ManufacturerSuggestionButtonProps = {
-  selectedItem: InventoryItem;
+  baseItem: InventoryItem;
   itemsById: Map<string, InventoryItem>;
   editingComponents: InventoryComponent[];
   setEditingComponents: (
@@ -2486,12 +2495,12 @@ type ManufacturerSuggestionButtonProps = {
 };
 
 function ManufacturerSuggestionButton({
-  selectedItem,
+  baseItem,
   itemsById,
   editingComponents,
   setEditingComponents,
 }: ManufacturerSuggestionButtonProps) {
-  if (selectedItem.type !== "eigenproduktion") {
+  if (!baseItem.standardPreparation) {
     return null;
   }
 
@@ -2500,37 +2509,25 @@ function ManufacturerSuggestionButton({
     itemsByName.set(item.name.toLowerCase(), item);
   }
 
-  const baseComponents: InventoryComponent[] =
-    selectedItem.components ?? [];
-
   const suggestions: InventoryComponent[] = [];
 
-  for (const component of baseComponents) {
-    if (!component.itemId) {
+  for (const suggestion of baseItem.standardPreparation.components) {
+    const key = suggestion.name.toLowerCase();
+    const suggestedItem = itemsByName.get(key);
+    if (!suggestedItem) {
       continue;
     }
-    const item = itemsById.get(component.itemId);
-    if (!item || !item.standardPreparation) {
+    const alreadyExists = editingComponents.some(
+      (existing) => existing.itemId === suggestedItem.id
+    );
+    if (alreadyExists) {
       continue;
     }
-    for (const suggestion of item.standardPreparation.components) {
-      const key = suggestion.name.toLowerCase();
-      const suggestedItem = itemsByName.get(key);
-      if (!suggestedItem) {
-        continue;
-      }
-      const alreadyExists = editingComponents.some(
-        (existing) => existing.itemId === suggestedItem.id
-      );
-      if (alreadyExists) {
-        continue;
-      }
-      suggestions.push({
-        itemId: suggestedItem.id,
-        quantity: suggestion.quantity,
-        unit: suggestion.unit,
-      });
-    }
+    suggestions.push({
+      itemId: suggestedItem.id,
+      quantity: suggestion.quantity,
+      unit: suggestion.unit,
+    });
   }
 
   if (suggestions.length === 0) {
@@ -2549,7 +2546,7 @@ function ManufacturerSuggestionButton({
         ]);
       }}
     >
-      Zubereitungsempfehlung des Herstellers anwenden
+      Hersteller-Empfehlung laden
     </Button>
   );
 }

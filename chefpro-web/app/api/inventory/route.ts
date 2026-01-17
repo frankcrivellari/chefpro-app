@@ -416,18 +416,48 @@ export async function DELETE(request: Request) {
       .eq("component_item_id", body.id);
 
     if (updateComponentRelationsResponse.error) {
-      console.error("Supabase update recipe_structure error", {
-        table: "recipe_structure",
-        error: updateComponentRelationsResponse.error,
-      });
-      return NextResponse.json(
-        {
-          error:
-            updateComponentRelationsResponse.error.message ??
-            'Fehler beim Aktualisieren der Komponenten in Tabelle "recipe_structure"',
-        },
-        { status: 500 }
-      );
+      const updateError = updateComponentRelationsResponse.error;
+      const isMissingDeletedItemNameColumn =
+        updateError.code === "42703" ||
+        (typeof updateError.message === "string" &&
+          updateError.message.toLowerCase().includes("deleted_item_name"));
+
+      if (isMissingDeletedItemNameColumn) {
+        const fallbackUpdateResponse = await client
+          .from("recipe_structure")
+          .update({
+            component_item_id: null,
+          })
+          .eq("component_item_id", body.id);
+
+        if (fallbackUpdateResponse.error) {
+          console.error("Supabase update recipe_structure fallback error", {
+            table: "recipe_structure",
+            error: fallbackUpdateResponse.error,
+          });
+          return NextResponse.json(
+            {
+              error:
+                fallbackUpdateResponse.error.message ??
+                'Fehler beim Aktualisieren der Komponenten in Tabelle "recipe_structure"',
+            },
+            { status: 500 }
+          );
+        }
+      } else {
+        console.error("Supabase update recipe_structure error", {
+          table: "recipe_structure",
+          error: updateError,
+        });
+        return NextResponse.json(
+          {
+            error:
+              updateError.message ??
+              'Fehler beim Aktualisieren der Komponenten in Tabelle "recipe_structure"',
+          },
+          { status: 500 }
+        );
+      }
     }
 
     const deleteItemResponse = await client
