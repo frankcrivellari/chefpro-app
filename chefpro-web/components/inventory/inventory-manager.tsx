@@ -183,6 +183,9 @@ export function InventoryManager() {
   const [adHocName, setAdHocName] = useState("");
   const [adHocUnit, setAdHocUnit] = useState("");
   const [adHocPrice, setAdHocPrice] = useState("");
+  const [adHocSelectedItemId, setAdHocSelectedItemId] = useState<string | null>(
+    null
+  );
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -490,6 +493,43 @@ export function InventoryManager() {
     });
   }, [componentSearch, effectiveItems, editingComponents, selectedItem]);
 
+  const adHocSuggestions = useMemo(() => {
+    const term = adHocName.trim().toLowerCase();
+    if (!term) {
+      return [];
+    }
+    return effectiveItems
+      .filter((item) => {
+        if (item.type !== "zukauf") {
+          return false;
+        }
+        const nameMatch = item.name.toLowerCase().includes(term);
+        const internalId = item.internalId;
+        const internalIdString =
+          internalId != null ? String(internalId) : "";
+        const formattedInternalId =
+          internalId != null ? `int-${internalId}`.toLowerCase() : "";
+        const internalMatch =
+          internalIdString.includes(term) ||
+          formattedInternalId.includes(term);
+        return nameMatch || internalMatch;
+      })
+      .slice(0, 5);
+  }, [adHocName, effectiveItems]);
+
+  const adHocExactMatchItem = useMemo(() => {
+    const value = adHocName.trim().toLowerCase();
+    if (!value) {
+      return null;
+    }
+    for (const item of effectiveItems) {
+      if (item.name.trim().toLowerCase() === value) {
+        return item;
+      }
+    }
+    return null;
+  }, [adHocName, effectiveItems]);
+
   async function handleCreateItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!newItemName.trim() || !newItemUnit.trim()) {
@@ -580,59 +620,81 @@ export function InventoryManager() {
 
       let finalComponents = cleanedComponents;
 
-      const hasAdHocInput =
-        adHocName.trim().length > 0 &&
-        adHocUnit.trim().length > 0 &&
-        adHocPrice.trim().length > 0;
+      const trimmedAdHocName = adHocName.trim();
 
-      if (hasAdHocInput) {
-        const parsedPrice = Number(adHocPrice.replace(",", ".").trim());
-
-        if (!Number.isNaN(parsedPrice) && parsedPrice > 0) {
-          const createResponse = await fetch("/api/inventory", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: adHocName.trim(),
-              type: "zukauf" as InventoryType,
-              unit: adHocUnit.trim(),
-              purchasePrice: parsedPrice,
-              components: [],
-            }),
-          });
-
-          if (!createResponse.ok) {
-            let message = "Fehler beim Anlegen der Ad-hoc-Zutat.";
-            try {
-              const payload = (await createResponse.json()) as {
-                error?: unknown;
-              };
-              if (payload && typeof payload.error === "string") {
-                message = payload.error;
-              }
-            } catch {
-            }
-            throw new Error(message);
+      if (trimmedAdHocName.length > 0) {
+        if (adHocSelectedItemId) {
+          const selectedItemForAdHoc = itemsById.get(adHocSelectedItemId);
+          const unit =
+            selectedItemForAdHoc && selectedItemForAdHoc.unit
+              ? selectedItemForAdHoc.unit
+              : adHocUnit.trim();
+          if (unit) {
+            finalComponents = [
+              ...finalComponents,
+              {
+                itemId: adHocSelectedItemId,
+                quantity: 1,
+                unit,
+              },
+            ];
           }
-
-          const createdAdHoc = (await createResponse.json()) as InventoryItem;
-
-          setItems((previous) => [...previous, createdAdHoc]);
-
-          finalComponents = [
-            ...finalComponents,
-            {
-              itemId: createdAdHoc.id,
-              quantity: 1,
-              unit: createdAdHoc.unit,
-            },
-          ];
-
           setAdHocName("");
           setAdHocUnit("");
           setAdHocPrice("");
+          setAdHocSelectedItemId(null);
+        } else if (
+          adHocUnit.trim().length > 0 &&
+          adHocPrice.trim().length > 0
+        ) {
+          const parsedPrice = Number(adHocPrice.replace(",", ".").trim());
+
+          if (!Number.isNaN(parsedPrice) && parsedPrice > 0) {
+            const createResponse = await fetch("/api/inventory", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                name: trimmedAdHocName,
+                type: "zukauf" as InventoryType,
+                unit: adHocUnit.trim(),
+                purchasePrice: parsedPrice,
+                components: [],
+              }),
+            });
+
+            if (!createResponse.ok) {
+              let message = "Fehler beim Anlegen der Ad-hoc-Zutat.";
+              try {
+                const payload = (await createResponse.json()) as {
+                  error?: unknown;
+                };
+                if (payload && typeof payload.error === "string") {
+                  message = payload.error;
+                }
+              } catch {
+              }
+              throw new Error(message);
+            }
+
+            const createdAdHoc = (await createResponse.json()) as InventoryItem;
+
+            setItems((previous) => [...previous, createdAdHoc]);
+
+            finalComponents = [
+              ...finalComponents,
+              {
+                itemId: createdAdHoc.id,
+                quantity: 1,
+                unit: createdAdHoc.unit,
+              },
+            ];
+
+            setAdHocName("");
+            setAdHocUnit("");
+            setAdHocPrice("");
+          }
         }
       }
 
@@ -1842,28 +1904,81 @@ export function InventoryManager() {
                             })}
                           </div>
                           {selectedItem.type === "eigenproduktion" && (
-                            <div className="mt-2 grid gap-2 rounded-md border border-dashed bg-card px-2 py-2 text-[11px] md:grid-cols-[2fr_1fr_1fr]">
-                              <Input
-                                placeholder="Neue Zutat ad-hoc hinzufügen"
-                                value={adHocName}
-                                onChange={(event) =>
-                                  setAdHocName(event.target.value)
-                                }
-                              />
-                              <Input
-                                placeholder="Einheit"
-                                value={adHocUnit}
-                                onChange={(event) =>
-                                  setAdHocUnit(event.target.value)
-                                }
-                              />
-                              <Input
-                                placeholder="EK-Preis"
-                                value={adHocPrice}
-                                onChange={(event) =>
-                                  setAdHocPrice(event.target.value)
-                                }
-                              />
+                            <div className="mt-2 space-y-1 rounded-md border border-dashed bg-card px-2 py-2 text-[11px]">
+                              <div className="grid gap-2 md:grid-cols-[2fr_1fr_1fr]">
+                                <Input
+                                  placeholder="Neue Zutat ad-hoc hinzufügen"
+                                  value={adHocName}
+                                  onChange={(event) => {
+                                    setAdHocSelectedItemId(null);
+                                    setAdHocName(event.target.value);
+                                  }}
+                                />
+                                <Input
+                                  placeholder="Einheit"
+                                  value={adHocUnit}
+                                  onChange={(event) => {
+                                    setAdHocSelectedItemId(null);
+                                    setAdHocUnit(event.target.value);
+                                  }}
+                                />
+                                <Input
+                                  placeholder="EK-Preis"
+                                  value={adHocPrice}
+                                  onChange={(event) => {
+                                    setAdHocSelectedItemId(null);
+                                    setAdHocPrice(event.target.value);
+                                  }}
+                                />
+                              </div>
+                              {adHocSuggestions.length > 0 && (
+                                <div className="max-h-32 space-y-1 overflow-y-auto">
+                                  {adHocSuggestions.map((item) => (
+                                    <button
+                                      key={item.id}
+                                      type="button"
+                                      className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
+                                      onClick={() => {
+                                        setAdHocSelectedItemId(item.id);
+                                        setAdHocName(item.name);
+                                        setAdHocUnit(item.unit);
+                                        setAdHocPrice(
+                                          item.purchasePrice.toFixed(2)
+                                        );
+                                      }}
+                                    >
+                                      <div className="flex flex-1 flex-col">
+                                        <div className="flex items-center gap-1">
+                                          <span className="truncate text-[11px] font-medium">
+                                            {item.name}
+                                          </span>
+                                          <TypeBadge type={item.type} />
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                                          <span>
+                                            EK: {item.purchasePrice.toFixed(2)}{" "}
+                                            € / {item.unit}
+                                          </span>
+                                          {item.internalId != null && (
+                                            <span>
+                                              Intern: INT-{item.internalId}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              {adHocExactMatchItem &&
+                                (!adHocSelectedItemId ||
+                                  adHocSelectedItemId !==
+                                    adHocExactMatchItem.id) && (
+                                  <div className="text-[10px] text-amber-700">
+                                    Artikel bereits vorhanden. Vorhandenen
+                                    Artikel nutzen?
+                                  </div>
+                                )}
                             </div>
                           )}
                           <div className="flex justify-end gap-2">
