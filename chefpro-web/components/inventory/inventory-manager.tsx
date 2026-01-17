@@ -232,6 +232,10 @@ export function InventoryManager() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
+  const [activeSection, setActiveSection] = useState<
+    "dashboard" | "zutaten" | "rezepte"
+  >("zutaten");
+  const [isDetailView, setIsDetailView] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -357,12 +361,6 @@ export function InventoryManager() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!selectedItemId && effectiveItems[0]) {
-      setSelectedItemId(effectiveItems[0].id);
-    }
-  }, [effectiveItems, selectedItemId]);
-
   const itemsById = useMemo(() => {
     const map = new Map<string, InventoryItem>();
     for (const item of effectiveItems) {
@@ -380,12 +378,34 @@ export function InventoryManager() {
         return true;
       }
       const value = search.toLowerCase();
+      const manufacturer =
+        item.manufacturerArticleNumber?.toLowerCase() ?? "";
+      const ean = item.ean?.toLowerCase() ?? "";
       return (
         item.name.toLowerCase().includes(value) ||
-        item.unit.toLowerCase().includes(value)
+        item.unit.toLowerCase().includes(value) ||
+        manufacturer.includes(value) ||
+        ean.includes(value)
       );
     });
   }, [effectiveItems, filterType, search]);
+
+  useEffect(() => {
+    if (!selectedItemId && filteredItems[0]) {
+      setSelectedItemId(filteredItems[0].id);
+    }
+  }, [filteredItems, selectedItemId]);
+
+  useEffect(() => {
+    if (activeSection === "zutaten") {
+      setFilterType("zukauf");
+    } else if (activeSection === "rezepte") {
+      setFilterType("eigenproduktion");
+    } else {
+      setFilterType("all");
+    }
+    setIsDetailView(false);
+  }, [activeSection]);
 
   const selectedItem =
     filteredItems.find((item) => item.id === selectedItemId) ??
