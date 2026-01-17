@@ -1782,7 +1782,7 @@ export function InventoryManager() {
                         {standardPreparationComponents.map(
                           (component, index) => (
                             <div
-                              key={`${index}-${component.name}-${component.unit}`}
+                              key={index}
                               className="flex items-center gap-2 rounded-md border bg-card px-2 py-2"
                             >
                               <Input
