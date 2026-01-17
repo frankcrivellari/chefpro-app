@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
 
+type StandardPreparationComponent = {
+  name: string;
+  quantity: number;
+  unit: string;
+};
+
+type StandardPreparation = {
+  components: StandardPreparationComponent[];
+};
+
 type ParsedItem = {
   name: string;
   unit: string;
   quantity: number;
   purchase_price: number;
   calculated_price_per_unit: number;
+  standardPreparation?: StandardPreparation | null;
+  preparationText?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -101,10 +113,10 @@ export async function POST(request: Request) {
       );
     }
 
-    let parsed: ParsedItem;
+    let parsedRaw: ParsedItem;
 
     try {
-      parsed = JSON.parse(content) as ParsedItem;
+      parsedRaw = JSON.parse(content) as ParsedItem;
     } catch (error) {
       console.error(
         "Antwort von OpenAI konnte nicht als JSON gelesen werden",
@@ -121,12 +133,12 @@ export async function POST(request: Request) {
     }
 
     if (
-      !parsed.name ||
-      !parsed.unit ||
-      typeof parsed.quantity !== "number" ||
-      typeof parsed.purchase_price !== "number"
+      !parsedRaw.name ||
+      !parsedRaw.unit ||
+      typeof parsedRaw.quantity !== "number" ||
+      typeof parsedRaw.purchase_price !== "number"
     ) {
-      console.error("Antwort von OpenAI ist unvollständig", parsed);
+      console.error("Antwort von OpenAI ist unvollständig", parsedRaw);
       return NextResponse.json(
         { error: "Antwort von OpenAI ist unvollständig" },
         { status: 500 }
@@ -134,22 +146,50 @@ export async function POST(request: Request) {
     }
 
     const quantity =
-      parsed.quantity > 0 ? parsed.quantity : 1;
+      parsedRaw.quantity > 0 ? parsedRaw.quantity : 1;
 
     const purchasePrice =
-      parsed.purchase_price >= 0 ? parsed.purchase_price : 0;
+      parsedRaw.purchase_price >= 0 ? parsedRaw.purchase_price : 0;
 
     const calculated =
       quantity > 0 ? purchasePrice / quantity : 0;
 
+    let standardPreparation: StandardPreparation | null = null;
+    const rawStd = parsedRaw.standardPreparation;
+    if (rawStd && Array.isArray(rawStd.components)) {
+      const cleanedComponents = rawStd.components
+        .map((component) => ({
+          name: String(component.name),
+          quantity: Number(component.quantity),
+          unit: String(component.unit),
+        }))
+        .filter(
+          (component) =>
+            component.name.trim().length > 0 &&
+            Number.isFinite(component.quantity) &&
+            component.quantity > 0 &&
+            component.unit.trim().length > 0
+        );
+      if (cleanedComponents.length > 0) {
+        standardPreparation = {
+          components: cleanedComponents,
+        };
+      }
+    }
+
     const normalized: ParsedItem = {
-      name: parsed.name,
-      unit: parsed.unit,
+      name: parsedRaw.name,
+      unit: parsedRaw.unit,
       quantity,
       purchase_price: purchasePrice,
       calculated_price_per_unit: Number(
         calculated.toFixed(2)
       ),
+      standardPreparation,
+      preparationText:
+        typeof parsedRaw.preparationText === "string"
+          ? parsedRaw.preparationText
+          : null,
     };
 
     return NextResponse.json(normalized);

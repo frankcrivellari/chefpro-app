@@ -214,6 +214,8 @@ export async function POST(request: Request) {
       portionUnit?: string | null;
       nutritionTags?: string[];
       components?: InventoryComponent[];
+      standardPreparation?: StandardPreparation | null;
+      preparationSteps?: string | null;
     };
 
     const client = getSupabaseServerClient();
@@ -243,6 +245,15 @@ export async function POST(request: Request) {
         nutrition_tags:
           body.nutritionTags && body.nutritionTags.length > 0
             ? body.nutritionTags
+            : null,
+        preparation_steps:
+          typeof body.preparationSteps === "string" &&
+          body.preparationSteps.trim().length > 0
+            ? body.preparationSteps.trim()
+            : null,
+        standard_preparation:
+          body.standardPreparation && typeof body.standardPreparation === "object"
+            ? body.standardPreparation
             : null,
       })
       .select("*")
@@ -320,6 +331,11 @@ export async function POST(request: Request) {
       nutritionTags: createdItemRow.nutrition_tags ?? undefined,
       manufacturerArticleNumber: createdItemRow.manufacturer_article_number,
       ean: createdItemRow.ean,
+      ingredients: createdItemRow.ingredients,
+      dosageInstructions: createdItemRow.dosage_instructions,
+      yieldInfo: createdItemRow.yield_info,
+      preparationSteps: createdItemRow.preparation_steps,
+      standardPreparation: createdItemRow.standard_preparation,
       components,
     };
 

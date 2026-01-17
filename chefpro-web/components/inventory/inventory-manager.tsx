@@ -63,6 +63,8 @@ type ParsedAiItem = {
   quantity: number;
   purchasePrice: number;
   calculatedPricePerUnit: number;
+  standardPreparation?: StandardPreparation | null;
+  preparationText?: string | null;
 };
 
 type ParsedDocumentItem = {
@@ -165,6 +167,8 @@ export function InventoryManager() {
   const [componentSearch, setComponentSearch] = useState("");
   const [componentQuantityInput, setComponentQuantityInput] = useState("1");
   const [componentUnitInput, setComponentUnitInput] = useState("");
+  const [standardPreparationComponents, setStandardPreparationComponents] =
+    useState<StandardPreparationComponent[]>([]);
   const [editingComponents, setEditingComponents] = useState<
     InventoryComponent[]
   >([]);
@@ -200,8 +204,6 @@ export function InventoryManager() {
   const [adHocSelectedItemId, setAdHocSelectedItemId] = useState<string | null>(
     null
   );
-  const [standardPreparationInput, setStandardPreparationInput] =
-    useState("");
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -456,7 +458,7 @@ export function InventoryManager() {
       setCategoryInput("");
       setPortionUnitInput("");
       setNutritionTagsInput([]);
-      setStandardPreparationInput("");
+      setStandardPreparationComponents([]);
       setTargetPortionsInput("");
       setTargetSalesPriceInput("");
       return;
@@ -472,16 +474,25 @@ export function InventoryManager() {
     setProDosageInput(selectedItem.dosageInstructions ?? "");
     setProYieldInput(selectedItem.yieldInfo ?? "");
     setProPreparationInput(selectedItem.preparationSteps ?? "");
-    if (selectedItem.standardPreparation) {
-      try {
-        setStandardPreparationInput(
-          JSON.stringify(selectedItem.standardPreparation)
-        );
-      } catch {
-        setStandardPreparationInput("");
-      }
+    const stdPrep = selectedItem.standardPreparation;
+    if (stdPrep && Array.isArray(stdPrep.components)) {
+      setStandardPreparationComponents(
+        stdPrep.components
+          .map((component) => ({
+            name: String(component.name),
+            quantity: Number(component.quantity),
+            unit: String(component.unit),
+          }))
+          .filter(
+            (component) =>
+              component.name.trim().length > 0 &&
+              Number.isFinite(component.quantity) &&
+              component.quantity > 0 &&
+              component.unit.trim().length > 0
+          )
+      );
     } else {
-      setStandardPreparationInput("");
+      setStandardPreparationComponents([]);
     }
     setTargetPortionsInput(
       selectedItem.targetPortions != null
@@ -864,42 +875,31 @@ export function InventoryManager() {
           : undefined;
       let parsedStandardPreparation: StandardPreparation | null =
         null;
-      if (
-        selectedItem.type === "zukauf" &&
-        standardPreparationInput.trim().length > 0
-      ) {
-        try {
-          const parsed = JSON.parse(
-            standardPreparationInput
-          ) as StandardPreparation;
-          if (parsed && Array.isArray(parsed.components)) {
-            parsedStandardPreparation = {
-              components: parsed.components
-                .map((component) => ({
-                  name: String(component.name),
-                  quantity: Number(component.quantity),
-                  unit: String(component.unit),
-                }))
-                .filter(
-                  (component) =>
-                    component.name.trim().length > 0 &&
-                    Number.isFinite(component.quantity) &&
-                    component.quantity > 0 &&
-                    component.unit.trim().length > 0
-                ),
-            };
-            if (parsedStandardPreparation.components.length === 0) {
-              parsedStandardPreparation = null;
-            }
-          } else {
-            throw new Error();
-          }
-        } catch {
-          setError(
-            "Standard-Zubereitung ist kein gültiges JSON mit dem Feld components."
+      if (selectedItem.type === "zukauf") {
+        const cleanedComponents = standardPreparationComponents
+          .map((component) => ({
+            name: String(component.name),
+            quantity: Number(
+              String(component.quantity).toString().replace(
+                ",",
+                "."
+              )
+            ),
+            unit: String(component.unit),
+          }))
+          .filter(
+            (component) =>
+              component.name.trim().length > 0 &&
+              Number.isFinite(component.quantity) &&
+              component.quantity > 0 &&
+              component.unit.trim().length > 0
           );
-          setIsSaving(false);
-          return;
+        if (cleanedComponents.length > 0) {
+          parsedStandardPreparation = {
+            components: cleanedComponents,
+          };
+        } else {
+          parsedStandardPreparation = null;
         }
       }
 
@@ -1018,6 +1018,8 @@ export function InventoryManager() {
         quantity: number;
         purchase_price: number;
         calculated_price_per_unit: number;
+        standardPreparation?: StandardPreparation | null;
+        preparationText?: string | null;
       };
       setAiParsed({
         name: data.name,
@@ -1025,6 +1027,8 @@ export function InventoryManager() {
         quantity: data.quantity,
         purchasePrice: data.purchase_price,
         calculatedPricePerUnit: data.calculated_price_per_unit,
+        standardPreparation: data.standardPreparation ?? null,
+        preparationText: data.preparationText ?? null,
       });
     } catch (error) {
       const message =
@@ -1055,6 +1059,8 @@ export function InventoryManager() {
           unit: aiParsed.unit,
           purchasePrice: aiParsed.purchasePrice,
           components: [],
+          standardPreparation: aiParsed.standardPreparation ?? null,
+          preparationSteps: aiParsed.preparationText ?? null,
         }),
       });
       if (!response.ok) {
@@ -1751,17 +1757,119 @@ export function InventoryManager() {
                         als Komponente in Eigenproduktionen verwenden.
                       </div>
                       <div className="space-y-1">
-                        <div className="text-[11px] text-muted-foreground">
-                          Standard-Zubereitung (JSON)
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>Standard-Zubereitung</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setStandardPreparationComponents((components) => [
+                                ...components,
+                                { name: "", quantity: 0, unit: "" },
+                              ])
+                            }
+                          >
+                            Zeile hinzufügen
+                          </Button>
                         </div>
-                        <textarea
-                          rows={3}
-                          value={standardPreparationInput}
-                          onChange={(event) =>
-                            setStandardPreparationInput(event.target.value)
-                          }
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                        />
+                        {standardPreparationComponents.length === 0 && (
+                          <div className="rounded-md border border-dashed bg-card px-2 py-2 text-[11px] text-muted-foreground">
+                            Noch keine strukturierte Standard-Zubereitung
+                            hinterlegt.
+                          </div>
+                        )}
+                        {standardPreparationComponents.map(
+                          (component, index) => (
+                            <div
+                              key={`${index}-${component.name}-${component.unit}`}
+                              className="flex items-center gap-2 rounded-md border bg-card px-2 py-2"
+                            >
+                              <Input
+                                type="number"
+                                placeholder="Menge"
+                                value={
+                                  component.quantity === 0
+                                    ? ""
+                                    : String(component.quantity)
+                                }
+                                onChange={(event) => {
+                                  const value = Number(
+                                    event.target.value.replace(",", ".")
+                                  );
+                                  setStandardPreparationComponents(
+                                    (components) =>
+                                      components.map(
+                                        (currentComponent, current) =>
+                                          current === index
+                                            ? {
+                                                ...currentComponent,
+                                                quantity: Number.isNaN(value)
+                                                  ? 0
+                                                  : value,
+                                              }
+                                            : currentComponent
+                                      )
+                                  );
+                                }}
+                                className="h-8 w-20 text-[11px]"
+                              />
+                              <Input
+                                placeholder="Einheit"
+                                value={component.unit}
+                                onChange={(event) =>
+                                  setStandardPreparationComponents(
+                                    (components) =>
+                                      components.map(
+                                        (currentComponent, current) =>
+                                          current === index
+                                            ? {
+                                                ...currentComponent,
+                                                unit: event.target.value,
+                                              }
+                                            : currentComponent
+                                      )
+                                  )
+                                }
+                                className="h-8 w-24 text-[11px]"
+                              />
+                              <Input
+                                placeholder="Zutat Name"
+                                value={component.name}
+                                onChange={(event) =>
+                                  setStandardPreparationComponents(
+                                    (components) =>
+                                      components.map(
+                                        (currentComponent, current) =>
+                                          current === index
+                                            ? {
+                                                ...currentComponent,
+                                                name: event.target.value,
+                                              }
+                                            : currentComponent
+                                      )
+                                  )
+                                }
+                                className="h-8 flex-1 text-[11px]"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setStandardPreparationComponents(
+                                    (components) =>
+                                      components.filter(
+                                        (_, current) => current !== index
+                                      )
+                                  )
+                                }
+                              >
+                                Entfernen
+                              </Button>
+                            </div>
+                          )
+                        )}
                       </div>
                     </div>
                   )}
