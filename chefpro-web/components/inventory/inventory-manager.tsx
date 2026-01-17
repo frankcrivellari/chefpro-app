@@ -928,9 +928,31 @@ export function InventoryManager() {
       if (payload.item) {
         const updated = payload.item;
         setItems((previous) =>
-          previous.map((item) =>
-            item.id === updated.id ? updated : item
-          )
+          previous.map((item) => {
+            if (item.id !== updated.id) {
+              return item;
+            }
+            const merged: InventoryItem = {
+              ...item,
+              ...updated,
+            };
+            if (!updated.components && item.components) {
+              merged.components = item.components;
+            }
+            if (
+              updated.hasGhostComponents === undefined &&
+              (item as InventoryItem & {
+                hasGhostComponents?: boolean;
+              }).hasGhostComponents
+            ) {
+              merged.hasGhostComponents = (
+                item as InventoryItem & {
+                  hasGhostComponents?: boolean;
+                }
+              ).hasGhostComponents;
+            }
+            return merged;
+          })
         );
       }
     } catch (saveError) {
@@ -1858,6 +1880,10 @@ export function InventoryManager() {
                           rootItem={selectedItem}
                           itemsById={itemsById}
                         />
+                      ) : isSaving ? (
+                        <div className="rounded-md border bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
+                          Komponenten werden aktualisiert...
+                        </div>
                       ) : (
                         <div className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
                           Für diese Eigenproduktion sind noch keine Komponenten

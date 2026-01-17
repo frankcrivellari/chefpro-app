@@ -35,6 +35,22 @@ type SupabaseItemRow = {
   standard_preparation: StandardPreparation | null;
 };
 
+type SupabaseRecipeStructureRow = {
+  id: string;
+  parent_item_id: string;
+  component_item_id: string | null;
+  quantity: number;
+  unit: string;
+  deleted_item_name: string | null;
+};
+
+type InventoryComponent = {
+  itemId: string | null;
+  quantity: number;
+  unit: string;
+  deletedItemName?: string | null;
+};
+
 type InventoryItem = {
   id: string;
   internalId?: number | null;
@@ -55,6 +71,8 @@ type InventoryItem = {
   yieldInfo?: string | null;
   preparationSteps?: string | null;
   standardPreparation?: StandardPreparation | null;
+  hasGhostComponents?: boolean;
+  components?: InventoryComponent[];
 };
 
 export async function POST(request: Request) {
@@ -215,6 +233,78 @@ export async function POST(request: Request) {
 
   const row = updateResponse.data as SupabaseItemRow;
 
+  let components: InventoryComponent[] | undefined;
+  let hasGhostComponents = false;
+
+  const relationsResponse = await client
+    .from("recipe_structure")
+    .select(
+      "id,parent_item_id,component_item_id,quantity,unit,deleted_item_name"
+    )
+    .eq("parent_item_id", row.id);
+
+  if (relationsResponse.error) {
+    const relationsError = relationsResponse.error;
+    const isMissingDeletedItemNameColumn =
+      relationsError.code === "42703" ||
+      (typeof relationsError.message === "string" &&
+        relationsError.message
+          .toLowerCase()
+          .includes("deleted_item_name"));
+
+    if (isMissingDeletedItemNameColumn) {
+      const fallbackRelationsResponse = await client
+        .from("recipe_structure")
+        .select("id,parent_item_id,component_item_id,quantity,unit")
+        .eq("parent_item_id", row.id);
+
+      if (fallbackRelationsResponse.error) {
+        return NextResponse.json(
+          {
+            error:
+              fallbackRelationsResponse.error.message ??
+              'Fehler beim Laden der Komponenten aus Tabelle "recipe_structure"',
+          },
+          { status: 500 }
+        );
+      }
+
+      const relations =
+        (fallbackRelationsResponse.data ??
+          []) as SupabaseRecipeStructureRow[];
+
+      components = relations.map((rel) => ({
+        itemId: rel.component_item_id,
+        quantity: rel.quantity,
+        unit: rel.unit,
+      }));
+    } else {
+      return NextResponse.json(
+        {
+          error:
+            relationsError.message ??
+            'Fehler beim Laden der Komponenten aus Tabelle "recipe_structure"',
+        },
+        { status: 500 }
+      );
+    }
+  } else {
+    const relations =
+      (relationsResponse.data ??
+        []) as SupabaseRecipeStructureRow[];
+
+    components = relations.map((rel) => ({
+      itemId: rel.component_item_id,
+      quantity: rel.quantity,
+      unit: rel.unit,
+      deletedItemName: rel.deleted_item_name,
+    }));
+
+    hasGhostComponents = relations.some(
+      (rel) => !rel.component_item_id && !!rel.deleted_item_name
+    );
+  }
+
   const item: InventoryItem = {
     id: row.id,
     internalId: row.internal_id,
@@ -235,6 +325,9 @@ export async function POST(request: Request) {
     yieldInfo: row.yield_info,
     preparationSteps: row.preparation_steps,
     standardPreparation: row.standard_preparation,
+    hasGhostComponents:
+      hasGhostComponents || undefined,
+    components,
   };
 
   return NextResponse.json({ item });
