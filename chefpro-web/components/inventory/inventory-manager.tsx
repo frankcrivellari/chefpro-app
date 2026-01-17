@@ -8,7 +8,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -291,6 +291,11 @@ export function InventoryManager() {
   const [isGeneratingImageStepId, setIsGeneratingImageStepId] = useState<
     string | null
   >(null);
+  const [editingStepId, setEditingStepId] = useState<string | null>(null);
+  const [imageViewer, setImageViewer] = useState<{
+    stepId: string;
+    imageUrl: string;
+  } | null>(null);
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -668,6 +673,7 @@ export function InventoryManager() {
       setActiveTagStepId(null);
       setTagSearch("");
       setIsGeneratingImageStepId(null);
+      setEditingStepId(null);
       return;
     }
     setNameInput(selectedItem.name);
@@ -721,6 +727,11 @@ export function InventoryManager() {
           }))
           .filter((step) => step.text.trim().length > 0);
         setPreparationStepsInput(steps);
+        if (steps.length > 0) {
+          setEditingStepId(steps[0].id);
+        } else {
+          setEditingStepId(null);
+        }
       } else if (typeof source === "string" && source.length > 0) {
         setPreparationStepsInput([
           {
@@ -731,8 +742,10 @@ export function InventoryManager() {
             videoUrl: null,
           },
         ]);
+        setEditingStepId(null);
       } else {
         setPreparationStepsInput([]);
+        setEditingStepId(null);
       }
       setProPreparationInput("");
     } else {
@@ -751,6 +764,7 @@ export function InventoryManager() {
         setProPreparationInput("");
       }
       setPreparationStepsInput([]);
+      setEditingStepId(null);
     }
     const stdPrep = selectedItem.standardPreparation;
     if (stdPrep && Array.isArray(stdPrep.components)) {
@@ -959,16 +973,18 @@ export function InventoryManager() {
   }
 
   function handleAddPreparationStep() {
+    const id = createPreparationStepId();
     setPreparationStepsInput((steps) => [
       ...steps,
       {
-        id: createPreparationStepId(),
+        id,
         text: "",
         duration: null,
         imageUrl: null,
         videoUrl: null,
       },
     ]);
+    setEditingStepId(id);
   }
 
   function handlePreparationStepTextChange(
@@ -1043,9 +1059,16 @@ export function InventoryManager() {
   }
 
   function handleRemovePreparationStep(stepId: string) {
-    setPreparationStepsInput((steps) =>
-      steps.filter((step) => step.id !== stepId)
-    );
+    setPreparationStepsInput((steps) => {
+      const index = steps.findIndex((step) => step.id === stepId);
+      const next = steps.filter((step) => step.id !== stepId);
+      if (editingStepId === stepId) {
+        const fallback =
+          index > 0 ? next[index - 1]?.id ?? null : next[0]?.id ?? null;
+        setEditingStepId(fallback ?? null);
+      }
+      return next;
+    });
     if (activeTagStepId === stepId) {
       setActiveTagStepId(null);
       setTagSearch("");
@@ -3037,7 +3060,9 @@ export function InventoryManager() {
                             {preparationStepsInput.map((step, index) => {
                               const isDragging =
                                 draggedPreparationStepId === step.id;
+                              const isEditing = editingStepId === step.id;
                               const showTagDropdown =
+                                isEditing &&
                                 activeTagStepId === step.id &&
                                 ingredientTagOptions.length > 0;
                               const filteredTags =
@@ -3101,14 +3126,21 @@ export function InventoryManager() {
                                   )}
                                 >
                                   <div className="flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                    <button
+                                      type="button"
+                                      className="flex items-center gap-2 text-[11px] text-muted-foreground"
+                                      onClick={() => setEditingStepId(step.id)}
+                                    >
                                       <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-medium">
                                         {index + 1}
                                       </span>
-                                      <span>Schritt</span>
-                                    </div>
+                                      <span>
+                                        Schritt{" "}
+                                        {isEditing ? "(Bearbeitung)" : ""}
+                                      </span>
+                                    </button>
                                     <div className="flex items-center gap-2">
-                                      {step.duration && (
+                                      {step.duration && !isEditing && (
                                         <span className="text-[11px] text-muted-foreground">
                                           Dauer: {step.duration}
                                         </span>
@@ -3126,141 +3158,230 @@ export function InventoryManager() {
                                       </Button>
                                     </div>
                                   </div>
-                                  <div className="space-y-2">
-                                    <textarea
-                                      rows={3}
-                                      value={step.text}
-                                      onChange={(event) =>
-                                        handlePreparationStepTextChange(
-                                          step.id,
-                                          event
-                                        )
-                                      }
-                                      className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                                      placeholder="Beschreibe diesen Schritt. Tippe @, um Zutaten aus dem Rezept zu verlinken."
-                                    />
-                                    {showTagDropdown &&
-                                      filteredTags.length > 0 && (
-                                        <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border bg-popover p-2 text-[11px] shadow-sm">
-                                          {filteredTags.map((option) => (
-                                            <button
-                                              key={option.id}
+                                  {isEditing ? (
+                                    <div className="space-y-2">
+                                      <textarea
+                                        rows={3}
+                                        value={step.text}
+                                        onChange={(event) =>
+                                          handlePreparationStepTextChange(
+                                            step.id,
+                                            event
+                                          )
+                                        }
+                                        className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                        placeholder="Beschreibe diesen Schritt. Tippe @, um Zutaten aus dem Rezept zu verlinken."
+                                      />
+                                      {showTagDropdown &&
+                                        filteredTags.length > 0 && (
+                                          <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border bg-popover p-2 text-[11px] shadow-sm">
+                                            {filteredTags.map((option) => (
+                                              <button
+                                                key={option.id}
+                                                type="button"
+                                                className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
+                                                onClick={() =>
+                                                  handleInsertIngredientTag(
+                                                    step.id,
+                                                    option.name
+                                                  )
+                                                }
+                                              >
+                                                <span>{option.name}</span>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                      <div className="space-y-1 rounded-md bg-muted/40 px-2 py-1">
+                                        <div className="text-[10px] text-muted-foreground">
+                                          Vorschau mit markierten Zutaten
+                                        </div>
+                                        <div className="text-[11px]">
+                                          {renderTaggedText(
+                                            step.text,
+                                            ingredientTagOptions
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="grid gap-2 md:grid-cols-3">
+                                        <div className="space-y-1">
+                                          <div className="text-[11px] text-muted-foreground">
+                                            Dauer (optional)
+                                          </div>
+                                          <Input
+                                            type="text"
+                                            value={step.duration ?? ""}
+                                            onChange={(
+                                              event: ChangeEvent<HTMLInputElement>
+                                            ) =>
+                                              handlePreparationStepDurationChange(
+                                                step.id,
+                                                event
+                                              )
+                                            }
+                                            className="h-7 px-2 py-1 text-[11px]"
+                                            placeholder="z. B. 10 Minuten"
+                                          />
+                                        </div>
+                                        <div className="space-y-1">
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[11px] text-muted-foreground">
+                                              Bild-URL (optional)
+                                            </span>
+                                            <Button
                                               type="button"
-                                              className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
+                                              size="sm"
+                                              className="h-6 px-2 text-[10px]"
+                                              disabled={
+                                                isGeneratingImageStepId ===
+                                                  step.id ||
+                                                !step.text.trim()
+                                              }
                                               onClick={() =>
-                                                handleInsertIngredientTag(
-                                                  step.id,
-                                                  option.name
+                                                handleGenerateStepImage(
+                                                  step.id
                                                 )
                                               }
                                             >
-                                              <span>{option.name}</span>
-                                            </button>
-                                          ))}
+                                              {isGeneratingImageStepId ===
+                                              step.id ? (
+                                                <>
+                                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                  Generiere...
+                                                </>
+                                              ) : (
+                                                "KI-Bild generieren"
+                                              )}
+                                            </Button>
+                                          </div>
+                                          <Input
+                                            type="text"
+                                            value={step.imageUrl ?? ""}
+                                            onChange={(
+                                              event: ChangeEvent<HTMLInputElement>
+                                            ) =>
+                                              handlePreparationStepImageUrlChange(
+                                                step.id,
+                                                event
+                                              )
+                                            }
+                                            className="h-7 px-2 py-1 text-[11px]"
+                                            placeholder="https://..."
+                                          />
+                                        </div>
+                                        <div className="space-y-1">
+                                          <div className="text-[11px] text-muted-foreground">
+                                            Video-URL (optional)
+                                          </div>
+                                          <Input
+                                            type="text"
+                                            value={step.videoUrl ?? ""}
+                                            onChange={(
+                                              event: ChangeEvent<HTMLInputElement>
+                                            ) =>
+                                              handlePreparationStepVideoUrlChange(
+                                                step.id,
+                                                event
+                                              )
+                                            }
+                                            className="h-7 px-2 py-1 text-[11px]"
+                                            placeholder="https://..."
+                                          />
+                                        </div>
+                                      </div>
+                                      {step.imageUrl && (
+                                        <div className="mt-1">
+                                          <div className="text-[10px] text-muted-foreground">
+                                            Vorschau
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setImageViewer({
+                                                stepId: step.id,
+                                                imageUrl: step.imageUrl as string,
+                                              })
+                                            }
+                                          >
+                                            <img
+                                              src={step.imageUrl}
+                                              alt={`Schritt ${index + 1}`}
+                                              className="mt-1 max-h-40 w-full rounded-md object-cover"
+                                            />
+                                          </button>
                                         </div>
                                       )}
-                                    <div className="space-y-1 rounded-md bg-muted/40 px-2 py-1">
-                                      <div className="text-[10px] text-muted-foreground">
-                                        Vorschau mit markierten Zutaten
-                                      </div>
-                                      <div className="text-[11px]">
-                                        {renderTaggedText(
-                                          step.text,
-                                          ingredientTagOptions
-                                        )}
+                                      <div className="flex justify-end">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-6 px-2 text-[10px]"
+                                          onClick={() => setEditingStepId(null)}
+                                        >
+                                          Fertig
+                                        </Button>
                                       </div>
                                     </div>
-                                    <div className="grid gap-2 md:grid-cols-3">
-                                      <div className="space-y-1">
-                                        <div className="text-[11px] text-muted-foreground">
-                                          Dauer (optional)
+                                  ) : (
+                                    <div className="space-y-2 text-[11px]">
+                                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                        <div className="flex-1">
+                                          {renderTaggedText(
+                                            step.text,
+                                            ingredientTagOptions
+                                          )}
                                         </div>
-                                        <Input
-                                          type="text"
-                                          value={step.duration ?? ""}
-                                          onChange={(
-                                            event: ChangeEvent<HTMLInputElement>
-                                          ) =>
-                                            handlePreparationStepDurationChange(
-                                              step.id,
-                                              event
-                                            )
-                                          }
-                                          className="h-7 px-2 py-1 text-[11px]"
-                                          placeholder="z. B. 10 Minuten"
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <div className="flex items-center justify-between gap-2">
-                                          <span className="text-[11px] text-muted-foreground">
-                                            Bild-URL (optional)
-                                          </span>
+                                        <div className="mt-1 flex flex-wrap items-center gap-3 md:mt-0 md:ml-4">
+                                          {step.duration && (
+                                            <span className="text-[11px] text-muted-foreground">
+                                              Dauer: {step.duration}
+                                            </span>
+                                          )}
+                                          {step.imageUrl && (
+                                            <button
+                                              type="button"
+                                              className="group relative"
+                                              onClick={() =>
+                                                setImageViewer({
+                                                  stepId: step.id,
+                                                  imageUrl:
+                                                    step.imageUrl as string,
+                                                })
+                                              }
+                                            >
+                                              <img
+                                                src={step.imageUrl}
+                                                alt={`Schritt ${index + 1}`}
+                                                className="h-12 w-12 rounded-md object-cover"
+                                              />
+                                            </button>
+                                          )}
+                                          {step.videoUrl && (
+                                            <a
+                                              href={step.videoUrl}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="text-[10px] text-sky-700 underline"
+                                            >
+                                              Video öffnen
+                                            </a>
+                                          )}
                                           <Button
                                             type="button"
                                             size="sm"
+                                            variant="outline"
                                             className="h-6 px-2 text-[10px]"
-                                            disabled={
-                                              isGeneratingImageStepId ===
-                                                step.id || !step.text.trim()
-                                            }
                                             onClick={() =>
-                                              handleGenerateStepImage(step.id)
+                                              setEditingStepId(step.id)
                                             }
                                           >
-                                            {isGeneratingImageStepId ===
-                                            step.id
-                                              ? "Generiere..."
-                                              : "KI-Bild generieren"}
+                                            Bearbeiten
                                           </Button>
                                         </div>
-                                        <Input
-                                          type="text"
-                                          value={step.imageUrl ?? ""}
-                                          onChange={(
-                                            event: ChangeEvent<HTMLInputElement>
-                                          ) =>
-                                            handlePreparationStepImageUrlChange(
-                                              step.id,
-                                              event
-                                            )
-                                          }
-                                          className="h-7 px-2 py-1 text-[11px]"
-                                          placeholder="https://..."
-                                        />
-                                      </div>
-                                      <div className="space-y-1">
-                                        <div className="text-[11px] text-muted-foreground">
-                                          Video-URL (optional)
-                                        </div>
-                                        <Input
-                                          type="text"
-                                          value={step.videoUrl ?? ""}
-                                          onChange={(
-                                            event: ChangeEvent<HTMLInputElement>
-                                          ) =>
-                                            handlePreparationStepVideoUrlChange(
-                                              step.id,
-                                              event
-                                            )
-                                          }
-                                          className="h-7 px-2 py-1 text-[11px]"
-                                          placeholder="https://..."
-                                        />
                                       </div>
                                     </div>
-                                    {step.imageUrl && (
-                                      <div className="mt-1">
-                                        <div className="text-[10px] text-muted-foreground">
-                                          Vorschau
-                                        </div>
-                                        <img
-                                          src={step.imageUrl}
-                                          alt={`Schritt ${index + 1}`}
-                                          className="mt-1 max-h-40 w-full rounded-md object-cover"
-                                        />
-                                      </div>
-                                    )}
-                                  </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -3751,8 +3872,13 @@ export function InventoryManager() {
                                           {index + 1}.
                                         </span>
                                         <div className="space-y-0.5">
-                                          <div className="whitespace-pre-line">
-                                            {step.text}
+                                          <div>
+                                            {renderTaggedText(
+                                              typeof step.text === "string"
+                                                ? step.text
+                                                : "",
+                                              ingredientTagOptions
+                                            )}
                                           </div>
                                           {step.duration && (
                                             <div className="text-[10px] text-muted-foreground">
@@ -3765,8 +3891,14 @@ export function InventoryManager() {
                                   )}
                                 </div>
                               ) : (
-                                <div className="mt-1 whitespace-pre-line text-[11px]">
-                                  {specItem.preparationSteps}
+                                <div className="mt-1 text-[11px]">
+                                  {renderTaggedText(
+                                    typeof specItem.preparationSteps ===
+                                      "string"
+                                      ? specItem.preparationSteps
+                                      : "",
+                                    ingredientTagOptions
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -3781,9 +3913,33 @@ export function InventoryManager() {
           </Card>
         </main>
       </div>
+      {imageViewer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <button
+            type="button"
+            className="absolute inset-0 h-full w-full cursor-zoom-out"
+            onClick={() => setImageViewer(null)}
+          />
+          <div className="relative z-10 max-h-[90vh] max-w-[90vw]">
+            <button
+              type="button"
+              className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs text-white"
+              onClick={() => setImageViewer(null)}
+            >
+              Schließen
+            </button>
+            <img
+              src={imageViewer.imageUrl}
+              alt="Zubereitungsschritt"
+              className="max-h-[90vh] max-w-[90vw] rounded-md object-contain"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 type TypeBadgeProps = {
   type: InventoryType;
