@@ -51,7 +51,9 @@ type PreparationStep = {
 type NutritionTotals = {
   energyKcal: number;
   fat: number;
+  saturatedFat: number;
   carbs: number;
+  sugar: number;
   protein: number;
   salt: number;
 };
@@ -573,13 +575,24 @@ export function InventoryManager() {
         if (!base) {
           return { totals: null, missing: true };
         }
-        return { totals: base, missing: false };
+        const normalized: NutritionTotals = {
+          energyKcal: base.energyKcal ?? 0,
+          fat: base.fat ?? 0,
+          saturatedFat: base.saturatedFat ?? 0,
+          carbs: base.carbs ?? 0,
+          sugar: base.sugar ?? 0,
+          protein: base.protein ?? 0,
+          salt: base.salt ?? 0,
+        };
+        return { totals: normalized, missing: false };
       }
 
       const totals: NutritionTotals = {
         energyKcal: 0,
         fat: 0,
+        saturatedFat: 0,
         carbs: 0,
+        sugar: 0,
         protein: 0,
         salt: 0,
       };
@@ -609,7 +622,9 @@ export function InventoryManager() {
         }
         totals.energyKcal += child.totals.energyKcal * quantity;
         totals.fat += child.totals.fat * quantity;
+        totals.saturatedFat += child.totals.saturatedFat * quantity;
         totals.carbs += child.totals.carbs * quantity;
+        totals.sugar += child.totals.sugar * quantity;
         totals.protein += child.totals.protein * quantity;
         totals.salt += child.totals.salt * quantity;
       }
@@ -639,7 +654,9 @@ export function InventoryManager() {
         ? {
             energyKcal: totals.energyKcal / validPortions,
             fat: totals.fat / validPortions,
+            saturatedFat: totals.saturatedFat / validPortions,
             carbs: totals.carbs / validPortions,
+            sugar: totals.sugar / validPortions,
             protein: totals.protein / validPortions,
             salt: totals.salt / validPortions,
           }
@@ -3432,10 +3449,32 @@ export function InventoryManager() {
                                 </div>
                                 <div className="flex justify-between gap-2">
                                   <span className="text-muted-foreground">
+                                    davon gesättigte Fettsäuren gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.saturatedFat.toFixed(
+                                      1
+                                    )}{" "}
+                                    g
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
                                     Kohlenhydrate gesamt (Rezept)
                                   </span>
                                   <span className="font-medium">
                                     {nutritionSummary.perRecipe.carbs.toFixed(
+                                      1
+                                    )}{" "}
+                                    g
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    davon Zucker gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.sugar.toFixed(
                                       1
                                     )}{" "}
                                     g
@@ -3494,10 +3533,32 @@ export function InventoryManager() {
                                     </div>
                                     <div className="flex justify-between gap-2">
                                       <span className="text-muted-foreground">
+                                        davon gesättigte Fettsäuren
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.saturatedFat.toFixed(
+                                          1
+                                        )}{" "}
+                                        g
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
                                         Kohlenhydrate
                                       </span>
                                       <span className="font-medium">
                                         {nutritionSummary.perPortion.carbs.toFixed(
+                                          1
+                                        )}{" "}
+                                        g
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        davon Zucker
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.sugar.toFixed(
                                           1
                                         )}{" "}
                                         g

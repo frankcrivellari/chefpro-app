@@ -20,6 +20,16 @@ type StandardPreparation = {
   components: StandardPreparationComponent[];
 };
 
+type NutritionTotals = {
+  energyKcal: number;
+  fat: number;
+  saturatedFat: number;
+  carbs: number;
+  sugar: number;
+  protein: number;
+  salt: number;
+};
+
 type InventoryItem = {
   id: string;
   internalId?: number | null;
@@ -39,6 +49,7 @@ type InventoryItem = {
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
   preparationSteps?: string | null;
+  nutritionPerUnit?: NutritionTotals | null;
   standardPreparation?: StandardPreparation | null;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
@@ -64,6 +75,7 @@ type SupabaseItemRow = {
   yield_info: string | null;
   preparation_steps: string | null;
   standard_preparation: StandardPreparation | null;
+  nutrition_per_unit: NutritionTotals | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -154,6 +166,7 @@ export async function GET() {
         dosageInstructions: row.dosage_instructions,
         yieldInfo: row.yield_info,
         preparationSteps: row.preparation_steps,
+      nutritionPerUnit: row.nutrition_per_unit,
         standardPreparation: row.standard_preparation,
       });
     }

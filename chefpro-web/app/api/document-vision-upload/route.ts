@@ -2,6 +2,16 @@ import { NextResponse } from "next/server";
 import pdfParse from "pdf-parse";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
+type VisionNutritionPer100 = {
+  energy_kcal: number;
+  fat: number;
+  saturated_fat: number;
+  carbs: number;
+  sugar: number;
+  protein: number;
+  salt: number;
+};
+
 type VisionExtracted = {
   name: string;
   unit: string;
@@ -11,6 +21,7 @@ type VisionExtracted = {
   dosage_instructions?: string | null;
   yield_info?: string | null;
   preparation_steps?: string | null;
+  nutrition_per_100?: VisionNutritionPer100 | null;
 };
 
 type InventoryType = "zukauf" | "eigenproduktion";
@@ -133,11 +144,11 @@ export async function POST(request: Request) {
   }
 
   const systemPrompt =
-    "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufsdaten für eine Küchen-Software. Antworte immer als JSON-Objekt mit den Feldern: name (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), yield_info (string), preparation_steps (string). Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge. ingredients sind die Zutaten in der Reihenfolge der Deklaration. dosage_instructions beschreibt Dosier- oder Anwendungsempfehlungen. yield_info beschreibt Ausbeute oder Portionsangaben. preparation_steps beschreibt die Zubereitung in kompakten Sätzen.";
+    "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt mit den Feldern: name (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), yield_info (string), preparation_steps (string), nutrition_per_100 (object). nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml und enthält die Felder: energy_kcal (number), fat (number), saturated_fat (number), carbs (number), sugar (number), protein (number), salt (number). Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge. ingredients sind die Zutaten in der Reihenfolge der Deklaration. dosage_instructions beschreibt Dosier- oder Anwendungsempfehlungen. yield_info beschreibt Ausbeute oder Portionsangaben. preparation_steps beschreibt die Zubereitung in kompakten Sätzen.";
 
   const userText =
     promptInputText ??
-    "Analysiere dieses Produktdatenblatt und gib die Felder name, unit, purchase_price, allergens, ingredients, dosage_instructions, yield_info und preparation_steps zurück.";
+    "Analysiere dieses Produktdatenblatt und gib die Felder name, unit, purchase_price, allergens, ingredients, dosage_instructions, yield_info, preparation_steps und nutrition_per_100 zurück. nutrition_per_100 sind die Nährwerte pro 100 g bzw. 100 ml mit energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt.";
 
   const messages = [
     {
@@ -268,6 +279,20 @@ export async function POST(request: Request) {
         ? parsed.preparation_steps
         : null;
 
+    const nutritionPerUnit =
+      parsed.nutrition_per_100 && typeof parsed.nutrition_per_100 === "object"
+        ? {
+            energyKcal: Number(parsed.nutrition_per_100.energy_kcal) || 0,
+            fat: Number(parsed.nutrition_per_100.fat) || 0,
+            saturatedFat:
+              Number(parsed.nutrition_per_100.saturated_fat) || 0,
+            carbs: Number(parsed.nutrition_per_100.carbs) || 0,
+            sugar: Number(parsed.nutrition_per_100.sugar) || 0,
+            protein: Number(parsed.nutrition_per_100.protein) || 0,
+            salt: Number(parsed.nutrition_per_100.salt) || 0,
+          }
+        : null;
+
     const insertItemResponse = await client
       .from("items")
       .insert({
@@ -275,6 +300,7 @@ export async function POST(request: Request) {
         item_type: "zukauf",
         unit: parsed.unit,
         purchase_price: parsed.purchase_price,
+        nutrition_per_unit: nutritionPerUnit,
         allergens,
         ingredients,
         dosage_instructions: dosageInstructions,
