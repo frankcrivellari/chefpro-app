@@ -33,6 +33,14 @@ type StandardPreparation = {
   components: StandardPreparationComponent[];
 };
 
+type NutritionTotals = {
+  energyKcal: number;
+  fat: number;
+  carbs: number;
+  protein: number;
+  salt: number;
+};
+
 type InventoryItem = {
   id: string;
   internalId?: number | null;
@@ -52,6 +60,7 @@ type InventoryItem = {
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
   preparationSteps?: string | null;
+  nutritionPerUnit?: NutritionTotals | null;
   standardPreparation?: StandardPreparation | null;
   components?: InventoryComponent[];
   hasGhostComponents?: boolean;
@@ -183,6 +192,7 @@ export function InventoryManager() {
   const [docParsed, setDocParsed] =
     useState<ParsedDocumentItem | null>(null);
   const [proAllergensInput, setProAllergensInput] = useState("");
+  const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
   const [proDosageInput, setProDosageInput] = useState("");
   const [proYieldInput, setProYieldInput] = useState("");
@@ -446,7 +456,122 @@ export function InventoryManager() {
     };
   }, [editingComponents, isEditingComponents, itemsById, selectedItem]);
 
+  const nutritionSummary = useMemo(() => {
+    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
+      return null;
+    }
+
+    const rootItem: InventoryItem = {
+      ...selectedItem,
+      components: isEditingComponents
+        ? editingComponents
+        : selectedItem.components,
+    };
+
+    if (!rootItem.components || rootItem.components.length === 0) {
+      return {
+        perRecipe: null as NutritionTotals | null,
+        perPortion: null as NutritionTotals | null,
+        hasMissingData: true,
+      };
+    }
+
+    const visited = new Set<string>();
+
+    function computeItemNutrition(
+      item: InventoryItem
+    ): { totals: NutritionTotals | null; missing: boolean } {
+      if (visited.has(item.id)) {
+        return { totals: null, missing: true };
+      }
+      visited.add(item.id);
+
+      if (!item.components || item.components.length === 0) {
+        const base = item.nutritionPerUnit;
+        if (!base) {
+          return { totals: null, missing: true };
+        }
+        return { totals: base, missing: false };
+      }
+
+      const totals: NutritionTotals = {
+        energyKcal: 0,
+        fat: 0,
+        carbs: 0,
+        protein: 0,
+        salt: 0,
+      };
+      let missing = false;
+
+      for (const component of item.components ?? []) {
+        if (!component.itemId) {
+          missing = true;
+          continue;
+        }
+        const componentItem = itemsById.get(component.itemId);
+        if (!componentItem) {
+          missing = true;
+          continue;
+        }
+        const quantity = Number(
+          String(component.quantity).toString().replace(",", ".")
+        );
+        if (!Number.isFinite(quantity) || quantity <= 0) {
+          missing = true;
+          continue;
+        }
+        const child = computeItemNutrition(componentItem);
+        if (!child.totals) {
+          missing = true;
+          continue;
+        }
+        totals.energyKcal += child.totals.energyKcal * quantity;
+        totals.fat += child.totals.fat * quantity;
+        totals.carbs += child.totals.carbs * quantity;
+        totals.protein += child.totals.protein * quantity;
+        totals.salt += child.totals.salt * quantity;
+      }
+
+      return { totals, missing };
+    }
+
+    const { totals, missing } = computeItemNutrition(rootItem);
+
+    if (!totals) {
+      return {
+        perRecipe: null as NutritionTotals | null,
+        perPortion: null as NutritionTotals | null,
+        hasMissingData: true,
+      };
+    }
+
+    const portions = selectedItem.targetPortions ?? null;
+    const validPortions =
+      portions != null && Number.isFinite(portions) && portions > 0
+        ? portions
+        : null;
+
+    const perRecipe = totals;
+    const perPortion =
+      validPortions != null
+        ? {
+            energyKcal: totals.energyKcal / validPortions,
+            fat: totals.fat / validPortions,
+            carbs: totals.carbs / validPortions,
+            protein: totals.protein / validPortions,
+            salt: totals.salt / validPortions,
+          }
+        : null;
+
+    return {
+      perRecipe,
+      perPortion,
+      hasMissingData: missing,
+    };
+  }, [editingComponents, isEditingComponents, itemsById, selectedItem]);
+
   useEffect(() => {
+    setSpecItem(null);
     if (!selectedItem) {
       setManufacturerInput("");
       setProAllergensInput("");
@@ -1975,6 +2100,151 @@ export function InventoryManager() {
                           )}
                         </div>
                       )}
+                      {nutritionSummary && (
+                        <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-xs font-semibold">
+                              Nährwerte &amp; Bilanz
+                            </h3>
+                            {nutritionSummary.hasMissingData && (
+                              <span className="text-[11px] text-muted-foreground">
+                                Nährwerte unvollständig – fehlende Daten werden
+                                teilweise geschätzt.
+                              </span>
+                            )}
+                          </div>
+                          {nutritionSummary.perRecipe ? (
+                            <>
+                              <div className="grid gap-1 text-[11px] md:grid-cols-2">
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    Energie gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.energyKcal.toFixed(
+                                      0
+                                    )}{" "}
+                                    kcal
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    Fett gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.fat.toFixed(
+                                      1
+                                    )}{" "}
+                                    g
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    Kohlenhydrate gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.carbs.toFixed(
+                                      1
+                                    )}{" "}
+                                    g
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    Eiweiß gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.protein.toFixed(
+                                      1
+                                    )}{" "}
+                                    g
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">
+                                    Salz gesamt (Rezept)
+                                  </span>
+                                  <span className="font-medium">
+                                    {nutritionSummary.perRecipe.salt.toFixed(
+                                      2
+                                    )}{" "}
+                                    g
+                                  </span>
+                                </div>
+                              </div>
+                              {nutritionSummary.perPortion && (
+                                <>
+                                  <div className="mt-2 text-[11px] font-semibold">
+                                    pro Portion
+                                  </div>
+                                  <div className="grid gap-1 text-[11px] md:grid-cols-2">
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        Energie
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.energyKcal.toFixed(
+                                          0
+                                        )}{" "}
+                                        kcal
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        Fett
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.fat.toFixed(
+                                          1
+                                        )}{" "}
+                                        g
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        Kohlenhydrate
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.carbs.toFixed(
+                                          1
+                                        )}{" "}
+                                        g
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        Eiweiß
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.protein.toFixed(
+                                          1
+                                        )}{" "}
+                                        g
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between gap-2">
+                                      <span className="text-muted-foreground">
+                                        Salz
+                                      </span>
+                                      <span className="font-medium">
+                                        {nutritionSummary.perPortion.salt.toFixed(
+                                          2
+                                        )}{" "}
+                                        g
+                                      </span>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            <div className="text-[11px] text-muted-foreground">
+                              Noch keine Nährwertdaten für die Zutaten
+                              hinterlegt.
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="text-sm font-semibold">Zutaten</h3>
                         <Button
@@ -1999,6 +2269,7 @@ export function InventoryManager() {
                         <ComponentTree
                           rootItem={selectedItem}
                           itemsById={itemsById}
+                          onSelectItem={setSpecItem}
                         />
                       ) : isSaving ? (
                         <div className="rounded-md border bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
@@ -2297,9 +2568,13 @@ export function InventoryManager() {
                                     {item && (
                                       <>
                                         <div className="flex items-center gap-2">
-                                          <span className="truncate text-[11px] font-medium">
+                                          <button
+                                            type="button"
+                                            className="truncate bg-transparent p-0 text-left text-[11px] font-medium underline-offset-2 hover:underline"
+                                            onClick={() => setSpecItem(item)}
+                                          >
                                             {item.name}
-                                          </span>
+                                          </button>
                                           <TypeBadge type={item.type} />
                                         </div>
                                         <div className="mt-1 flex gap-2">
@@ -2565,47 +2840,49 @@ export function InventoryManager() {
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <div className="space-y-1">
-                        <div className="text-[11px] text-muted-foreground">
-                          Zutaten
+                    {selectedItem.type !== "eigenproduktion" && (
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Zutaten
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={proIngredientsInput}
+                            onChange={(event) =>
+                              setProIngredientsInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
                         </div>
-                        <textarea
-                          rows={2}
-                          value={proIngredientsInput}
-                          onChange={(event) =>
-                            setProIngredientsInput(event.target.value)
-                          }
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[11px] text-muted-foreground">
-                          Dosierung
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Dosierung
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={proDosageInput}
+                            onChange={(event) =>
+                              setProDosageInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
                         </div>
-                        <textarea
-                          rows={2}
-                          value={proDosageInput}
-                          onChange={(event) =>
-                            setProDosageInput(event.target.value)
-                          }
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-[11px] text-muted-foreground">
-                          Zubereitung
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Zubereitung
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={proPreparationInput}
+                            onChange={(event) =>
+                              setProPreparationInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
                         </div>
-                        <textarea
-                          rows={3}
-                          value={proPreparationInput}
-                          onChange={(event) =>
-                            setProPreparationInput(event.target.value)
-                          }
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                        />
                       </div>
-                    </div>
+                    )}
                   </div>
                   {selectedItem.type === "eigenproduktion" && (
                     <div className="mt-4 space-y-2 rounded-md border border-red-500/40 bg-red-500/5 p-3 text-xs">
@@ -2679,6 +2956,109 @@ export function InventoryManager() {
                       </Button>
                     </div>
                   )}
+                  {specItem && (
+                    <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/40">
+                      <div className="flex h-full w-full max-w-md flex-col bg-background shadow-lg">
+                        <div className="flex items-center justify-between border-b px-4 py-3">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="truncate text-sm font-semibold">
+                              {specItem.name}
+                            </span>
+                            <TypeBadge type={specItem.type} />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSpecItem(null)}
+                          >
+                            Schließen
+                          </Button>
+                        </div>
+                        <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-xs">
+                          <div>
+                            <div className="text-[11px] text-muted-foreground">
+                              Hersteller-Art.-Nr.
+                            </div>
+                            <div className="font-medium">
+                              {specItem.manufacturerArticleNumber &&
+                              specItem.manufacturerArticleNumber.trim().length > 0
+                                ? specItem.manufacturerArticleNumber
+                                : "—"}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-[11px] text-muted-foreground">
+                              EAN
+                            </div>
+                            <div className="font-medium">
+                              {specItem.ean && specItem.ean.trim().length > 0
+                                ? specItem.ean
+                                : "—"}
+                            </div>
+                          </div>
+                          {specItem.allergens &&
+                            specItem.allergens.length > 0 && (
+                              <div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  Allergene
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {specItem.allergens.map((allergen) => (
+                                    <span
+                                      key={`${specItem.id}-spec-${allergen}`}
+                                      className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] text-amber-900"
+                                    >
+                                      {allergen}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          {specItem.ingredients && (
+                            <div>
+                              <div className="text-[11px] text-muted-foreground">
+                                Zutaten (Hersteller)
+                              </div>
+                              <div className="mt-1 whitespace-pre-line text-[11px]">
+                                {specItem.ingredients}
+                              </div>
+                            </div>
+                          )}
+                          {specItem.dosageInstructions && (
+                            <div>
+                              <div className="text-[11px] text-muted-foreground">
+                                Dosierungsempfehlung
+                              </div>
+                              <div className="mt-1 whitespace-pre-line text-[11px]">
+                                {specItem.dosageInstructions}
+                              </div>
+                            </div>
+                          )}
+                          {specItem.yieldInfo && (
+                            <div>
+                              <div className="text-[11px] text-muted-foreground">
+                                Ausbeute / Yield
+                              </div>
+                              <div className="mt-1 whitespace-pre-line text-[11px]">
+                                {specItem.yieldInfo}
+                              </div>
+                            </div>
+                          )}
+                          {specItem.preparationSteps && (
+                            <div>
+                              <div className="text-[11px] text-muted-foreground">
+                                Zubereitung
+                              </div>
+                              <div className="mt-1 whitespace-pre-line text-[11px]">
+                                {specItem.preparationSteps}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </CardContent>
@@ -2711,6 +3091,7 @@ function TypeBadge({ type }: TypeBadgeProps) {
 type ComponentTreeProps = {
   rootItem: InventoryItem;
   itemsById: Map<string, InventoryItem>;
+  onSelectItem?: (item: InventoryItem) => void;
 };
 
 type ManufacturerSuggestionButtonProps = {
@@ -2783,7 +3164,7 @@ function ManufacturerSuggestionButton({
   );
 }
 
-function ComponentTree({ rootItem, itemsById }: ComponentTreeProps) {
+function ComponentTree({ rootItem, itemsById, onSelectItem }: ComponentTreeProps) {
   if (!rootItem.components || rootItem.components.length === 0) {
     return null;
   }
@@ -2813,7 +3194,13 @@ function ComponentTree({ rootItem, itemsById }: ComponentTreeProps) {
                   <span className="inline-flex rounded bg-muted px-1 py-0.5">
                     {component.unit}
                   </span>
-                  <span className="font-medium">{item.name}</span>
+                  <button
+                    type="button"
+                    className="font-medium underline-offset-2 hover:underline"
+                    onClick={() => onSelectItem && onSelectItem(item)}
+                  >
+                    {item.name}
+                  </button>
                   <TypeBadge type={item.type} />
                 </div>
               </div>
@@ -2825,7 +3212,11 @@ function ComponentTree({ rootItem, itemsById }: ComponentTreeProps) {
             </div>
             {item.components && item.components.length > 0 && (
               <div className="border-l pl-4">
-                <ComponentTree rootItem={item} itemsById={itemsById} />
+                <ComponentTree
+                  rootItem={item}
+                  itemsById={itemsById}
+                  onSelectItem={onSelectItem}
+                />
               </div>
             )}
           </div>
