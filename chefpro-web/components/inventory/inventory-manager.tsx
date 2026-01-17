@@ -263,11 +263,63 @@ export function InventoryManager() {
     filteredItems[0] ??
     null;
 
+  const inheritedAllergens = useMemo(() => {
+    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
+      return [];
+    }
+    const rootItem: InventoryItem = {
+      ...selectedItem,
+      components: isEditingComponents
+        ? editingComponents
+        : selectedItem.components,
+    };
+    const visited = new Set<string>();
+    const allergensSet = new Set<string>();
+
+    function visit(item: InventoryItem) {
+      if (visited.has(item.id)) {
+        return;
+      }
+      visited.add(item.id);
+      const components = item.components ?? [];
+      for (const component of components) {
+        if (!component.itemId) {
+          continue;
+        }
+        const child = itemsById.get(component.itemId);
+        if (!child) {
+          continue;
+        }
+        for (const value of child.allergens ?? []) {
+          const trimmed = value.trim();
+          if (trimmed.length > 0) {
+            allergensSet.add(trimmed);
+          }
+        }
+        if (child.components && child.components.length > 0) {
+          visit(child);
+        }
+      }
+    }
+
+    visit(rootItem);
+
+    return Array.from(allergensSet).sort((a, b) =>
+      a.localeCompare(b, "de")
+    );
+  }, [editingComponents, isEditingComponents, itemsById, selectedItem]);
+
   const recipeCalculation = useMemo(() => {
     if (!selectedItem || selectedItem.type !== "eigenproduktion") {
       return null;
     }
-    if (!selectedItem.components || selectedItem.components.length === 0) {
+    const rootItem: InventoryItem = {
+      ...selectedItem,
+      components: isEditingComponents
+        ? editingComponents
+        : selectedItem.components,
+    };
+    if (!rootItem.components || rootItem.components.length === 0) {
       return {
         totalCost: 0,
         costPerPortion: null as number | null,
@@ -325,7 +377,7 @@ export function InventoryManager() {
       return { cost: total, missing };
     }
 
-    const { cost: totalCost, missing } = computeItemCost(selectedItem);
+    const { cost: totalCost, missing } = computeItemCost(rootItem);
 
     const portions = selectedItem.targetPortions ?? null;
     const validPortions =
@@ -357,7 +409,7 @@ export function InventoryManager() {
       goodsSharePercent,
       hasMissingPrices: missing,
     };
-  }, [itemsById, selectedItem]);
+  }, [editingComponents, isEditingComponents, itemsById, selectedItem]);
 
   useEffect(() => {
     if (!selectedItem) {
@@ -397,6 +449,9 @@ export function InventoryManager() {
     const term = componentSearch.toLowerCase();
     return effectiveItems.filter((item) => {
       if (item.id === selectedItem.id) {
+        return false;
+      }
+      if (item.type !== "zukauf") {
         return false;
       }
       if (
@@ -664,6 +719,51 @@ export function InventoryManager() {
     }
   }
 
+  async function handleCreateRecipe() {
+    try {
+      setIsSaving(true);
+      setError(null);
+      const response = await fetch("/api/inventory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "Neues Rezept",
+          type: "eigenproduktion" as InventoryType,
+          unit: "Portion",
+          purchasePrice: 0,
+          components: [],
+        }),
+      });
+      if (!response.ok) {
+        let message = "Fehler beim Anlegen des Rezepts.";
+        try {
+          const payload = (await response.json()) as {
+            error?: unknown;
+          };
+          if (payload && typeof payload.error === "string") {
+            message = payload.error;
+          }
+        } catch {
+        }
+        throw new Error(message);
+      }
+      const created = (await response.json()) as InventoryItem;
+      setItems((previous) => [...previous, created]);
+      setFilterType("eigenproduktion");
+      setSelectedItemId(created.id);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Fehler beim Anlegen des Rezepts.";
+      setError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function formatInternalId(value?: number | null) {
     if (!value || Number.isNaN(value)) {
       return "—";
@@ -684,7 +784,16 @@ export function InventoryManager() {
               Komponenten.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center">
+            <Button
+              type="button"
+              size="sm"
+              className="bg-primary text-primary-foreground"
+              disabled={isSaving}
+              onClick={handleCreateRecipe}
+            >
+              {isSaving ? "Erstelle..." : "Neues Rezept erstellen"}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -1151,6 +1260,15 @@ export function InventoryManager() {
                           ))}
                         </div>
                       )}
+                    {selectedItem.type === "eigenproduktion" &&
+                      inheritedAllergens.length > 0 && (
+                        <div className="text-[11px] text-muted-foreground">
+                          Allergene (aus Zutaten):{" "}
+                          <span className="font-medium">
+                            {inheritedAllergens.join(", ")}
+                          </span>
+                        </div>
+                      )}
                     <div className="text-xs text-muted-foreground">
                       Einheit: {selectedItem.unit}
                     </div>
@@ -1391,10 +1509,18 @@ export function InventoryManager() {
                                       ]);
                                     }}
                                   >
-                                    <span className="truncate text-[11px] font-medium">
-                                      {item.name}
-                                    </span>
-                                    <TypeBadge type={item.type} />
+                                    <div className="flex flex-1 flex-col">
+                                      <div className="flex items-center gap-2">
+                                        <span className="truncate text-[11px] font-medium">
+                                          {item.name}
+                                        </span>
+                                        <TypeBadge type={item.type} />
+                                      </div>
+                                      <div className="text-[10px] text-muted-foreground">
+                                        EK: {item.purchasePrice.toFixed(2)} € /{" "}
+                                        {item.unit}
+                                      </div>
+                                    </div>
                                   </button>
                                 ))}
                               </div>
