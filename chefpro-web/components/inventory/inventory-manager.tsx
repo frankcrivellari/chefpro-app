@@ -2063,78 +2063,67 @@ export function InventoryManager() {
                     <div className="text-xs text-muted-foreground">
                       Diese Ansicht zeigt alle IDs und Profi-Daten für den Artikel.
                     </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
-                      onClick={async () => {
-                        if (!selectedItem) {
-                          return;
-                        }
-                        const confirmed = window.confirm(
-                          "Möchtest du diesen Artikel wirklich löschen?"
-                        );
-                        if (!confirmed) {
-                          return;
-                        }
-                        try {
-                          setIsDeleting(true);
-                          setError(null);
-                          const response = await fetch("/api/inventory", {
-                            method: "DELETE",
-                            headers: {
-                              "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({ id: selectedItem.id }),
-                          });
-                          const payload = (await response.json()) as {
-                            error?: unknown;
-                            success?: boolean;
-                          };
-                          if (!response.ok || !payload.success) {
-                            let message =
-                              "Fehler beim Löschen des Artikels.";
-                            if (
-                              payload &&
-                              typeof payload.error === "string"
-                            ) {
-                              message = payload.error;
-                            }
-                            throw new Error(message);
+                    {selectedItem.type !== "eigenproduktion" && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
+                        onClick={async () => {
+                          if (!selectedItem) {
+                            return;
                           }
-                          setItems((previous) => {
-                            const currentId = selectedItem.id;
-                            const filtered = previous.filter(
-                              (item) => item.id !== currentId
-                            );
-                            if (filtered.length === 0) {
-                              setSelectedItemId(null);
-                              return filtered;
+                          const confirmed = window.confirm(
+                            "Möchtest du diesen Artikel wirklich löschen?"
+                          );
+                          if (!confirmed) {
+                            return;
+                          }
+                          try {
+                            setIsDeleting(true);
+                            setError(null);
+                            const response = await fetch("/api/inventory", {
+                              method: "DELETE",
+                              headers: {
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({ id: selectedItem.id }),
+                            });
+                            const payload = (await response.json()) as {
+                              error?: unknown;
+                              success?: boolean;
+                            };
+                            if (!response.ok || !payload.success) {
+                              let message =
+                                "Fehler beim Löschen des Artikels.";
+                              if (
+                                payload &&
+                                typeof payload.error === "string"
+                              ) {
+                                message = payload.error;
+                              }
+                              throw new Error(message);
                             }
-                            const index = previous.findIndex(
-                              (item) => item.id === currentId
+                            setItems((previous) =>
+                              previous.filter(
+                                (item) => item.id !== selectedItem.id
+                              )
                             );
-                            const next =
-                              filtered[index] ??
-                              filtered[index - 1] ??
-                              filtered[0];
-                            setSelectedItemId(next.id);
-                            return filtered;
-                          });
-                        } catch (deleteError) {
-                          const message =
-                            deleteError instanceof Error
-                              ? deleteError.message
-                              : "Fehler beim Löschen des Artikels.";
-                          setError(message);
-                        } finally {
-                          setIsDeleting(false);
-                        }
-                      }}
-                      disabled={isDeleting || isSaving}
-                    >
-                      {isDeleting ? "Lösche..." : "Artikel löschen"}
-                    </Button>
+                            setSelectedItemId(null);
+                          } catch (deleteError) {
+                            const message =
+                              deleteError instanceof Error
+                                ? deleteError.message
+                                : "Fehler beim Löschen des Artikels.";
+                            setError(message);
+                          } finally {
+                            setIsDeleting(false);
+                          }
+                        }}
+                        disabled={isDeleting || isSaving}
+                      >
+                        {isDeleting ? "Lösche..." : "Artikel löschen"}
+                      </Button>
+                    )}
                   </div>
                   <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-xs">
                     <div className="flex items-center justify-between gap-2">
@@ -2377,6 +2366,78 @@ export function InventoryManager() {
                       </div>
                     </div>
                   </div>
+                  {selectedItem.type === "eigenproduktion" && (
+                    <div className="mt-4 space-y-2 rounded-md border border-red-500/40 bg-red-500/5 p-3 text-xs">
+                      <div className="font-semibold text-red-700">
+                        Gefahrenzone
+                      </div>
+                      <div className="text-red-700">
+                        Dieses Rezept wird unwiderruflich gelöscht, inklusive aller
+                        zugehörigen Komponentenbeziehungen.
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
+                        onClick={async () => {
+                          if (!selectedItem) {
+                            return;
+                          }
+                          const confirmed = window.confirm(
+                            "Bist du sicher, dass du dieses Rezept unwiderruflich löschen möchtest?"
+                          );
+                          if (!confirmed) {
+                            return;
+                          }
+                          try {
+                            setIsDeleting(true);
+                            setError(null);
+                            const response = await fetch("/api/inventory", {
+                              method: "DELETE",
+                              headers: {
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({ id: selectedItem.id }),
+                            });
+                            const payload = (await response.json()) as {
+                              error?: unknown;
+                              success?: boolean;
+                            };
+                            if (!response.ok || !payload.success) {
+                              let message =
+                                "Fehler beim Löschen des Rezepts.";
+                              if (
+                                payload &&
+                                typeof payload.error === "string"
+                              ) {
+                                message = payload.error;
+                              }
+                              throw new Error(message);
+                            }
+                            setItems((previous) =>
+                              previous.filter(
+                                (item) => item.id !== selectedItem.id
+                              )
+                            );
+                            setSelectedItemId(null);
+                          } catch (deleteError) {
+                            const message =
+                              deleteError instanceof Error
+                                ? deleteError.message
+                                : "Fehler beim Löschen des Rezepts.";
+                            setError(message);
+                          } finally {
+                            setIsDeleting(false);
+                          }
+                        }}
+                        disabled={isDeleting || isSaving}
+                      >
+                        {isDeleting
+                          ? "Lösche..."
+                          : "Rezept unwiderruflich löschen"}
+                      </Button>
+                    </div>
+                  )}
                 </>
               )}
             </CardContent>
