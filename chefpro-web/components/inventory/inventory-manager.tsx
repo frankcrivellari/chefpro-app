@@ -23,6 +23,16 @@ type InventoryComponent = {
   deletedItemName?: string | null;
 };
 
+type StandardPreparationComponent = {
+  name: string;
+  quantity: number;
+  unit: string;
+};
+
+type StandardPreparation = {
+  components: StandardPreparationComponent[];
+};
+
 type InventoryItem = {
   id: string;
   internalId?: number | null;
@@ -42,6 +52,7 @@ type InventoryItem = {
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
   preparationSteps?: string | null;
+  standardPreparation?: StandardPreparation | null;
   components?: InventoryComponent[];
   hasGhostComponents?: boolean;
 };
@@ -171,10 +182,10 @@ export function InventoryManager() {
   const [proYieldInput, setProYieldInput] = useState("");
   const [proPreparationInput, setProPreparationInput] = useState("");
   const [manufacturerInput, setManufacturerInput] = useState("");
-   const [nameInput, setNameInput] = useState("");
-   const [categoryInput, setCategoryInput] = useState("");
-   const [portionUnitInput, setPortionUnitInput] = useState("");
-   const [nutritionTagsInput, setNutritionTagsInput] = useState<string[]>([]);
+  const [nameInput, setNameInput] = useState("");
+  const [categoryInput, setCategoryInput] = useState("");
+  const [portionUnitInput, setPortionUnitInput] = useState("");
+  const [nutritionTagsInput, setNutritionTagsInput] = useState<string[]>([]);
   const [targetPortionsInput, setTargetPortionsInput] = useState("");
   const [targetSalesPriceInput, setTargetSalesPriceInput] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -186,6 +197,8 @@ export function InventoryManager() {
   const [adHocSelectedItemId, setAdHocSelectedItemId] = useState<string | null>(
     null
   );
+  const [standardPreparationInput, setStandardPreparationInput] =
+    useState("");
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -440,6 +453,7 @@ export function InventoryManager() {
       setCategoryInput("");
       setPortionUnitInput("");
       setNutritionTagsInput([]);
+      setStandardPreparationInput("");
       setTargetPortionsInput("");
       setTargetSalesPriceInput("");
       return;
@@ -455,6 +469,17 @@ export function InventoryManager() {
     setProDosageInput(selectedItem.dosageInstructions ?? "");
     setProYieldInput(selectedItem.yieldInfo ?? "");
     setProPreparationInput(selectedItem.preparationSteps ?? "");
+    if (selectedItem.standardPreparation) {
+      try {
+        setStandardPreparationInput(
+          JSON.stringify(selectedItem.standardPreparation)
+        );
+      } catch {
+        setStandardPreparationInput("");
+      }
+    } else {
+      setStandardPreparationInput("");
+    }
     setTargetPortionsInput(
       selectedItem.targetPortions != null
         ? String(selectedItem.targetPortions)
@@ -1499,9 +1524,24 @@ export function InventoryManager() {
                   </div>
 
                   {selectedItem.type === "zukauf" && (
-                    <div className="rounded-md border bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-                      Dieser Artikel wird als Zukauf geführt. Du kannst ihn als
-                      Komponente in Eigenproduktionen verwenden.
+                    <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+                      <div>
+                        Dieser Artikel wird als Zukauf geführt. Du kannst ihn
+                        als Komponente in Eigenproduktionen verwenden.
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-muted-foreground">
+                          Standard-Zubereitung (JSON)
+                        </div>
+                        <textarea
+                          rows={3}
+                          value={standardPreparationInput}
+                          onChange={(event) =>
+                            setStandardPreparationInput(event.target.value)
+                          }
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        />
+                      </div>
                     </div>
                   )}
 
@@ -1641,120 +1681,129 @@ export function InventoryManager() {
                       )}
                       {isEditingComponents && (
                         <div className="space-y-3 rounded-md border bg-muted/40 p-3 text-xs">
-                          <div className="space-y-2">
-                            <Input
-                              placeholder={
-                                isSwapMode && swapGhostName
-                                  ? `Ersatz für "${swapGhostName}" suchen`
-                                  : "Komponenten suchen"
-                              }
-                              value={componentSearch}
-                              onChange={(event) =>
-                                setComponentSearch(event.target.value)
-                              }
-                            />
-                            {componentSearchResults.length > 0 && (
-                              <div className="max-h-40 space-y-1 overflow-y-auto">
-                                {componentSearchResults.map((item) => (
-                                  <button
-                                    key={item.id}
-                                    type="button"
-                                    className="flex w-full items-center justify-between gap-2 rounded-md border bg-card px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
-                                    onClick={async () => {
-                                      if (isSwapMode && selectedItem) {
-                                        if (!swapGhostName) {
-                                          return;
-                                        }
-                                        const confirmed = window.confirm(
-                                          `Möchtest du "${swapGhostName}" in ALLEN Rezepten durch "${item.name}" ersetzen?`
-                                        );
-                                        if (!confirmed) {
-                                          return;
-                                        }
-                                        try {
-                                          setIsSaving(true);
-                                          setError(null);
-                                          const response = await fetch(
-                                            "/api/recipe-structure",
-                                            {
-                                              method: "PATCH",
-                                              headers: {
-                                                "Content-Type":
-                                                  "application/json",
-                                              },
-                                              body: JSON.stringify({
-                                                deletedItemName: swapGhostName,
-                                                newItemId: item.id,
-                                              }),
-                                            }
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="flex-1 space-y-2">
+                              <Input
+                                placeholder={
+                                  isSwapMode && swapGhostName
+                                    ? `Ersatz für "${swapGhostName}" suchen`
+                                    : "Komponenten suchen"
+                                }
+                                value={componentSearch}
+                                onChange={(event) =>
+                                  setComponentSearch(event.target.value)
+                                }
+                              />
+                              {componentSearchResults.length > 0 && (
+                                <div className="max-h-40 space-y-1 overflow-y-auto">
+                                  {componentSearchResults.map((item) => (
+                                    <button
+                                      key={item.id}
+                                      type="button"
+                                      className="flex w-full items-center justify-between gap-2 rounded-md border bg-card px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
+                                      onClick={async () => {
+                                        if (isSwapMode && selectedItem) {
+                                          if (!swapGhostName) {
+                                            return;
+                                          }
+                                          const confirmed = window.confirm(
+                                            `Möchtest du "${swapGhostName}" in ALLEN Rezepten durch "${item.name}" ersetzen?`
                                           );
-                                          const payload =
-                                            (await response.json()) as {
-                                              error?: unknown;
-                                              replacedCount?: number;
-                                            };
-                                          if (!response.ok) {
-                                            let message =
-                                              "Fehler beim globalen Ersetzen der Zutat.";
-                                            if (
-                                              payload &&
-                                              typeof payload.error === "string"
-                                            ) {
-                                              message = payload.error;
-                                            }
-                                            throw new Error(message);
+                                          if (!confirmed) {
+                                            return;
                                           }
-                                          const inventoryResponse =
-                                            await fetch("/api/inventory");
-                                          if (inventoryResponse.ok) {
-                                            const inventoryPayload =
-                                              (await inventoryResponse.json()) as InventoryItem[];
-                                            setItems(
-                                              inventoryPayload.length > 0
-                                                ? inventoryPayload
-                                                : initialItems
+                                          try {
+                                            setIsSaving(true);
+                                            setError(null);
+                                            const response = await fetch(
+                                              "/api/recipe-structure",
+                                              {
+                                                method: "PATCH",
+                                                headers: {
+                                                  "Content-Type":
+                                                    "application/json",
+                                                },
+                                                body: JSON.stringify({
+                                                  deletedItemName: swapGhostName,
+                                                  newItemId: item.id,
+                                                }),
+                                              }
                                             );
+                                            const payload =
+                                              (await response.json()) as {
+                                                error?: unknown;
+                                                replacedCount?: number;
+                                              };
+                                            if (!response.ok) {
+                                              let message =
+                                                "Fehler beim globalen Ersetzen der Zutat.";
+                                              if (
+                                                payload &&
+                                                typeof payload.error === "string"
+                                              ) {
+                                                message = payload.error;
+                                              }
+                                              throw new Error(message);
+                                            }
+                                            const inventoryResponse =
+                                              await fetch("/api/inventory");
+                                            if (inventoryResponse.ok) {
+                                              const inventoryPayload =
+                                                (await inventoryResponse.json()) as InventoryItem[];
+                                              setItems(
+                                                inventoryPayload.length > 0
+                                                  ? inventoryPayload
+                                                  : initialItems
+                                              );
+                                            }
+                                          } catch (swapError) {
+                                            const message =
+                                              swapError instanceof Error
+                                                ? swapError.message
+                                                : "Fehler beim globalen Ersetzen der Zutat.";
+                                            setError(message);
+                                          } finally {
+                                            setIsSaving(false);
+                                            setIsSwapMode(false);
+                                            setSwapGhostName("");
+                                            setComponentSearch("");
                                           }
-                                        } catch (swapError) {
-                                          const message =
-                                            swapError instanceof Error
-                                              ? swapError.message
-                                              : "Fehler beim globalen Ersetzen der Zutat.";
-                                          setError(message);
-                                        } finally {
-                                          setIsSaving(false);
-                                          setIsSwapMode(false);
-                                          setSwapGhostName("");
-                                          setComponentSearch("");
+                                          return;
                                         }
-                                        return;
-                                      }
-                                      setEditingComponents((components) => [
-                                        ...components,
-                                        {
-                                          itemId: item.id,
-                                          quantity: 1,
-                                          unit: item.unit,
-                                        },
-                                      ]);
-                                    }}
-                                  >
-                                    <div className="flex flex-1 flex-col">
-                                      <div className="flex items-center gap-2">
-                                        <span className="truncate text-[11px] font-medium">
-                                          {item.name}
-                                        </span>
-                                        <TypeBadge type={item.type} />
+                                        setEditingComponents((components) => [
+                                          ...components,
+                                          {
+                                            itemId: item.id,
+                                            quantity: 1,
+                                            unit: item.unit,
+                                          },
+                                        ]);
+                                        setComponentSearch("");
+                                      }}
+                                    >
+                                      <div className="flex flex-1 flex-col">
+                                        <div className="flex items-center gap-2">
+                                          <span className="truncate text-[11px] font-medium">
+                                            {item.name}
+                                          </span>
+                                          <TypeBadge type={item.type} />
+                                        </div>
+                                        <div className="text-[10px] text-muted-foreground">
+                                          EK: {item.purchasePrice.toFixed(2)} € /{" "}
+                                          {item.unit}
+                                        </div>
                                       </div>
-                                      <div className="text-[10px] text-muted-foreground">
-                                        EK: {item.purchasePrice.toFixed(2)} € /{" "}
-                                        {item.unit}
-                                      </div>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <ManufacturerSuggestionButton
+                              selectedItem={selectedItem}
+                              itemsById={itemsById}
+                              editingComponents={editingComponents}
+                              setEditingComponents={setEditingComponents}
+                            />
                           </div>
                           <div className="space-y-2">
                             {editingComponents.length === 0 && (
@@ -1860,7 +1909,8 @@ export function InventoryManager() {
                                         </div>
                                         <div className="flex gap-2 text-[11px] text-muted-foreground">
                                           <span>
-                                            Menge: {component.quantity}{" "}
+                                            Benötigte Menge im Rezept:{" "}
+                                            {component.quantity}{" "}
                                             {component.unit}
                                           </span>
                                           <button
@@ -2138,6 +2188,55 @@ export function InventoryManager() {
                               selectedItem.type === "eigenproduktion"
                                 ? nutritionTagsInput
                                 : undefined;
+                            let parsedStandardPreparation: StandardPreparation | null =
+                              null;
+                            if (
+                              selectedItem.type === "zukauf" &&
+                              standardPreparationInput.trim().length > 0
+                            ) {
+                              try {
+                                const parsed = JSON.parse(
+                                  standardPreparationInput
+                                ) as StandardPreparation;
+                                if (
+                                  parsed &&
+                                  Array.isArray(parsed.components)
+                                ) {
+                                  parsedStandardPreparation = {
+                                    components: parsed.components
+                                      .map((component) => ({
+                                        name: String(component.name),
+                                        quantity: Number(component.quantity),
+                                        unit: String(component.unit),
+                                      }))
+                                      .filter(
+                                        (component) =>
+                                          component.name.trim().length > 0 &&
+                                          Number.isFinite(
+                                            component.quantity
+                                          ) &&
+                                          component.quantity > 0 &&
+                                          component.unit.trim().length > 0
+                                      ),
+                                  };
+                                  if (
+                                    parsedStandardPreparation.components
+                                      .length === 0
+                                  ) {
+                                    parsedStandardPreparation = null;
+                                  }
+                                } else {
+                                  throw new Error();
+                                }
+                              } catch {
+                                setError(
+                                  "Standard-Zubereitung ist kein gültiges JSON mit dem Feld components."
+                                );
+                                setIsSaving(false);
+                                return;
+                              }
+                            }
+
                             const response = await fetch(
                               "/api/item-details",
                               {
@@ -2161,6 +2260,10 @@ export function InventoryManager() {
                                   category: categoryValue,
                                   portionUnit: portionUnitValue,
                                   nutritionTags: nutritionTagsValue,
+                                  standardPreparation:
+                                    selectedItem.type === "zukauf"
+                                      ? parsedStandardPreparation
+                                      : undefined,
                                 }),
                               }
                             );
@@ -2308,6 +2411,88 @@ type ComponentTreeProps = {
   itemsById: Map<string, InventoryItem>;
 };
 
+type ManufacturerSuggestionButtonProps = {
+  selectedItem: InventoryItem;
+  itemsById: Map<string, InventoryItem>;
+  editingComponents: InventoryComponent[];
+  setEditingComponents: (
+    updater:
+      | InventoryComponent[]
+      | ((
+          previous: InventoryComponent[]
+        ) => InventoryComponent[])
+  ) => void;
+};
+
+function ManufacturerSuggestionButton({
+  selectedItem,
+  itemsById,
+  editingComponents,
+  setEditingComponents,
+}: ManufacturerSuggestionButtonProps) {
+  if (selectedItem.type !== "eigenproduktion") {
+    return null;
+  }
+
+  const itemsByName = new Map<string, InventoryItem>();
+  for (const item of itemsById.values()) {
+    itemsByName.set(item.name.toLowerCase(), item);
+  }
+
+  const baseComponents: InventoryComponent[] =
+    selectedItem.components ?? [];
+
+  const suggestions: InventoryComponent[] = [];
+
+  for (const component of baseComponents) {
+    if (!component.itemId) {
+      continue;
+    }
+    const item = itemsById.get(component.itemId);
+    if (!item || !item.standardPreparation) {
+      continue;
+    }
+    for (const suggestion of item.standardPreparation.components) {
+      const key = suggestion.name.toLowerCase();
+      const suggestedItem = itemsByName.get(key);
+      if (!suggestedItem) {
+        continue;
+      }
+      const alreadyExists = editingComponents.some(
+        (existing) => existing.itemId === suggestedItem.id
+      );
+      if (alreadyExists) {
+        continue;
+      }
+      suggestions.push({
+        itemId: suggestedItem.id,
+        quantity: suggestion.quantity,
+        unit: suggestion.unit,
+      });
+    }
+  }
+
+  if (suggestions.length === 0) {
+    return null;
+  }
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      onClick={() => {
+        setEditingComponents((previous) => [
+          ...previous,
+          ...suggestions,
+        ]);
+      }}
+    >
+      Zubereitungsempfehlung des Herstellers anwenden
+    </Button>
+  );
+}
+
 function ComponentTree({ rootItem, itemsById }: ComponentTreeProps) {
   if (!rootItem.components || rootItem.components.length === 0) {
     return null;
@@ -2337,7 +2522,8 @@ function ComponentTree({ rootItem, itemsById }: ComponentTreeProps) {
                     <TypeBadge type={item.type} />
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Menge: {component.quantity} {component.unit}
+                    Benötigte Menge im Rezept: {component.quantity}{" "}
+                    {component.unit}
                   </div>
                 </div>
               </div>

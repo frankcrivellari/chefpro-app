@@ -3,6 +3,16 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 type InventoryType = "zukauf" | "eigenproduktion";
 
+type StandardPreparationComponent = {
+  name: string;
+  quantity: number;
+  unit: string;
+};
+
+type StandardPreparation = {
+  components: StandardPreparationComponent[];
+};
+
 type SupabaseItemRow = {
   id: string;
   name: string;
@@ -22,6 +32,7 @@ type SupabaseItemRow = {
   dosage_instructions: string | null;
   yield_info: string | null;
   preparation_steps: string | null;
+  standard_preparation: StandardPreparation | null;
 };
 
 type InventoryItem = {
@@ -43,6 +54,7 @@ type InventoryItem = {
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
   preparationSteps?: string | null;
+  standardPreparation?: StandardPreparation | null;
 };
 
 export async function POST(request: Request) {
@@ -72,6 +84,7 @@ export async function POST(request: Request) {
     category?: string | null;
     portionUnit?: string | null;
     nutritionTags?: string[];
+    standardPreparation?: StandardPreparation | null;
   };
 
   if (!body.id) {
@@ -94,6 +107,7 @@ export async function POST(request: Request) {
     category?: string | null;
     portion_unit?: string | null;
     nutrition_tags?: string[] | null;
+    standard_preparation?: StandardPreparation | null;
   } = {};
 
   if (typeof body.name === "string") {
@@ -172,6 +186,15 @@ export async function POST(request: Request) {
       body.nutritionTags.length > 0 ? body.nutritionTags : [];
   }
 
+  if (Object.prototype.hasOwnProperty.call(body, "standardPreparation")) {
+    const value = body.standardPreparation;
+    if (value === null) {
+      updates.standard_preparation = null;
+    } else if (value && typeof value === "object") {
+      updates.standard_preparation = value as StandardPreparation;
+    }
+  }
+
   const updateResponse = await client
     .from("items")
     .update(updates)
@@ -211,6 +234,7 @@ export async function POST(request: Request) {
     dosageInstructions: row.dosage_instructions,
     yieldInfo: row.yield_info,
     preparationSteps: row.preparation_steps,
+    standardPreparation: row.standard_preparation,
   };
 
   return NextResponse.json({ item });

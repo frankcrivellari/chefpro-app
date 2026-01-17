@@ -10,6 +10,16 @@ type InventoryComponent = {
   deletedItemName?: string | null;
 };
 
+type StandardPreparationComponent = {
+  name: string;
+  quantity: number;
+  unit: string;
+};
+
+type StandardPreparation = {
+  components: StandardPreparationComponent[];
+};
+
 type InventoryItem = {
   id: string;
   internalId?: number | null;
@@ -29,6 +39,7 @@ type InventoryItem = {
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
   preparationSteps?: string | null;
+  standardPreparation?: StandardPreparation | null;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
 };
@@ -52,6 +63,7 @@ type SupabaseItemRow = {
   dosage_instructions: string | null;
   yield_info: string | null;
   preparation_steps: string | null;
+  standard_preparation: StandardPreparation | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -142,6 +154,7 @@ export async function GET() {
         dosageInstructions: row.dosage_instructions,
         yieldInfo: row.yield_info,
         preparationSteps: row.preparation_steps,
+        standardPreparation: row.standard_preparation,
       });
     }
 
