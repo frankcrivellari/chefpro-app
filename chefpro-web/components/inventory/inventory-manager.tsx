@@ -744,11 +744,7 @@ export function InventoryManager() {
           }))
           .filter((step) => step.text.trim().length > 0);
         setPreparationStepsInput(steps);
-        if (steps.length > 0) {
-          setEditingStepId(steps[0].id);
-        } else {
-          setEditingStepId(null);
-        }
+        setEditingStepId(null);
       } else if (typeof source === "string" && source.length > 0) {
         setPreparationStepsInput([
           {
@@ -1546,6 +1542,7 @@ export function InventoryManager() {
       setError(message);
     } finally {
       setIsSaving(false);
+      setEditingStepId(null);
     }
   }
 
