@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import pdfParse from "pdf-parse";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 type VisionExtracted = {
@@ -6,6 +7,10 @@ type VisionExtracted = {
   unit: string;
   purchase_price: number;
   allergens: string[];
+  ingredients?: string | null;
+  dosage_instructions?: string | null;
+  yield_info?: string | null;
+  preparation_steps?: string | null;
 };
 
 type InventoryType = "zukauf" | "eigenproduktion";
@@ -102,18 +107,63 @@ export async function POST(request: Request) {
 
     const publicUrl = publicUrlResult.data.publicUrl;
 
-    if (!file.type.startsWith("image/")) {
-      return NextResponse.json(
-        {
-          error:
-            "Die AI-Auswertung ist aktuell nur für Bilddateien verfügbar. Das Dokument wurde trotzdem im Storage gespeichert.",
-          fileUrl: publicUrl,
-        },
-        { status: 400 }
-      );
-    }
+  const isImage = file.type.startsWith("image/");
+  const isPdf =
+    file.type === "application/pdf" ||
+    file.type === "application/x-pdf" ||
+    file.type.endsWith("+pdf");
 
-    const visionResponse = await fetch(
+  let promptInputText: string | null = null;
+  let useImage: boolean = false;
+
+  if (isImage) {
+    useImage = true;
+  } else if (isPdf) {
+    const pdfData = await pdfParse(fileBuffer);
+    promptInputText = pdfData.text.slice(0, 15000);
+  } else {
+    return NextResponse.json(
+      {
+        error:
+          "Nur Bild- und PDF-Dokumente werden für die KI-Analyse unterstützt. Das Dokument wurde im Storage gespeichert.",
+        fileUrl: publicUrl,
+      },
+      { status: 400 }
+    );
+  }
+
+  const systemPrompt =
+    "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufsdaten für eine Küchen-Software. Antworte immer als JSON-Objekt mit den Feldern: name (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), yield_info (string), preparation_steps (string). Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge. ingredients sind die Zutaten in der Reihenfolge der Deklaration. dosage_instructions beschreibt Dosier- oder Anwendungsempfehlungen. yield_info beschreibt Ausbeute oder Portionsangaben. preparation_steps beschreibt die Zubereitung in kompakten Sätzen.";
+
+  const userText =
+    promptInputText ??
+    "Analysiere dieses Produktdatenblatt und gib die Felder name, unit, purchase_price, allergens, ingredients, dosage_instructions, yield_info und preparation_steps zurück.";
+
+  const messages = [
+    {
+      role: "system" as const,
+      content: systemPrompt,
+    },
+    {
+      role: "user" as const,
+      content: useImage
+        ? [
+            {
+              type: "text" as const,
+              text: userText,
+            },
+            {
+              type: "image_url" as const,
+              image_url: {
+                url: publicUrl,
+              },
+            },
+          ]
+        : userText,
+    },
+  ];
+
+  const visionResponse = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
         method: "POST",
@@ -124,28 +174,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           model: "gpt-4o-mini",
           response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content:
-                "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufsdaten für eine Küchen-Software. Antworte immer als JSON-Objekt mit den Feldern: name (string), unit (string), purchase_price (number), allergens (array of strings). Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge.",
-            },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Analysiere dieses Produktdatenblatt und gib die Felder name, unit, purchase_price und allergens zurück.",
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: publicUrl,
-                  },
-                },
-              ],
-            },
-          ],
+          messages,
         }),
       }
     );
@@ -222,6 +251,23 @@ export async function POST(request: Request) {
         ? parsed.allergens.map((value) => String(value))
         : [];
 
+    const ingredients =
+      typeof parsed.ingredients === "string"
+        ? parsed.ingredients
+        : null;
+    const dosageInstructions =
+      typeof parsed.dosage_instructions === "string"
+        ? parsed.dosage_instructions
+        : null;
+    const yieldInfo =
+      typeof parsed.yield_info === "string"
+        ? parsed.yield_info
+        : null;
+    const preparationSteps =
+      typeof parsed.preparation_steps === "string"
+        ? parsed.preparation_steps
+        : null;
+
     const insertItemResponse = await client
       .from("items")
       .insert({
@@ -229,6 +275,11 @@ export async function POST(request: Request) {
         item_type: "zukauf",
         unit: parsed.unit,
         purchase_price: parsed.purchase_price,
+        allergens,
+        ingredients,
+        dosage_instructions: dosageInstructions,
+        yield_info: yieldInfo,
+        preparation_steps: preparationSteps,
       })
       .select("*")
       .single();
@@ -245,6 +296,10 @@ export async function POST(request: Request) {
             unit: parsed.unit,
             purchase_price: parsed.purchase_price,
             allergens,
+            ingredients,
+            dosage_instructions: dosageInstructions,
+            yield_info: yieldInfo,
+            preparation_steps: preparationSteps,
           },
         },
         { status: 500 }
@@ -266,6 +321,10 @@ export async function POST(request: Request) {
         unit: parsed.unit,
         purchase_price: parsed.purchase_price,
         allergens,
+        ingredients,
+        dosage_instructions: dosageInstructions,
+        yield_info: yieldInfo,
+        preparation_steps: preparationSteps,
       },
       fileUrl: publicUrl,
     });
@@ -280,4 +339,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

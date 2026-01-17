@@ -11,10 +11,18 @@ type InventoryComponent = {
 
 type InventoryItem = {
   id: string;
+  internalId?: number | null;
   name: string;
   type: InventoryType;
   unit: string;
   purchasePrice: number;
+  manufacturerArticleNumber?: string | null;
+  ean?: string | null;
+  allergens?: string[];
+  ingredients?: string | null;
+  dosageInstructions?: string | null;
+  yieldInfo?: string | null;
+  preparationSteps?: string | null;
   components?: InventoryComponent[];
 };
 
@@ -24,6 +32,14 @@ type SupabaseItemRow = {
   item_type: InventoryType;
   unit: string;
   purchase_price: number;
+  internal_id: number | null;
+  manufacturer_article_number: string | null;
+  ean: string | null;
+  allergens: string[] | null;
+  ingredients: string | null;
+  dosage_instructions: string | null;
+  yield_info: string | null;
+  preparation_steps: string | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -96,10 +112,18 @@ export async function GET() {
     for (const row of items) {
       itemsById.set(row.id, {
         id: row.id,
+        internalId: row.internal_id,
         name: row.name,
         type: row.item_type,
         unit: row.unit,
         purchasePrice: row.purchase_price,
+        manufacturerArticleNumber: row.manufacturer_article_number,
+        ean: row.ean,
+        allergens: row.allergens ?? undefined,
+        ingredients: row.ingredients,
+        dosageInstructions: row.dosage_instructions,
+        yieldInfo: row.yield_info,
+        preparationSteps: row.preparation_steps,
       });
     }
 
@@ -235,10 +259,13 @@ export async function POST(request: Request) {
 
     const resultItem: InventoryItem = {
       id: createdItemRow.id,
+      internalId: createdItemRow.internal_id,
       name: createdItemRow.name,
       type: createdItemRow.item_type,
       unit: createdItemRow.unit,
       purchasePrice: createdItemRow.purchase_price,
+      manufacturerArticleNumber: createdItemRow.manufacturer_article_number,
+      ean: createdItemRow.ean,
       components,
     };
 
@@ -250,6 +277,99 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: `Unerwarteter Fehler beim Speichern des Artikels: ${message}`,
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const body = (await request.json()) as {
+      id: string;
+    };
+
+    if (!body.id) {
+      return NextResponse.json(
+        { error: "id ist erforderlich" },
+        { status: 400 }
+      );
+    }
+
+    const client = getSupabaseServerClient();
+
+    if (!client) {
+      console.error(
+        "Supabase client initialization failed in DELETE: Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY"
+      );
+      return NextResponse.json(
+        {
+          error:
+            'Supabase ist nicht konfiguriert (Bitte env-Variablen prüfen: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY oder SUPABASE_ANON_KEY)',
+        },
+        { status: 500 }
+      );
+    }
+
+    const deleteRelationsResponse = await client
+      .from("recipe_structure")
+      .delete()
+      .or(
+        `parent_item_id.eq.${body.id},component_item_id.eq.${body.id}`
+      );
+
+    if (deleteRelationsResponse.error) {
+      console.error("Supabase delete recipe_structure error", {
+        table: "recipe_structure",
+        error: deleteRelationsResponse.error,
+      });
+      return NextResponse.json(
+        {
+          error:
+            deleteRelationsResponse.error.message ??
+            'Fehler beim Löschen der Komponenten in Tabelle "recipe_structure"',
+        },
+        { status: 500 }
+      );
+    }
+
+    const deleteItemResponse = await client
+      .from("items")
+      .delete()
+      .eq("id", body.id)
+      .select("id")
+      .single();
+
+    if (deleteItemResponse.error) {
+      console.error("Supabase delete item error", {
+        table: "items",
+        error: deleteItemResponse.error,
+      });
+      const status =
+        deleteItemResponse.error.code === "PGRST116"
+          ? 404
+          : 500;
+      return NextResponse.json(
+        {
+          error:
+            deleteItemResponse.error.message ??
+            'Fehler beim Löschen des Artikels in Tabelle "items"',
+        },
+        { status }
+      );
+    }
+
+    return NextResponse.json(
+      { success: true },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Unexpected error in /api/inventory DELETE", error);
+    const message =
+      error instanceof Error ? error.message : "Unbekannter Fehler";
+    return NextResponse.json(
+      {
+        error: `Unerwarteter Fehler beim Löschen des Artikels: ${message}`,
       },
       { status: 500 }
     );

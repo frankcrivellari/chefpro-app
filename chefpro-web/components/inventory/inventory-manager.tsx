@@ -23,10 +23,18 @@ type InventoryComponent = {
 
 type InventoryItem = {
   id: string;
+  internalId?: number | null;
   name: string;
   type: InventoryType;
   unit: string;
   purchasePrice: number;
+  manufacturerArticleNumber?: string | null;
+  ean?: string | null;
+  allergens?: string[];
+  ingredients?: string | null;
+  dosageInstructions?: string | null;
+  yieldInfo?: string | null;
+  preparationSteps?: string | null;
   components?: InventoryComponent[];
 };
 
@@ -53,6 +61,7 @@ const initialItems: InventoryItem[] = [
     type: "zukauf",
     unit: "Dose",
     purchasePrice: 4.2,
+    allergens: ["Sellerie"],
   },
   {
     id: "zukauf-zwiebeln",
@@ -60,6 +69,7 @@ const initialItems: InventoryItem[] = [
     type: "zukauf",
     unit: "kg",
     purchasePrice: 0.9,
+    allergens: [],
   },
   {
     id: "zukauf-olivenoel",
@@ -67,6 +77,7 @@ const initialItems: InventoryItem[] = [
     type: "zukauf",
     unit: "L",
     purchasePrice: 6.5,
+    allergens: [],
   },
   {
     id: "eigenp-tomatensauce-basis",
@@ -142,6 +153,13 @@ export function InventoryManager() {
   const [docError, setDocError] = useState<string | null>(null);
   const [docParsed, setDocParsed] =
     useState<ParsedDocumentItem | null>(null);
+  const [proAllergensInput, setProAllergensInput] = useState("");
+  const [proIngredientsInput, setProIngredientsInput] = useState("");
+  const [proDosageInput, setProDosageInput] = useState("");
+  const [proYieldInput, setProYieldInput] = useState("");
+  const [proPreparationInput, setProPreparationInput] = useState("");
+  const [manufacturerInput, setManufacturerInput] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -235,6 +253,25 @@ export function InventoryManager() {
     filteredItems.find((item) => item.id === selectedItemId) ??
     filteredItems[0] ??
     null;
+
+  useEffect(() => {
+    if (!selectedItem) {
+      setManufacturerInput("");
+      setProAllergensInput("");
+      setProIngredientsInput("");
+      setProDosageInput("");
+      setProYieldInput("");
+      setProPreparationInput("");
+      return;
+    }
+    setManufacturerInput(selectedItem.manufacturerArticleNumber ?? "");
+    const allergensText = (selectedItem.allergens ?? []).join(", ");
+    setProAllergensInput(allergensText);
+    setProIngredientsInput(selectedItem.ingredients ?? "");
+    setProDosageInput(selectedItem.dosageInstructions ?? "");
+    setProYieldInput(selectedItem.yieldInfo ?? "");
+    setProPreparationInput(selectedItem.preparationSteps ?? "");
+  }, [selectedItem]);
 
   const componentSearchResults = useMemo(() => {
     if (!componentSearch.trim() || !selectedItem) {
@@ -506,6 +543,13 @@ export function InventoryManager() {
     } finally {
       setAiIsSaving(false);
     }
+  }
+
+  function formatInternalId(value?: number | null) {
+    if (!value || Number.isNaN(value)) {
+      return "—";
+    }
+    return `INT-${value}`;
   }
 
   return (
@@ -879,6 +923,35 @@ export function InventoryManager() {
                         <span className="font-medium">{item.name}</span>
                         <TypeBadge type={item.type} />
                       </div>
+                      <div className="space-y-0.5 text-[11px] text-muted-foreground">
+                        <div>
+                          Intern: {formatInternalId(item.internalId ?? null)}
+                        </div>
+                        <div>
+                          Hersteller-Art.-Nr.:{" "}
+                          {item.manufacturerArticleNumber && item.manufacturerArticleNumber.trim().length > 0
+                            ? item.manufacturerArticleNumber
+                            : "—"}
+                        </div>
+                        <div>
+                          EAN:{" "}
+                          {item.ean && item.ean.trim().length > 0
+                            ? item.ean
+                            : "—"}
+                        </div>
+                      </div>
+                        {item.allergens && item.allergens.length > 0 && (
+                          <div className="flex flex-wrap gap-1 text-[10px]">
+                            {item.allergens.map((allergen) => (
+                              <span
+                                key={`${item.id}-${allergen}`}
+                                className="rounded-md bg-amber-100 px-2 py-0.5 text-amber-900"
+                              >
+                                {allergen}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       <div className="text-xs text-muted-foreground">
                         Einheit: {item.unit}
                       </div>
@@ -916,6 +989,45 @@ export function InventoryManager() {
                       </h2>
                       <TypeBadge type={selectedItem.type} />
                     </div>
+                    <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+                      <div>
+                        Intern:{" "}
+                        <span className="font-medium">
+                          {formatInternalId(selectedItem.internalId ?? null)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span>Hersteller-Art.-Nr.:</span>
+                        <Input
+                          value={manufacturerInput}
+                          onChange={(event) =>
+                            setManufacturerInput(event.target.value)
+                          }
+                          className="h-7 w-40 px-2 py-1 text-[11px]"
+                        />
+                      </div>
+                      <div>
+                        EAN:{" "}
+                        <span className="font-medium">
+                          {selectedItem.ean && selectedItem.ean.trim().length > 0
+                            ? selectedItem.ean
+                            : "—"}
+                        </span>
+                      </div>
+                    </div>
+                    {selectedItem.allergens &&
+                      selectedItem.allergens.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {selectedItem.allergens.map((allergen) => (
+                            <span
+                              key={`detail-${selectedItem.id}-${allergen}`}
+                              className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] text-amber-900"
+                            >
+                              {allergen}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     <div className="text-xs text-muted-foreground">
                       Einheit: {selectedItem.unit}
                     </div>
@@ -1124,6 +1236,233 @@ export function InventoryManager() {
                       )}
                     </div>
                   )}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs text-muted-foreground">
+                      Diese Ansicht zeigt alle IDs und Profi-Daten für den Artikel.
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
+                      onClick={async () => {
+                        if (!selectedItem) {
+                          return;
+                        }
+                        const confirmed = window.confirm(
+                          "Möchtest du diesen Artikel wirklich löschen?"
+                        );
+                        if (!confirmed) {
+                          return;
+                        }
+                        try {
+                          setIsDeleting(true);
+                          setError(null);
+                          const response = await fetch("/api/inventory", {
+                            method: "DELETE",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ id: selectedItem.id }),
+                          });
+                          const payload = (await response.json()) as {
+                            error?: unknown;
+                            success?: boolean;
+                          };
+                          if (!response.ok || !payload.success) {
+                            let message =
+                              "Fehler beim Löschen des Artikels.";
+                            if (
+                              payload &&
+                              typeof payload.error === "string"
+                            ) {
+                              message = payload.error;
+                            }
+                            throw new Error(message);
+                          }
+                          setItems((previous) => {
+                            const currentId = selectedItem.id;
+                            const filtered = previous.filter(
+                              (item) => item.id !== currentId
+                            );
+                            if (filtered.length === 0) {
+                              setSelectedItemId(null);
+                              return filtered;
+                            }
+                            const index = previous.findIndex(
+                              (item) => item.id === currentId
+                            );
+                            const next =
+                              filtered[index] ??
+                              filtered[index - 1] ??
+                              filtered[0];
+                            setSelectedItemId(next.id);
+                            return filtered;
+                          });
+                        } catch (deleteError) {
+                          const message =
+                            deleteError instanceof Error
+                              ? deleteError.message
+                              : "Fehler beim Löschen des Artikels.";
+                          setError(message);
+                        } finally {
+                          setIsDeleting(false);
+                        }
+                      }}
+                      disabled={isDeleting || isSaving}
+                    >
+                      {isDeleting ? "Lösche..." : "Artikel löschen"}
+                    </Button>
+                  </div>
+                  <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-xs font-semibold">
+                        Profi-Daten
+                      </h3>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isSaving}
+                        onClick={async () => {
+                          if (!selectedItem) {
+                            return;
+                          }
+                          try {
+                            setIsSaving(true);
+                            setError(null);
+                            const allergensArray = proAllergensInput
+                              .split(",")
+                              .map((value) => value.trim())
+                              .filter((value) => value.length > 0);
+                            const response = await fetch(
+                              "/api/item-details",
+                              {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                  id: selectedItem.id,
+                                  manufacturerArticleNumber:
+                                    manufacturerInput.trim(),
+                                  allergens: allergensArray,
+                                  ingredients: proIngredientsInput.trim(),
+                                  dosageInstructions: proDosageInput.trim(),
+                                  yieldInfo: proYieldInput.trim(),
+                                  preparationSteps:
+                                    proPreparationInput.trim(),
+                                }),
+                              }
+                            );
+                            const payload =
+                              (await response.json()) as {
+                                error?: unknown;
+                                item?: InventoryItem;
+                              };
+                            if (!response.ok) {
+                              let message =
+                                "Fehler beim Speichern der Profi-Daten.";
+                              if (
+                                payload &&
+                                typeof payload.error === "string"
+                              ) {
+                                message = payload.error;
+                              }
+                              throw new Error(message);
+                            }
+                            if (payload.item) {
+                              const updated = payload.item;
+                              setItems((previous) =>
+                                previous.map((item) =>
+                                  item.id === updated.id ? updated : item
+                                )
+                              );
+                            }
+                          } catch (saveError) {
+                            const message =
+                              saveError instanceof Error
+                                ? saveError.message
+                                : "Fehler beim Speichern der Profi-Daten.";
+                            setError(message);
+                          } finally {
+                            setIsSaving(false);
+                          }
+                        }}
+                      >
+                        {isSaving
+                          ? "Speichern..."
+                          : "Profi-Daten speichern"}
+                      </Button>
+                    </div>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-muted-foreground">
+                          Allergene (kommagetrennt)
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={proAllergensInput}
+                          onChange={(event) =>
+                            setProAllergensInput(event.target.value)
+                          }
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-muted-foreground">
+                          Ausbeute / Yield
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={proYieldInput}
+                          onChange={(event) =>
+                            setProYieldInput(event.target.value)
+                          }
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-muted-foreground">
+                          Zutaten
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={proIngredientsInput}
+                          onChange={(event) =>
+                            setProIngredientsInput(event.target.value)
+                          }
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-muted-foreground">
+                          Dosierung
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={proDosageInput}
+                          onChange={(event) =>
+                            setProDosageInput(event.target.value)
+                          }
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-muted-foreground">
+                          Zubereitung
+                        </div>
+                        <textarea
+                          rows={3}
+                          value={proPreparationInput}
+                          onChange={(event) =>
+                            setProPreparationInput(event.target.value)
+                          }
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </>
               )}
             </CardContent>
