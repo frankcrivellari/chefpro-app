@@ -228,6 +228,86 @@ function renderTaggedText(
   return <span className="whitespace-pre-line">{parts}</span>;
 }
 
+function normalizeName(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function levenshteinDistance(a: string, b: string) {
+  if (a === b) {
+    return 0;
+  }
+  if (!a.length) {
+    return b.length;
+  }
+  if (!b.length) {
+    return a.length;
+  }
+  const previous = new Array(b.length + 1);
+  const current = new Array(b.length + 1);
+  for (let index = 0; index <= b.length; index += 1) {
+    previous[index] = index;
+  }
+  for (let indexA = 0; indexA < a.length; indexA += 1) {
+    current[0] = indexA + 1;
+    for (let indexB = 0; indexB < b.length; indexB += 1) {
+      const cost = a[indexA] === b[indexB] ? 0 : 1;
+      current[indexB + 1] = Math.min(
+        current[indexB] + 1,
+        previous[indexB + 1] + 1,
+        previous[indexB] + cost
+      );
+    }
+    for (let index = 0; index <= b.length; index += 1) {
+      previous[index] = current[index];
+    }
+  }
+  return previous[b.length];
+}
+
+function computeNameSimilarity(a: string, b: string) {
+  const first = normalizeName(a);
+  const second = normalizeName(b);
+  if (!first && !second) {
+    return 1;
+  }
+  if (!first || !second) {
+    return 0;
+  }
+  const distance = levenshteinDistance(first, second);
+  const length = Math.max(first.length, second.length);
+  if (!length) {
+    return 0;
+  }
+  return 1 - distance / length;
+}
+
+function findBestInventoryMatchByName(
+  targetName: string,
+  items: Iterable<InventoryItem>
+) {
+  const scores: { item: InventoryItem; score: number }[] = [];
+  for (const item of items) {
+    const score = computeNameSimilarity(targetName, item.name);
+    if (score > 0) {
+      scores.push({ item, score });
+    }
+  }
+  if (scores.length === 0) {
+    return null;
+  }
+  scores.sort((first, second) => second.score - first.score);
+  const best = scores[0];
+  if (best.score < 0.7) {
+    return null;
+  }
+  return best.item;
+}
+
 export function InventoryManager() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filterType, setFilterType] = useState<FilterType>("all");
@@ -374,21 +454,47 @@ export function InventoryManager() {
       if (filterType !== "all" && item.type !== filterType) {
         return false;
       }
-      if (!search.trim()) {
+      const query = search.trim().toLowerCase();
+      if (!query) {
         return true;
       }
-      const value = search.toLowerCase();
       const manufacturer =
         item.manufacturerArticleNumber?.toLowerCase() ?? "";
       const ean = item.ean?.toLowerCase() ?? "";
+      const category = item.category?.toLowerCase() ?? "";
+      const portionUnit = item.portionUnit?.toLowerCase() ?? "";
+      const nutrition =
+        (item.nutritionTags ?? []).join(" ").toLowerCase();
+      const allergens =
+        (item.allergens ?? []).join(" ").toLowerCase();
+      const ingredients =
+        item.ingredients?.toLowerCase() ?? "";
+      const internalId =
+        item.internalId != null ? String(item.internalId) : "";
       return (
-        item.name.toLowerCase().includes(value) ||
-        item.unit.toLowerCase().includes(value) ||
-        manufacturer.includes(value) ||
-        ean.includes(value)
+        item.name.toLowerCase().includes(query) ||
+        item.unit.toLowerCase().includes(query) ||
+        manufacturer.includes(query) ||
+        ean.includes(query) ||
+        category.includes(query) ||
+        portionUnit.includes(query) ||
+        nutrition.includes(query) ||
+        allergens.includes(query) ||
+        ingredients.includes(query) ||
+        internalId.includes(query)
       );
     });
   }, [effectiveItems, filterType, search]);
+
+  const docMatch = useMemo(() => {
+    if (!docParsed) {
+      return null;
+    }
+    return findBestInventoryMatchByName(
+      docParsed.name,
+      effectiveItems
+    );
+  }, [docParsed, effectiveItems]);
 
   useEffect(() => {
     if (!selectedItemId && filteredItems[0]) {
@@ -1713,8 +1819,9 @@ export function InventoryManager() {
       }
       const created = (await response.json()) as InventoryItem;
       setItems((previous) => [...previous, created]);
-      setFilterType("eigenproduktion");
+      setActiveSection("rezepte");
       setSelectedItemId(created.id);
+      setIsDetailView(true);
     } catch (error) {
       const message =
         error instanceof Error
@@ -1736,7 +1843,7 @@ export function InventoryManager() {
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-background to-muted px-4 py-6 text-foreground md:px-8 md:py-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-        <header className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
               Inventory Manager
@@ -1746,428 +1853,495 @@ export function InventoryManager() {
               Komponenten.
             </p>
           </div>
-          <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center">
-            <Button
-              type="button"
-              size="sm"
-              className="bg-primary text-primary-foreground"
-              disabled={isSaving}
-              onClick={handleCreateRecipe}
-            >
-              {isSaving ? "Erstelle..." : "Neues Rezept erstellen"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setFilterType("all")}
-              className={cn(
-                filterType === "all" && "bg-primary text-primary-foreground"
-              )}
-            >
-              Alle
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setFilterType("zukauf")}
-              className={cn(
-                filterType === "zukauf" &&
-                  "bg-primary text-primary-foreground"
-              )}
-            >
-              Zukauf
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setFilterType("eigenproduktion")}
-              className={cn(
-                filterType === "eigenproduktion" &&
-                  "bg-primary text-primary-foreground"
-              )}
-            >
-              Eigenproduktion
-            </Button>
+          <div className="flex flex-col gap-2 md:w-[28rem]">
+            <div className="flex items-center gap-2">
+              <div className="inline-flex rounded-md border bg-card p-1 text-[11px]">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveSection("dashboard")}
+                  className={cn(
+                    "h-7 rounded-md px-2",
+                    activeSection === "dashboard" &&
+                      "bg-primary text-primary-foreground"
+                  )}
+                >
+                  Dashboard
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveSection("zutaten")}
+                  className={cn(
+                    "h-7 rounded-md px-2",
+                    activeSection === "zutaten" &&
+                      "bg-primary text-primary-foreground"
+                  )}
+                >
+                  Zutaten & Lager
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveSection("rezepte")}
+                  className={cn(
+                    "h-7 rounded-md px-2",
+                    activeSection === "rezepte" &&
+                      "bg-primary text-primary-foreground"
+                  )}
+                >
+                  Rezepte & Produktion
+                </Button>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="bg-primary text-primary-foreground"
+                disabled={isSaving}
+                onClick={handleCreateRecipe}
+              >
+                {isSaving ? "Erstelle..." : "Neues Rezept erstellen"}
+              </Button>
+            </div>
+            <Input
+              placeholder="Global nach Artikeln und Rezepten suchen"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="h-9 text-sm"
+            />
           </div>
         </header>
 
-        <main className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.8fr)]">
-          <Card className="flex flex-col">
-            <CardHeader>
-              <CardTitle>Artikelübersicht</CardTitle>
-              <CardDescription>
-                Filtere nach Typ und wähle einen Artikel aus.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {error && (
-                <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-                  {error}
-                </div>
-              )}
-              <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-semibold">
-                    Dokumenten-Upload
-                  </div>
-                  {docError && (
-                    <span className="text-[11px] text-destructive">
-                      {docError}
-                    </span>
-                  )}
-                </div>
-                <form
-                  className="space-y-2"
-                  onSubmit={async (event) => {
-                    event.preventDefault();
-                    if (!docFile) {
-                      return;
-                    }
-                    try {
-                      setDocIsUploading(true);
-                      setDocError(null);
-                      setDocParsed(null);
-                      const formData = new FormData();
-                      formData.append("file", docFile);
-                      formData.append("filename", docFile.name);
-                      const response = await fetch(
-                        "/api/document-vision-upload",
-                        {
-                          method: "POST",
-                          body: formData,
-                        }
-                      );
-                      const payload = (await response.json()) as {
-                        error?: unknown;
-                        item?: InventoryItem;
-                        extracted?: {
-                          name: string;
-                          unit: string;
-                          purchase_price: number;
-                          allergens: string[];
-                        };
-                        fileUrl?: string;
-                      };
-                      if (!response.ok) {
-                        let message =
-                          "Fehler bei der Dokumenten-Auswertung.";
-                        if (
-                          payload &&
-                          typeof payload.error === "string"
-                        ) {
-                          message = payload.error;
-                        }
-                        throw new Error(message);
-                      }
-                      if (payload.item) {
-                        const created = payload.item;
-                        setItems((previous) => [
-                          ...previous,
-                          created,
-                        ]);
-                        setSelectedItemId(created.id);
-                      }
-                      if (payload.extracted && payload.fileUrl) {
-                        setDocParsed({
-                          name: payload.extracted.name,
-                          unit: payload.extracted.unit,
-                          purchasePrice:
-                            payload.extracted.purchase_price,
-                          allergens: payload.extracted.allergens,
-                          fileUrl: payload.fileUrl,
-                        });
-                      }
-                      setDocFile(null);
-                    } catch (uploadError) {
-                      const message =
-                        uploadError instanceof Error
-                          ? uploadError.message
-                          : "Fehler beim Dokumenten-Upload.";
-                      setDocError(message);
-                    } finally {
-                      setDocIsUploading(false);
-                    }
-                  }}
-                >
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={(event) => {
-                      const file =
-                        event.target.files &&
-                        event.target.files[0]
-                          ? event.target.files[0]
-                          : null;
-                      setDocFile(file);
-                      setDocParsed(null);
-                      setDocError(null);
-                    }}
-                    className="block w-full text-[11px] text-foreground file:mr-2 file:rounded-md file:border file:border-input file:bg-background file:px-2 file:py-1 file:text-[11px] file:font-medium file:text-foreground hover:file:bg-accent"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={docIsUploading || !docFile}
-                    >
-                      {docIsUploading
-                        ? "Lade hoch..."
-                        : "Dokument auswerten"}
-                    </Button>
-                  </div>
-                </form>
-                {docParsed && (
-                  <div className="space-y-1 rounded-md border bg-background px-3 py-2 text-[11px]">
-                    <div className="font-semibold">
-                      Erkanntes Produkt
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">
-                        Name
-                      </span>
-                      <span>{docParsed.name}</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">
-                        Einheit
-                      </span>
-                      <span>{docParsed.unit}</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">
-                        EK-Gesamt
-                      </span>
-                      <span>
-                        {docParsed.purchasePrice.toFixed(2)} €
-                      </span>
-                    </div>
-                    {docParsed.allergens.length > 0 && (
-                      <div className="space-y-1">
-                        <div className="text-muted-foreground">
-                          Allergene
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {docParsed.allergens.map((allergen) => (
-                            <span
-                              key={allergen}
-                              className="rounded-md bg-muted px-2 py-0.5 text-[10px]"
-                            >
-                              {allergen}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+        <main
+          className={cn(
+            "grid gap-4",
+            !isDetailView &&
+              "md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.8fr)]"
+          )}
+        >
+          {!isDetailView && (
+            <Card className="flex flex-col">
+              <CardHeader>
+                <CardTitle>Artikelübersicht</CardTitle>
+                <CardDescription>
+                  Filtere nach Typ und wähle einen Artikel aus.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                {error && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                    {error}
                   </div>
                 )}
-              </div>
-              <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-semibold">
-                    KI-Schnellimport
-                  </div>
-                  {aiError && (
-                    <span className="text-[11px] text-destructive">
-                      {aiError}
-                    </span>
-                  )}
-                </div>
-                <form
-                  className="space-y-2"
-                  onSubmit={handleAiParse}
-                >
-                  <textarea
-                    value={aiText}
-                    onChange={(event) => setAiText(event.target.value)}
-                    rows={2}
-                    className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    placeholder='Beispiel: 3kg Sack Mehl Type 405 für 4,50€ bei Metro'
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={aiIsParsing || !aiText.trim()}
-                    >
-                      {aiIsParsing ? "Analysiere..." : "Analysieren"}
-                    </Button>
-                  </div>
-                </form>
-                {aiParsed && (
-                  <div className="space-y-1 rounded-md border bg-background px-3 py-2 text-[11px]">
+                <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="font-semibold">
-                      Vorschau
+                      Dokumenten-Upload
                     </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">
-                        Name
+                    {docError && (
+                      <span className="text-[11px] text-destructive">
+                        {docError}
                       </span>
-                      <span>{aiParsed.name}</span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">
-                        Menge
-                      </span>
-                      <span>
-                        {aiParsed.quantity} {aiParsed.unit}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">
-                        EK-Gesamt
-                      </span>
-                      <span>
-                        {aiParsed.purchasePrice.toFixed(2)} €
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">
-                        EK pro Einheit
-                      </span>
-                      <span>
-                        {aiParsed.calculatedPricePerUnit.toFixed(4)} € /{" "}
-                        {aiParsed.unit}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex justify-end">
+                    )}
+                  </div>
+                  <form
+                    className="space-y-2"
+                    onSubmit={async (event) => {
+                      event.preventDefault();
+                      if (!docFile) {
+                        return;
+                      }
+                      try {
+                        setDocIsUploading(true);
+                        setDocError(null);
+                        setDocParsed(null);
+                        const formData = new FormData();
+                        formData.append("file", docFile);
+                        formData.append("filename", docFile.name);
+                        const response = await fetch(
+                          "/api/document-vision-upload",
+                          {
+                            method: "POST",
+                            body: formData,
+                          }
+                        );
+                        const payload = (await response.json()) as {
+                          error?: unknown;
+                          item?: InventoryItem;
+                          extracted?: {
+                            name: string;
+                            unit: string;
+                            purchase_price: number;
+                            allergens: string[];
+                          };
+                          fileUrl?: string;
+                        };
+                        if (!response.ok) {
+                          let message =
+                            "Fehler bei der Dokumenten-Auswertung.";
+                          if (
+                            payload &&
+                            typeof payload.error === "string"
+                          ) {
+                            message = payload.error;
+                          }
+                          throw new Error(message);
+                        }
+                        if (payload.item) {
+                          const created = payload.item;
+                          setItems((previous) => [
+                            ...previous,
+                            created,
+                          ]);
+                          setSelectedItemId(created.id);
+                        }
+                        if (payload.extracted && payload.fileUrl) {
+                          setDocParsed({
+                            name: payload.extracted.name,
+                            unit: payload.extracted.unit,
+                            purchasePrice:
+                              payload.extracted.purchase_price,
+                            allergens: payload.extracted.allergens,
+                            fileUrl: payload.fileUrl,
+                          });
+                        }
+                        setDocFile(null);
+                      } catch (uploadError) {
+                        const message =
+                          uploadError instanceof Error
+                            ? uploadError.message
+                            : "Fehler beim Dokumenten-Upload.";
+                        setDocError(message);
+                      } finally {
+                        setDocIsUploading(false);
+                      }
+                    }}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={(event) => {
+                        const file =
+                          event.target.files &&
+                          event.target.files[0]
+                            ? event.target.files[0]
+                            : null;
+                        setDocFile(file);
+                        setDocParsed(null);
+                        setDocError(null);
+                      }}
+                      className="block w-full text-[11px] text-foreground file:mr-2 file:rounded-md file:border file:border-input file:bg-background file:px-2 file:py-1 file:text-[11px] file:font-medium file:text-foreground hover:file:bg-accent"
+                    />
+                    <div className="flex justify-end gap-2">
                       <Button
-                        type="button"
+                        type="submit"
                         size="sm"
-                        disabled={aiIsSaving}
-                        onClick={handleAiSave}
+                        disabled={docIsUploading || !docFile}
                       >
-                        {aiIsSaving ? "Speichere..." : "Als Zukaufartikel speichern"}
+                        {docIsUploading
+                          ? "Lade hoch..."
+                          : "Dokument auswerten"}
                       </Button>
                     </div>
-                  </div>
-                )}
-              </div>
-              <form
-                className="grid gap-2 rounded-md border bg-card/60 p-3 text-xs md:grid-cols-[2fr_1fr_1fr_auto]"
-                onSubmit={handleCreateItem}
-              >
-                <Input
-                  placeholder="Neuer Artikelname"
-                  value={newItemName}
-                  onChange={(event) => setNewItemName(event.target.value)}
-                />
-                <Input
-                  placeholder="Einheit"
-                  value={newItemUnit}
-                  onChange={(event) => setNewItemUnit(event.target.value)}
-                />
-                <Input
-                  placeholder="EK-Preis"
-                  value={newItemPrice}
-                  onChange={(event) => setNewItemPrice(event.target.value)}
-                />
-                <div className="flex items-center gap-2">
-                  <select
-                    value={newItemType}
-                    onChange={(event) =>
-                      setNewItemType(event.target.value as InventoryType)
-                    }
-                    className="h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  >
-                    <option value="zukauf">Zukauf</option>
-                    <option value="eigenproduktion">Eigenproduktion</option>
-                  </select>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={isSaving || !newItemName.trim() || !newItemUnit.trim()}
-                  >
-                    {isSaving ? "Speichern..." : "Anlegen"}
-                  </Button>
-                </div>
-              </form>
-              <Input
-                placeholder="Suchen nach Name oder Einheit"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-              <div className="max-h-[480px] space-y-1 overflow-y-auto pr-1">
-                {isLoading && (
-                  <div className="rounded-md border border-dashed bg-muted/60 px-3 py-3 text-center text-xs text-muted-foreground">
-                    Lade Artikel aus der Datenbank ...
-                  </div>
-                )}
-                {filteredItems.length === 0 && (
-                  <div className="rounded-md border border-dashed bg-muted/60 px-3 py-8 text-center text-sm text-muted-foreground">
-                    Keine Artikel für die aktuelle Auswahl gefunden.
-                  </div>
-                )}
-                {filteredItems.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setSelectedItemId(item.id)}
-                    className={cn(
-                      "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                      selectedItem?.id === item.id &&
-                        "border-primary bg-primary/5"
-                    )}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{item.name}</span>
-                        <TypeBadge type={item.type} />
-                        {item.type === "eigenproduktion" &&
-                          item.hasGhostComponents && (
-                            <AlertTriangle className="h-3 w-3 text-red-500" />
-                          )}
+                  </form>
+                  {docParsed && (
+                    <div className="space-y-2 rounded-md border bg-background px-3 py-2 text-[11px]">
+                      <div className="font-semibold">
+                        Erkanntes Produkt
                       </div>
-                      <div className="space-y-0.5 text-[11px] text-muted-foreground">
-                        <div>
-                          Intern: {formatInternalId(item.internalId ?? null)}
-                        </div>
-                        <div>
-                          Hersteller-Art.-Nr.:{" "}
-                          {item.manufacturerArticleNumber && item.manufacturerArticleNumber.trim().length > 0
-                            ? item.manufacturerArticleNumber
-                            : "—"}
-                        </div>
-                        <div>
-                          EAN:{" "}
-                          {item.ean && item.ean.trim().length > 0
-                            ? item.ean
-                            : "—"}
-                        </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">
+                          Name
+                        </span>
+                        <span>{docParsed.name}</span>
                       </div>
-                        {item.allergens && item.allergens.length > 0 && (
-                          <div className="flex flex-wrap gap-1 text-[10px]">
-                            {item.allergens.map((allergen) => (
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">
+                          Einheit
+                        </span>
+                        <span>{docParsed.unit}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">
+                          EK-Gesamt
+                        </span>
+                        <span>
+                          {docParsed.purchasePrice.toFixed(2)} €
+                        </span>
+                      </div>
+                      {docParsed.allergens.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-muted-foreground">
+                            Allergene
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {docParsed.allergens.map((allergen) => (
                               <span
-                                key={`${item.id}-${allergen}`}
-                                className="rounded-md bg-amber-100 px-2 py-0.5 text-amber-900"
+                                key={allergen}
+                                className="rounded-md bg-muted px-2 py-0.5 text-[10px]"
                               >
                                 {allergen}
                               </span>
                             ))}
                           </div>
-                        )}
-                      <div className="text-xs text-muted-foreground">
-                        Einheit: {item.unit}
+                        </div>
+                      )}
+                      {docMatch && (
+                        <div className="mt-2 rounded-md border bg-muted/40 px-2 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="space-y-0.5">
+                              <div className="text-[11px] font-semibold">
+                                Möglicher bestehender Artikel
+                              </div>
+                              <div className="text-[11px]">
+                                {docMatch.name}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground">
+                                Einheit: {docMatch.unit} · EK:{" "}
+                                {docMatch.purchasePrice.toFixed(2)} €
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-[11px]"
+                              onClick={() => {
+                                setSelectedItemId(docMatch.id);
+                                setIsDetailView(true);
+                              }}
+                            >
+                              Artikel öffnen
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-semibold">
+                      KI-Schnellimport
+                    </div>
+                    {aiError && (
+                      <span className="text-[11px] text-destructive">
+                        {aiError}
+                      </span>
+                    )}
+                  </div>
+                  <form
+                    className="space-y-2"
+                    onSubmit={handleAiParse}
+                  >
+                    <textarea
+                      value={aiText}
+                      onChange={(event) => setAiText(event.target.value)}
+                      rows={2}
+                      className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      placeholder='Beispiel: 3kg Sack Mehl Type 405 für 4,50€ bei Metro'
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={aiIsParsing || !aiText.trim()}
+                      >
+                        {aiIsParsing ? "Analysiere..." : "Analysieren"}
+                      </Button>
+                    </div>
+                  </form>
+                  {aiParsed && (
+                    <div className="space-y-1 rounded-md border bg-background px-3 py-2 text-[11px]">
+                      <div className="font-semibold">
+                        Vorschau
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">
+                          Name
+                        </span>
+                        <span>{aiParsed.name}</span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">
+                          Menge
+                        </span>
+                        <span>
+                          {aiParsed.quantity} {aiParsed.unit}
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">
+                          EK-Gesamt
+                        </span>
+                        <span>
+                          {aiParsed.purchasePrice.toFixed(2)} €
+                        </span>
+                      </div>
+                      <div className="flex justify-between gap-2">
+                        <span className="text-muted-foreground">
+                          EK pro Einheit
+                        </span>
+                        <span>
+                          {aiParsed.calculatedPricePerUnit.toFixed(4)} € /{" "}
+                          {aiParsed.unit}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={aiIsSaving}
+                          onClick={handleAiSave}
+                        >
+                          {aiIsSaving ? "Speichere..." : "Als Zukaufartikel speichern"}
+                        </Button>
                       </div>
                     </div>
-                    {item.components && (
-                      <div className="text-xs text-muted-foreground">
-                        {item.components.length} Komponenten
+                  )}
+                </div>
+                <form
+                  className="grid gap-2 rounded-md border bg-card/60 p-3 text-xs md:grid-cols-[2fr_1fr_1fr_auto]"
+                  onSubmit={handleCreateItem}
+                >
+                  <Input
+                    placeholder="Neuer Artikelname"
+                    value={newItemName}
+                    onChange={(event) => setNewItemName(event.target.value)}
+                  />
+                  <Input
+                    placeholder="Einheit"
+                    value={newItemUnit}
+                    onChange={(event) => setNewItemUnit(event.target.value)}
+                  />
+                  <Input
+                    placeholder="EK-Preis"
+                    value={newItemPrice}
+                    onChange={(event) => setNewItemPrice(event.target.value)}
+                  />
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={newItemType}
+                      onChange={(event) =>
+                        setNewItemType(event.target.value as InventoryType)
+                      }
+                      className="h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    >
+                      <option value="zukauf">Zukauf</option>
+                      <option value="eigenproduktion">Eigenproduktion</option>
+                    </select>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={isSaving || !newItemName.trim() || !newItemUnit.trim()}
+                    >
+                      {isSaving ? "Speichern..." : "Anlegen"}
+                    </Button>
+                  </div>
+                </form>
+                <div className="max-h-[480px] space-y-1 overflow-y-auto pr-1">
+                  {isLoading && (
+                    <div className="rounded-md border border-dashed bg-muted/60 px-3 py-3 text-center text-xs text-muted-foreground">
+                      Lade Artikel aus der Datenbank ...
+                    </div>
+                  )}
+                  {filteredItems.length === 0 && (
+                    <div className="rounded-md border border-dashed bg-muted/60 px-3 py-8 text-center text-sm text-muted-foreground">
+                      Keine Artikel für die aktuelle Auswahl gefunden.
+                    </div>
+                  )}
+                  {filteredItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedItemId(item.id);
+                        setIsDetailView(true);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                        selectedItem?.id === item.id &&
+                          "border-primary bg-primary/5"
+                      )}
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{item.name}</span>
+                          <TypeBadge type={item.type} />
+                          {item.type === "eigenproduktion" &&
+                            item.hasGhostComponents && (
+                              <AlertTriangle className="h-3 w-3 text-red-500" />
+                            )}
+                        </div>
+                        <div className="space-y-0.5 text-[11px] text-muted-foreground">
+                          <div>
+                            Intern: {formatInternalId(item.internalId ?? null)}
+                          </div>
+                          <div>
+                            Hersteller-Art.-Nr.:{" "}
+                            {item.manufacturerArticleNumber && item.manufacturerArticleNumber.trim().length > 0
+                              ? item.manufacturerArticleNumber
+                              : "—"}
+                          </div>
+                          <div>
+                            EAN:{" "}
+                            {item.ean && item.ean.trim().length > 0
+                              ? item.ean
+                              : "—"}
+                          </div>
+                        </div>
+                          {item.allergens && item.allergens.length > 0 && (
+                            <div className="flex flex-wrap gap-1 text-[10px]">
+                              {item.allergens.map((allergen) => (
+                                <span
+                                  key={`${item.id}-${allergen}`}
+                                  className="rounded-md bg-amber-100 px-2 py-0.5 text-amber-900"
+                                >
+                                  {allergen}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        <div className="text-xs text-muted-foreground">
+                          Einheit: {item.unit}
+                        </div>
                       </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                      {item.components && (
+                        <div className="text-xs text-muted-foreground">
+                          {item.components.length} Komponenten
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between gap-2">
-              <div>
-                <CardTitle>Artikeldetails</CardTitle>
-                <CardDescription>
-                  Sieh dir Struktur und Komponenten der ausgewählten Position an.
-                </CardDescription>
+              <div className="flex items-center gap-2">
+                {isDetailView && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsDetailView(false);
+                    }}
+                  >
+                    Zurück zur Übersicht
+                  </Button>
+                )}
+                <div>
+                  <CardTitle>Artikeldetails</CardTitle>
+                  <CardDescription>
+                    Sieh dir Struktur und Komponenten der ausgewählten Position an.
+                  </CardDescription>
+                </div>
               </div>
               {selectedItem && selectedItem.type === "eigenproduktion" && (
                 <Button
@@ -4071,27 +4245,24 @@ function ManufacturerSuggestionButton({
     return null;
   }
 
-  const itemsByName = new Map<string, InventoryItem>();
-  for (const item of itemsById.values()) {
-    itemsByName.set(item.name.toLowerCase(), item);
-  }
-
   const suggestions: InventoryComponent[] = [];
 
   for (const suggestion of baseItem.standardPreparation.components) {
-    const key = suggestion.name.toLowerCase();
-    const suggestedItem = itemsByName.get(key);
-    if (!suggestedItem) {
+    const matchedItem = findBestInventoryMatchByName(
+      suggestion.name,
+      itemsById.values()
+    );
+    if (!matchedItem) {
       continue;
     }
     const alreadyExists = editingComponents.some(
-      (existing) => existing.itemId === suggestedItem.id
+      (existing) => existing.itemId === matchedItem.id
     );
     if (alreadyExists) {
       continue;
     }
     suggestions.push({
-      itemId: suggestedItem.id,
+      itemId: matchedItem.id,
       quantity: suggestion.quantity,
       unit: suggestion.unit,
     });
