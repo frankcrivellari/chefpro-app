@@ -2897,6 +2897,16 @@ export function InventoryManager() {
                           />
                         </div>
                       )}
+                      {!docParsed.imageUrl && docParsed.fileUrl && docParsed.fileUrl.toLowerCase().endsWith(".pdf") && (
+                        <div className="mt-2 aspect-square w-full overflow-hidden rounded-md bg-black/5">
+                          <object
+                            data={docParsed.fileUrl}
+                            type="application/pdf"
+                            className="h-full w-full"
+                          >
+                          </object>
+                        </div>
+                      )}
                       <div className="flex justify-between gap-2">
                         <span className="text-muted-foreground">
                           Name

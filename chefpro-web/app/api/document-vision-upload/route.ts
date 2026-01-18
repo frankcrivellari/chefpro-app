@@ -409,6 +409,7 @@ export async function POST(request: Request) {
             preparation_steps: preparationSteps,
             manufacturer_article_number: manufacturerArticleNumber,
             yield_volume: yieldVolume,
+            image_url: imagePublicUrl,
           },
         },
         { status: 500 }
@@ -458,6 +459,7 @@ export async function POST(request: Request) {
         is_yeast_free: isYeastFree,
         is_lactose_free: isLactoseFree,
         is_gluten_free: isGlutenFree,
+        image_url: imagePublicUrl,
       },
       fileUrl: publicUrl,
     });
