@@ -42,6 +42,7 @@ type SupabaseItemRow = {
   is_yeast_free: boolean | null;
   is_lactose_free: boolean | null;
   is_gluten_free: boolean | null;
+  image_url: string | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -91,6 +92,7 @@ type InventoryItem = {
   isGlutenFree?: boolean;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
+  imageUrl?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -130,6 +132,7 @@ export async function POST(request: Request) {
     isYeastFree?: boolean;
     isLactoseFree?: boolean;
     isGlutenFree?: boolean;
+    imageUrl?: string | null;
   };
 
   if (!body.id) {
@@ -162,6 +165,7 @@ export async function POST(request: Request) {
     is_yeast_free?: boolean;
     is_lactose_free?: boolean;
     is_gluten_free?: boolean;
+    image_url?: string | null;
   } = {};
 
   if (typeof body.name === "string") {
@@ -209,6 +213,11 @@ export async function POST(request: Request) {
       body.preparationSteps.trim().length > 0
         ? body.preparationSteps.trim()
         : null;
+  }
+
+  if (typeof body.imageUrl === "string") {
+    const trimmed = body.imageUrl.trim();
+    updates.image_url = trimmed.length > 0 ? trimmed : null;
   }
 
   if (typeof body.targetPortions === "number") {
@@ -401,6 +410,7 @@ export async function POST(request: Request) {
     hasGhostComponents:
       hasGhostComponents || undefined,
     components,
+    imageUrl: row.image_url,
   };
 
   return NextResponse.json({ item });

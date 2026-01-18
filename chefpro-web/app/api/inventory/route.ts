@@ -49,6 +49,7 @@ type InventoryItem = {
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
   preparationSteps?: string | null;
+  imageUrl?: string | null;
   nutritionPerUnit?: NutritionTotals | null;
   standardPreparation?: StandardPreparation | null;
   isBio?: boolean;
@@ -83,6 +84,7 @@ type SupabaseItemRow = {
   dosage_instructions: string | null;
   yield_info: string | null;
   preparation_steps: string | null;
+  image_url: string | null;
   standard_preparation: StandardPreparation | null;
   nutrition_per_unit: NutritionTotals | null;
   is_bio: boolean | null;
@@ -184,6 +186,7 @@ export async function GET() {
         dosageInstructions: row.dosage_instructions,
         yieldInfo: row.yield_info,
         preparationSteps: row.preparation_steps,
+      imageUrl: row.image_url,
         nutritionPerUnit: row.nutrition_per_unit,
         standardPreparation: row.standard_preparation,
         isBio: row.is_bio ?? false,

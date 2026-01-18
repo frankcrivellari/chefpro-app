@@ -104,6 +104,7 @@ type InventoryItem = {
   isLactoseFree?: boolean;
   isGlutenFree?: boolean;
   hasGhostComponents?: boolean;
+  imageUrl?: string | null;
 };
 
 type ParsedAiItem = {
@@ -445,6 +446,10 @@ export function InventoryManager() {
   >(null);
   const [isRecipePresentationMode, setIsRecipePresentationMode] =
     useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [imageIsUploading, setImageIsUploading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const [isImageDropActive, setIsImageDropActive] = useState(false);
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -635,6 +640,16 @@ export function InventoryManager() {
     filteredItems.find((item) => item.id === selectedItemId) ??
     filteredItems[0] ??
     null;
+
+  useEffect(() => {
+    if (selectedItem && selectedItem.type === "eigenproduktion") {
+      setImageUrlInput(selectedItem.imageUrl ?? "");
+    } else {
+      setImageUrlInput("");
+    }
+    setImageUploadError(null);
+    setIsImageDropActive(false);
+  }, [selectedItem]);
 
   const inheritedAllergens = useMemo(() => {
     if (!selectedItem || selectedItem.type !== "eigenproduktion") {
@@ -1671,6 +1686,10 @@ export function InventoryManager() {
         selectedItem.type === "eigenproduktion"
           ? nutritionTagsInput
           : undefined;
+      const imageUrlValue =
+        selectedItem.type === "eigenproduktion"
+          ? imageUrlInput.trim()
+          : undefined;
       let parsedStandardPreparation: StandardPreparation | null =
         null;
       if (selectedItem.type === "zukauf") {
@@ -1765,6 +1784,7 @@ export function InventoryManager() {
           isYeastFree: isYeastFreeInput,
           isLactoseFree: isLactoseFreeInput,
           isGlutenFree: isGlutenFreeInput,
+          imageUrl: imageUrlValue,
         }),
       });
       const payload = (await response.json()) as {
@@ -1817,6 +1837,114 @@ export function InventoryManager() {
     } finally {
       setIsSaving(false);
       setEditingStepId(null);
+    }
+  }
+
+  async function handleRecipeImageUpload(file: File) {
+    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
+      return;
+    }
+    try {
+      setImageIsUploading(true);
+      setImageUploadError(null);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("itemId", selectedItem.id);
+      const response = await fetch("/api/recipe-image-upload", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await response.json()) as {
+        error?: unknown;
+        imageUrl?: string;
+      };
+      if (!response.ok) {
+        let message = "Fehler beim Hochladen des Rezeptbilds.";
+        if (payload && typeof payload.error === "string") {
+          message = payload.error;
+        }
+        throw new Error(message);
+      }
+      if (payload.imageUrl) {
+        setImageUrlInput(payload.imageUrl);
+        setItems((previous) =>
+          previous.map((item) =>
+            item.id === selectedItem.id
+              ? {
+                  ...item,
+                  imageUrl: payload.imageUrl ?? null,
+                }
+              : item
+          )
+        );
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Fehler beim Hochladen des Rezeptbilds.";
+      setImageUploadError(message);
+    } finally {
+      setImageIsUploading(false);
+    }
+  }
+
+  async function handleRecipeImageUrlSave() {
+    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
+      return;
+    }
+    const trimmed = imageUrlInput.trim();
+    try {
+      setImageIsUploading(true);
+      setImageUploadError(null);
+      const response = await fetch("/api/item-details", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: selectedItem.id,
+          imageUrl: trimmed,
+        }),
+      });
+      const payload = (await response.json()) as {
+        error?: unknown;
+        item?: InventoryItem;
+      };
+      if (!response.ok) {
+        let message = "Fehler beim Speichern des Bild-Links.";
+        if (payload && typeof payload.error === "string") {
+          message = payload.error;
+        }
+        throw new Error(message);
+      }
+      if (payload.item) {
+        const updated = payload.item;
+        setItems((previous) =>
+          previous.map((item) =>
+            item.id === updated.id ? { ...item, ...updated } : item
+          )
+        );
+      } else {
+        setItems((previous) =>
+          previous.map((item) =>
+            item.id === selectedItem.id
+              ? {
+                  ...item,
+                  imageUrl: trimmed.length > 0 ? trimmed : null,
+                }
+              : item
+          )
+        );
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Fehler beim Speichern des Bild-Links.";
+      setImageUploadError(message);
+    } finally {
+      setImageIsUploading(false);
     }
   }
 
@@ -2783,29 +2911,46 @@ export function InventoryManager() {
                                 setIsDetailView(true);
                               }}
                               className={cn(
-                                "flex flex-col items-start gap-2 rounded-md border bg-card px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                                "group relative overflow-hidden rounded-md border bg-background text-left text-xs shadow-sm transition-colors hover:border-primary",
                                 selectedItem?.id === item.id &&
-                                  "border-primary bg-primary/5"
+                                  "border-primary ring-1 ring-primary"
                               )}
                             >
-                              <div className="flex w-full items-center justify-between gap-2">
-                                <span className="line-clamp-2 text-sm font-medium">
-                                  {item.name}
-                                </span>
-                                <TypeBadge type={item.type} />
-                              </div>
-                              <div className="flex flex-wrap gap-1 text-[10px] text-muted-foreground">
-                                {item.category && (
-                                  <span>{item.category}</span>
+                              <div className="relative aspect-[4/3] w-full overflow-hidden">
+                                {item.imageUrl ? (
+                                  <img
+                                    src={item.imageUrl}
+                                    alt={item.name}
+                                    className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/60 text-[11px] text-muted-foreground">
+                                    <ImageIcon className="h-5 w-5" />
+                                    <span>Kein Bild hinterlegt</span>
+                                  </div>
                                 )}
-                                {item.isBio && (
-                                  <Badge className="bg-emerald-600 px-2 py-0.5 text-[9px] font-semibold text-emerald-50">
-                                    BIO
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground">
-                                Einheit: {item.unit}
+                                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent px-2 pb-2 pt-6">
+                                  <div className="flex items-end justify-between gap-2">
+                                    <div className="space-y-0.5">
+                                      <div className="line-clamp-2 text-xs font-semibold text-white sm:text-sm">
+                                        {item.name}
+                                      </div>
+                                      {item.category && (
+                                        <div className="text-[10px] text-white/80">
+                                          {item.category}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                      <TypeBadge type={item.type} />
+                                      {item.isBio && (
+                                        <Badge className="bg-emerald-600 px-2 py-0.5 text-[9px] font-semibold text-emerald-50">
+                                          BIO
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                             </button>
                           ))}
@@ -3046,152 +3191,179 @@ export function InventoryManager() {
                 selectedItem.type === "eigenproduktion" &&
                 isRecipePresentationMode && (
                   <div className="space-y-3 text-xs">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-semibold">
-                          {selectedItem.name}
-                        </h2>
-                        <TypeBadge type={selectedItem.type} />
-                        {selectedItem.isBio && (
-                          <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
-                            BIO
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                        <div>
-                          Intern:{" "}
-                          <span className="font-medium">
-                            {formatInternalId(selectedItem.internalId ?? null)}
-                          </span>
-                        </div>
-                        {selectedItem.category && (
-                          <div>Kategorie: {selectedItem.category}</div>
-                        )}
-                        {selectedItem.targetPortions != null &&
-                          Number.isFinite(selectedItem.targetPortions) &&
-                          selectedItem.targetPortions > 0 &&
-                          selectedItem.portionUnit && (
-                            <div>
-                              {selectedItem.targetPortions}{" "}
-                              {selectedItem.portionUnit}
+                    <div className="flex flex-col gap-4 lg:flex-row">
+                      <div className="w-full max-w-md lg:max-w-sm">
+                        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md border bg-muted/40">
+                          {selectedItem.imageUrl ? (
+                            <img
+                              src={selectedItem.imageUrl}
+                              alt={selectedItem.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/60 text-[11px] text-muted-foreground">
+                              <ImageIcon className="h-6 w-6" />
+                              <span>Kein Rezeptbild hinterlegt</span>
+                              <span className="text-[10px]">
+                                Bild im Bearbeiten-Modus oben links hinzufügen.
+                              </span>
                             </div>
                           )}
+                        </div>
                       </div>
-                      {(selectedItem.isDeklarationsfrei ||
-                        selectedItem.isAllergenfrei ||
-                        selectedItem.isCookChill ||
-                        selectedItem.isFreezeThawStable ||
-                        selectedItem.isPalmOilFree ||
-                        selectedItem.isYeastFree ||
-                        selectedItem.isLactoseFree ||
-                        selectedItem.isGlutenFree) && (
-                        <div className="flex flex-wrap gap-1 text-[10px]">
-                          {selectedItem.isDeklarationsfrei && (
-                            <Badge className="px-2 py-0.5">
-                              deklarationsfrei
-                            </Badge>
-                          )}
-                          {selectedItem.isAllergenfrei && (
-                            <Badge className="px-2 py-0.5">
-                              allergenfrei
-                            </Badge>
-                          )}
-                          {selectedItem.isCookChill && (
-                            <Badge className="px-2 py-0.5">
-                              cook &amp; chill
-                            </Badge>
-                          )}
-                          {selectedItem.isFreezeThawStable && (
-                            <Badge className="px-2 py-0.5">
-                              freeze/thaw-stable
-                            </Badge>
-                          )}
-                          {selectedItem.isPalmOilFree && (
-                            <Badge className="px-2 py-0.5">
-                              palmöl-frei
-                            </Badge>
-                          )}
-                          {selectedItem.isYeastFree && (
-                            <Badge className="px-2 py-0.5">
-                              hefefrei
-                            </Badge>
-                          )}
-                          {selectedItem.isLactoseFree && (
-                            <Badge className="px-2 py-0.5">
-                              laktosefrei
-                            </Badge>
-                          )}
-                          {selectedItem.isGlutenFree && (
-                            <Badge className="px-2 py-0.5">
-                              glutenfrei
-                            </Badge>
+                      <div className="flex-1 space-y-3">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-lg font-semibold">
+                              {selectedItem.name}
+                            </h2>
+                            <TypeBadge type={selectedItem.type} />
+                            {selectedItem.isBio && (
+                              <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
+                                BIO
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                            <div>
+                              Intern:{" "}
+                              <span className="font-medium">
+                                {formatInternalId(
+                                  selectedItem.internalId ?? null
+                                )}
+                              </span>
+                            </div>
+                            {selectedItem.category && (
+                              <div>Kategorie: {selectedItem.category}</div>
+                            )}
+                            {selectedItem.targetPortions != null &&
+                              Number.isFinite(selectedItem.targetPortions) &&
+                              selectedItem.targetPortions > 0 &&
+                              selectedItem.portionUnit && (
+                                <div>
+                                  {selectedItem.targetPortions}{" "}
+                                  {selectedItem.portionUnit}
+                                </div>
+                              )}
+                          </div>
+                          {(selectedItem.isDeklarationsfrei ||
+                            selectedItem.isAllergenfrei ||
+                            selectedItem.isCookChill ||
+                            selectedItem.isFreezeThawStable ||
+                            selectedItem.isPalmOilFree ||
+                            selectedItem.isYeastFree ||
+                            selectedItem.isLactoseFree ||
+                            selectedItem.isGlutenFree) && (
+                            <div className="flex flex-wrap gap-1 text-[10px]">
+                              {selectedItem.isDeklarationsfrei && (
+                                <Badge className="px-2 py-0.5">
+                                  deklarationsfrei
+                                </Badge>
+                              )}
+                              {selectedItem.isAllergenfrei && (
+                                <Badge className="px-2 py-0.5">
+                                  allergenfrei
+                                </Badge>
+                              )}
+                              {selectedItem.isCookChill && (
+                                <Badge className="px-2 py-0.5">
+                                  cook &amp; chill
+                                </Badge>
+                              )}
+                              {selectedItem.isFreezeThawStable && (
+                                <Badge className="px-2 py-0.5">
+                                  freeze/thaw-stable
+                                </Badge>
+                              )}
+                              {selectedItem.isPalmOilFree && (
+                                <Badge className="px-2 py-0.5">
+                                  palmöl-frei
+                                </Badge>
+                              )}
+                              {selectedItem.isYeastFree && (
+                                <Badge className="px-2 py-0.5">
+                                  hefefrei
+                                </Badge>
+                              )}
+                              {selectedItem.isLactoseFree && (
+                                <Badge className="px-2 py-0.5">
+                                  laktosefrei
+                                </Badge>
+                              )}
+                              {selectedItem.isGlutenFree && (
+                                <Badge className="px-2 py-0.5">
+                                  glutenfrei
+                                </Badge>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
+                        {recipeCalculation && (
+                          <div className="space-y-1 rounded-md border bg-muted/40 px-3 py-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="text-xs font-semibold">
+                                Kalkulation
+                              </h3>
+                              <div className="text-[11px] text-muted-foreground">
+                                Zielpreis/Portion:{" "}
+                                {selectedItem.targetSalesPrice != null &&
+                                Number.isFinite(selectedItem.targetSalesPrice)
+                                  ? `${selectedItem.targetSalesPrice.toFixed(
+                                      2
+                                    )} €`
+                                  : "—"}
+                              </div>
+                            </div>
+                            <div className="grid gap-1 text-[11px] md:grid-cols-2">
+                              <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">
+                                  Gesamtkosten Rezept
+                                </span>
+                                <span className="font-medium">
+                                  {recipeCalculation.totalCost.toFixed(2)} €
+                                </span>
+                              </div>
+                              <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">
+                                  Kosten pro Portion
+                                </span>
+                                <span className="font-medium">
+                                  {recipeCalculation.costPerPortion != null
+                                    ? `${recipeCalculation.costPerPortion.toFixed(
+                                        2
+                                      )} €`
+                                    : "—"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">
+                                  Marge pro Portion
+                                </span>
+                                <span className="font-medium">
+                                  {recipeCalculation.marginPerPortion != null
+                                    ? `${recipeCalculation.marginPerPortion.toFixed(
+                                        2
+                                      )} €`
+                                    : "—"}
+                                </span>
+                              </div>
+                              <div className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">
+                                  Wareneinsatz
+                                </span>
+                                <span className="font-medium">
+                                  {recipeCalculation.goodsSharePercent != null
+                                    ? `${recipeCalculation.goodsSharePercent.toFixed(
+                                        1
+                                      )} %`
+                                    : "—"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {recipeCalculation && (
-                      <div className="space-y-1 rounded-md border bg-muted/40 px-3 py-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-xs font-semibold">
-                            Kalkulation
-                          </h3>
-                          <div className="text-[11px] text-muted-foreground">
-                            Zielpreis/Portion:{" "}
-                            {selectedItem.targetSalesPrice != null &&
-                            Number.isFinite(selectedItem.targetSalesPrice)
-                              ? `${selectedItem.targetSalesPrice.toFixed(2)} €`
-                              : "—"}
-                          </div>
-                        </div>
-                        <div className="grid gap-1 text-[11px] md:grid-cols-2">
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">
-                              Gesamtkosten Rezept
-                            </span>
-                            <span className="font-medium">
-                              {recipeCalculation.totalCost.toFixed(2)} €
-                            </span>
-                          </div>
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">
-                              Kosten pro Portion
-                            </span>
-                            <span className="font-medium">
-                              {recipeCalculation.costPerPortion != null
-                                ? `${recipeCalculation.costPerPortion.toFixed(
-                                    2
-                                  )} €`
-                                : "—"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">
-                              Marge pro Portion
-                            </span>
-                            <span className="font-medium">
-                              {recipeCalculation.marginPerPortion != null
-                                ? `${recipeCalculation.marginPerPortion.toFixed(
-                                    2
-                                  )} €`
-                                : "—"}
-                            </span>
-                          </div>
-                          <div className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">
-                              Wareneinsatz
-                            </span>
-                            <span className="font-medium">
-                              {recipeCalculation.goodsSharePercent != null
-                                ? `${recipeCalculation.goodsSharePercent.toFixed(
-                                    1
-                                  )} %`
-                                : "—"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                     {selectedItem.components &&
                       selectedItem.components.length > 0 && (
                         <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3">
@@ -3308,7 +3480,137 @@ export function InventoryManager() {
               {selectedItem &&
                 !(selectedItem.type === "eigenproduktion" &&
                   isRecipePresentationMode) && (
-                <>
+                  <>
+                    {selectedItem.type === "eigenproduktion" && (
+                      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start">
+                        <div className="w-full max-w-xs sm:max-w-sm">
+                          <div
+                            className={cn(
+                              "relative flex h-[300px] w-full items-center justify-center overflow-hidden rounded-md border border-dashed bg-muted/40 text-[11px] transition-colors",
+                              isImageDropActive &&
+                                "border-primary bg-primary/5",
+                              imageIsUploading && "opacity-80"
+                            )}
+                            onDragOver={(event) => {
+                              event.preventDefault();
+                              setIsImageDropActive(true);
+                            }}
+                            onDragLeave={(event) => {
+                              event.preventDefault();
+                              setIsImageDropActive(false);
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              setIsImageDropActive(false);
+                              const file =
+                                event.dataTransfer.files &&
+                                event.dataTransfer.files[0]
+                                  ? event.dataTransfer.files[0]
+                                  : null;
+                              if (!file) {
+                                return;
+                              }
+                              if (!file.type.startsWith("image/")) {
+                                setImageUploadError(
+                                  "Bitte nur Bilddateien (JPG, PNG, GIF) verwenden."
+                                );
+                                return;
+                              }
+                              void handleRecipeImageUpload(file);
+                            }}
+                            onClick={() => {
+                              if (imageIsUploading) {
+                                return;
+                              }
+                              const input = document.getElementById(
+                                "recipe-image-file-input"
+                              ) as HTMLInputElement | null;
+                              if (input) {
+                                input.click();
+                              }
+                            }}
+                          >
+                            {(imageUrlInput || selectedItem.imageUrl) && (
+                              <img
+                                src={imageUrlInput || selectedItem.imageUrl || ""}
+                                alt={selectedItem.name}
+                                className="absolute inset-0 h-full w-full object-cover"
+                              />
+                            )}
+                            <div className="relative z-10 flex flex-col items-center justify-center gap-2 rounded-md bg-background/70 px-3 py-3 text-center">
+                              {imageIsUploading ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <span>Bild wird hochgeladen ...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ImageIcon className="h-5 w-5" />
+                                  <span>
+                                    Bild hierher ziehen oder klicken, um ein Bild
+                                    auszuwählen
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <input
+                            id="recipe-image-file-input"
+                            type="file"
+                            accept="image/*"
+                            className="mt-2 block w-full text-[11px] text-foreground file:mr-2 file:rounded-md file:border file:border-input file:bg-background file:px-2 file:py-1 file:text-[11px] file:font-medium file:text-foreground hover:file:bg-accent"
+                            onChange={(event) => {
+                              const file =
+                                event.target.files &&
+                                event.target.files[0]
+                                  ? event.target.files[0]
+                                  : null;
+                              if (!file) {
+                                return;
+                              }
+                              if (!file.type.startsWith("image/")) {
+                                setImageUploadError(
+                                  "Bitte nur Bilddateien (JPG, PNG, GIF) verwenden."
+                                );
+                                return;
+                              }
+                              void handleRecipeImageUpload(file);
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 space-y-1 sm:pl-3">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="Bild-URL einfügen"
+                              value={imageUrlInput}
+                              onChange={(event) =>
+                                setImageUrlInput(event.target.value)
+                              }
+                              className="h-8 px-2 py-1 text-[11px]"
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                imageIsUploading ||
+                                imageUrlInput.trim().length === 0
+                              }
+                              onClick={() => {
+                                void handleRecipeImageUrlSave();
+                              }}
+                            >
+                              Übernehmen
+                            </Button>
+                          </div>
+                          {imageUploadError && (
+                            <div className="text-[10px] text-destructive">
+                              {imageUploadError}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
                         {selectedItem.type === "eigenproduktion" ? (
