@@ -50,6 +50,7 @@ type SupabaseItemRow = {
   is_yeast_free: boolean | null;
   is_lactose_free: boolean | null;
   is_gluten_free: boolean | null;
+  file_url: string | null;
 };
 
 const STORAGE_BUCKET = "product-documents";
@@ -363,6 +364,7 @@ export async function POST(request: Request) {
         is_yeast_free: isYeastFree,
         is_lactose_free: isLactoseFree,
         is_gluten_free: isGlutenFree,
+        file_url: publicUrl,
       })
       .select("*")
       .single();
@@ -407,6 +409,7 @@ export async function POST(request: Request) {
         isYeastFree: createdItemRow.is_yeast_free ?? false,
         isLactoseFree: createdItemRow.is_lactose_free ?? false,
         isGlutenFree: createdItemRow.is_gluten_free ?? false,
+        fileUrl: createdItemRow.file_url,
       },
       extracted: {
         name: parsed.name,

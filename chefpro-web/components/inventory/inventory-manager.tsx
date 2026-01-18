@@ -110,6 +110,7 @@ type InventoryItem = {
   isGlutenFree?: boolean;
   hasGhostComponents?: boolean;
   imageUrl?: string | null;
+  fileUrl?: string | null;
 };
 
 type ParsedAiItem = {
@@ -2021,7 +2022,7 @@ export function InventoryManager() {
   }
 
   async function handleRecipeImageUpload(file: File) {
-    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
+    if (!selectedItem) {
       return;
     }
     try {
@@ -2074,7 +2075,7 @@ export function InventoryManager() {
   }
 
   async function handleRecipeImageUrlSave() {
-    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
+    if (!selectedItem) {
       return;
     }
     const trimmed = imageUrlInput.trim();
@@ -2783,6 +2784,28 @@ export function InventoryManager() {
                           {docParsed.purchasePrice.toFixed(2)} €
                         </span>
                       </div>
+                      {docParsed.fileUrl && (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-muted-foreground">
+                            Datenblatt
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-[11px]"
+                            onClick={() => {
+                              window.open(
+                                docParsed.fileUrl,
+                                "_blank",
+                                "noopener,noreferrer"
+                              );
+                            }}
+                          >
+                            Öffnen
+                          </Button>
+                        </div>
+                      )}
                       {(docParsed.isBio ||
                         docParsed.isDeklarationsfrei ||
                         docParsed.isAllergenfrei ||
@@ -3769,145 +3792,141 @@ export function InventoryManager() {
               {selectedItem &&
                 !(selectedItem.type === "eigenproduktion" &&
                   isRecipePresentationMode) && (
-                  <>
-                    {selectedItem.type === "eigenproduktion" && (
-                      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start">
-                        <div className="w-full max-w-xs sm:max-w-sm">
-                          <div
-                            className={cn(
-                              "relative flex h-[300px] w-full items-center justify-center overflow-hidden rounded-md border border-dashed bg-muted/40 text-[11px] transition-colors",
-                              isImageDropActive &&
-                                "border-primary bg-primary/5",
-                              imageIsUploading && "opacity-80"
-                            )}
-                            onDragOver={(event) => {
-                              event.preventDefault();
-                              setIsImageDropActive(true);
-                            }}
-                            onDragLeave={(event) => {
-                              event.preventDefault();
-                              setIsImageDropActive(false);
-                            }}
-                            onDrop={(event) => {
-                              event.preventDefault();
-                              setIsImageDropActive(false);
-                              const file =
-                                event.dataTransfer.files &&
-                                event.dataTransfer.files[0]
-                                  ? event.dataTransfer.files[0]
-                                  : null;
-                              if (!file) {
-                                return;
-                              }
-                              if (!file.type.startsWith("image/")) {
-                                setImageUploadError(
-                                  "Bitte nur Bilddateien (JPG, PNG, GIF) verwenden."
-                                );
-                                return;
-                              }
-                              void handleRecipeImageUpload(file);
-                            }}
-                            onClick={() => {
-                              if (imageIsUploading) {
-                                return;
-                              }
-                              const input = document.getElementById(
-                                "recipe-image-file-input"
-                              ) as HTMLInputElement | null;
-                              if (input) {
-                                input.click();
-                              }
-                            }}
-                          >
-                            {(imageUrlInput || selectedItem.imageUrl) && (
-                              <img
-                                src={imageUrlInput || selectedItem.imageUrl || ""}
-                                alt={selectedItem.name}
-                                className="absolute inset-0 h-full w-full object-cover"
-                              />
-                            )}
-                            {(!imageUrlInput && !selectedItem.imageUrl) ||
-                            imageIsUploading ? (
-                              <div className="relative z-10 flex flex-col items-center justify-center gap-2 rounded-md bg-background/70 px-3 py-3 text-center">
-                                {imageIsUploading ? (
-                                  <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    <span>Bild wird hochgeladen ...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <ImageIcon className="h-5 w-5" />
-                                    <span>
-                                      Bild hierher ziehen oder klicken, um ein Bild
-                                      auszuwählen
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            ) : null}
-                          </div>
-                          <input
-                            id="recipe-image-file-input"
-                            type="file"
-                            accept="image/*"
-                            className="mt-2 block w-full text-[11px] text-foreground file:mr-2 file:rounded-md file:border file:border-input file:bg-background file:px-2 file:py-1 file:text-[11px] file:font-medium file:text-foreground hover:file:bg-accent"
-                            onChange={(event) => {
-                              const file =
-                                event.target.files &&
-                                event.target.files[0]
-                                  ? event.target.files[0]
-                                  : null;
-                              if (!file) {
-                                return;
-                              }
-                              if (!file.type.startsWith("image/")) {
-                                setImageUploadError(
-                                  "Bitte nur Bilddateien (JPG, PNG, GIF) verwenden."
-                                );
-                                return;
-                              }
-                              void handleRecipeImageUpload(file);
-                            }}
+                <>
+                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start">
+                    <div className="w-full max-w-xs sm:max-w-sm">
+                      <div
+                        className={cn(
+                          "relative flex h-[300px] w-full items-center justify-center overflow-hidden rounded-md border border-dashed bg-muted/40 text-[11px] transition-colors",
+                          isImageDropActive && "border-primary bg-primary/5",
+                          imageIsUploading && "opacity-80"
+                        )}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          setIsImageDropActive(true);
+                        }}
+                        onDragLeave={(event) => {
+                          event.preventDefault();
+                          setIsImageDropActive(false);
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          setIsImageDropActive(false);
+                          const file =
+                            event.dataTransfer.files &&
+                            event.dataTransfer.files[0]
+                              ? event.dataTransfer.files[0]
+                              : null;
+                          if (!file) {
+                            return;
+                          }
+                          if (!file.type.startsWith("image/")) {
+                            setImageUploadError(
+                              "Bitte nur Bilddateien (JPG, PNG, GIF) verwenden."
+                            );
+                            return;
+                          }
+                          void handleRecipeImageUpload(file);
+                        }}
+                        onClick={() => {
+                          if (imageIsUploading) {
+                            return;
+                          }
+                          const input = document.getElementById(
+                            "recipe-image-file-input"
+                          ) as HTMLInputElement | null;
+                          if (input) {
+                            input.click();
+                          }
+                        }}
+                      >
+                        {(imageUrlInput || selectedItem.imageUrl) && (
+                          <img
+                            src={imageUrlInput || selectedItem.imageUrl || ""}
+                            alt={selectedItem.name}
+                            className="absolute inset-0 h-full w-full object-cover"
                           />
-                        </div>
-                        {selectedItem.type === "eigenproduktion" &&
-                          !selectedItem.imageUrl &&
-                          imageUrlInput.trim().length === 0 && (
-                            <div className="flex-1 space-y-1 sm:pl-3">
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  placeholder="Bild-URL einfügen"
-                                  value={imageUrlInput}
-                                  onChange={(event) =>
-                                    setImageUrlInput(event.target.value)
-                                  }
-                                  className="h-8 px-2 py-1 text-[11px]"
-                                />
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={
-                                    imageIsUploading ||
-                                    imageUrlInput.trim().length === 0
-                                  }
-                                  onClick={() => {
-                                    void handleRecipeImageUrlSave();
-                                  }}
-                                >
-                                  Übernehmen
-                                </Button>
-                              </div>
-                              {imageUploadError && (
-                                <div className="text-[10px] text-destructive">
-                                  {imageUploadError}
-                                </div>
-                              )}
+                        )}
+                        {(!imageUrlInput && !selectedItem.imageUrl) ||
+                        imageIsUploading ? (
+                          <div className="relative z-10 flex flex-col items-center justify-center gap-2 rounded-md bg-background/70 px-3 py-3 text-center">
+                            {imageIsUploading ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Bild wird hochgeladen ...</span>
+                              </>
+                            ) : (
+                              <>
+                                <ImageIcon className="h-5 w-5" />
+                                <span>
+                                  Bild hierher ziehen oder klicken, um ein Bild
+                                  auszuwählen
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                      <input
+                        id="recipe-image-file-input"
+                        type="file"
+                        accept="image/*"
+                        className="mt-2 block w-full text-[11px] text-foreground file:mr-2 file:rounded-md file:border file:border-input file:bg-background file:px-2 file:py-1 file:text-[11px] file:font-medium file:text-foreground hover:file:bg-accent"
+                        onChange={(event) => {
+                          const file =
+                            event.target.files && event.target.files[0]
+                              ? event.target.files[0]
+                              : null;
+                          if (!file) {
+                            return;
+                          }
+                          if (!file.type.startsWith("image/")) {
+                            setImageUploadError(
+                              "Bitte nur Bilddateien (JPG, PNG, GIF) verwenden."
+                            );
+                            return;
+                          }
+                          void handleRecipeImageUpload(file);
+                        }}
+                      />
+                    </div>
+                    {selectedItem.type === "eigenproduktion" &&
+                      !selectedItem.imageUrl &&
+                      imageUrlInput.trim().length === 0 && (
+                        <div className="flex-1 space-y-1 sm:pl-3">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="Bild-URL einfügen"
+                              value={imageUrlInput}
+                              onChange={(event) =>
+                                setImageUrlInput(event.target.value)
+                              }
+                              className="h-8 px-2 py-1 text-[11px]"
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={
+                                imageIsUploading ||
+                                imageUrlInput.trim().length === 0
+                              }
+                              onClick={() => {
+                                void handleRecipeImageUrlSave();
+                              }}
+                            >
+                              Übernehmen
+                            </Button>
+                          </div>
+                          {imageUploadError && (
+                            <div className="text-[10px] text-destructive">
+                              {imageUploadError}
                             </div>
                           )}
-                      </div>
-                    )}
-                    <div className="flex flex-col gap-1">
+                        </div>
+                      )}
+                  </div>
+                  <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
                         {selectedItem.type === "eigenproduktion" ? (
                           <>
@@ -5560,6 +5579,27 @@ export function InventoryManager() {
                             : "Profi-Daten speichern"}
                         </Button>
                       </div>
+                      {selectedItem.fileUrl && (
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-[11px] text-muted-foreground">
+                            Original-Datenblatt
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              window.open(
+                                selectedItem.fileUrl as string,
+                                "_blank",
+                                "noopener,noreferrer"
+                              );
+                            }}
+                          >
+                            Öffnen
+                          </Button>
+                        </div>
+                      )}
                       <div className="grid gap-2 md:grid-cols-2">
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
@@ -5996,7 +6036,7 @@ export function InventoryManager() {
           </Card>
         </main>
       </div>
-      {imageViewer && (
+      {imageViewer ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <button
             type="button"
@@ -6018,7 +6058,7 @@ export function InventoryManager() {
             />
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
