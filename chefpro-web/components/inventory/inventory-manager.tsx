@@ -546,24 +546,119 @@ export function InventoryManager() {
         const buf = await res.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({ data: buf });
         const pdf = await loadingTask.promise;
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-        if (!context) {
-          throw new Error("Canvas context nicht verfügbar");
-        }
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: context, viewport }).promise;
-        const blob: Blob = await new Promise((resolve, reject) => {
-          canvas.toBlob(
-            (b) => (b ? resolve(b) : reject(new Error("Bildkonvertierung fehlgeschlagen"))),
-            "image/jpeg",
-            0.9
+        const maxPages = Math.min(3, (pdf as unknown as { numPages?: number }).numPages ?? 1);
+        let chosenBlob: Blob | null = null;
+        for (let i = 1; i <= maxPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+          if (!context) {
+            continue;
+          }
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: context, viewport }).promise;
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+          let crop = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+          let confidence = 0;
+          try {
+            const detectResponse = await fetch("/api/pdf-packshot-extract", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                dataUrl,
+                width: canvas.width,
+                height: canvas.height,
+              }),
+            });
+            const detectPayload = (await detectResponse.json()) as {
+              error?: unknown;
+              bbox?: { x: number; y: number; w: number; h: number };
+              confidence?: number;
+            };
+            if (detectResponse.ok && detectPayload.bbox) {
+              const { x, y, w, h } = detectPayload.bbox;
+              const safe = {
+                x: Math.max(0, Math.min(canvas.width - 1, Math.floor(x))),
+                y: Math.max(0, Math.min(canvas.height - 1, Math.floor(y))),
+                w: Math.max(1, Math.min(canvas.width, Math.floor(w))),
+                h: Math.max(1, Math.min(canvas.height, Math.floor(h))),
+              };
+              crop = safe;
+              confidence = Number(detectPayload.confidence ?? 0.5);
+              const areaRatio = (safe.w * safe.h) / (canvas.width * canvas.height);
+              if (areaRatio > 0.85 || areaRatio < 0.05 || confidence < 0.5) {
+                const strictResponse = await fetch("/api/pdf-packshot-extract", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    dataUrl,
+                    width: canvas.width,
+                    height: canvas.height,
+                    strict: true,
+                  }),
+                });
+                const strictPayload = (await strictResponse.json()) as {
+                  error?: unknown;
+                  bbox?: { x: number; y: number; w: number; h: number };
+                  confidence?: number;
+                };
+                if (strictResponse.ok && strictPayload.bbox) {
+                  const { x: sx, y: sy, w: sw, h: sh } = strictPayload.bbox;
+                  const safe2 = {
+                    x: Math.max(0, Math.min(canvas.width - 1, Math.floor(sx))),
+                    y: Math.max(0, Math.min(canvas.height - 1, Math.floor(sy))),
+                    w: Math.max(1, Math.min(canvas.width, Math.floor(sw))),
+                    h: Math.max(1, Math.min(canvas.height, Math.floor(sh))),
+                  };
+                  const areaRatio2 = (safe2.w * safe2.h) / (canvas.width * canvas.height);
+                  const conf2 = Number(strictPayload.confidence ?? confidence);
+                  if (areaRatio2 <= 0.85 && areaRatio2 >= 0.05 && conf2 >= 0.5) {
+                    crop = safe2;
+                    confidence = conf2;
+                  }
+                }
+              }
+            }
+          } catch {
+          }
+          if (crop.w === canvas.width && crop.h === canvas.height) {
+            const side = Math.floor(Math.min(canvas.width, canvas.height) * 0.6);
+            const cx = Math.floor((canvas.width - side) / 2);
+            const cy = Math.floor((canvas.height - side) / 2);
+            crop = { x: cx, y: cy, w: side, h: side };
+          }
+          const cropCanvas = document.createElement("canvas");
+          cropCanvas.width = crop.w;
+          cropCanvas.height = crop.h;
+          const cropCtx = cropCanvas.getContext("2d");
+          if (!cropCtx) {
+            continue;
+          }
+          cropCtx.drawImage(
+            canvas,
+            crop.x,
+            crop.y,
+            crop.w,
+            crop.h,
+            0,
+            0,
+            crop.w,
+            crop.h
           );
-        });
-        const file = new File([blob], "pdf-preview.jpg", { type: "image/jpeg" });
+          const blob: Blob | null = await new Promise((resolve) => {
+            cropCanvas.toBlob((b) => resolve(b), "image/jpeg", 0.9);
+          });
+          if (blob) {
+            chosenBlob = blob;
+            break;
+          }
+        }
+        if (!chosenBlob) {
+          throw new Error("Packshot konnte nicht erzeugt werden");
+        }
+        const file = new File([chosenBlob], "pdf-packshot.jpg", { type: "image/jpeg" });
         const form = new FormData();
         form.append("file", file);
         form.append("itemId", itemId);
