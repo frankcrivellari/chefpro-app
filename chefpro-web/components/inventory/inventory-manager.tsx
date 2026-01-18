@@ -8,7 +8,12 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { AlertTriangle, Loader2, Image as ImageIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  Loader2,
+  Image as ImageIcon,
+  Link2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -1857,10 +1862,14 @@ export function InventoryManager() {
       const payload = (await response.json()) as {
         error?: unknown;
         imageUrl?: string;
+        code?: string;
       };
       if (!response.ok) {
         let message = "Fehler beim Hochladen des Rezeptbilds.";
-        if (payload && typeof payload.error === "string") {
+        if (payload && payload.code === "BUCKET_NOT_FOUND") {
+          message =
+            'Admin-Aktion erforderlich: Bitte in Supabase den Storage-Bucket "recipe-images" anlegen.';
+        } else if (payload && typeof payload.error === "string") {
           message = payload.error;
         }
         throw new Error(message);
@@ -3190,10 +3199,10 @@ export function InventoryManager() {
               {selectedItem &&
                 selectedItem.type === "eigenproduktion" &&
                 isRecipePresentationMode && (
-                  <div className="space-y-3 text-xs">
-                    <div className="flex flex-col gap-4 lg:flex-row">
+                    <div className="space-y-6 text-xs">
+                    <div className="flex flex-col gap-6 lg:flex-row">
                       <div className="w-full max-w-md lg:max-w-sm">
-                        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-md border bg-muted/40">
+                        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-black/5">
                           {selectedItem.imageUrl ? (
                             <img
                               src={selectedItem.imageUrl}
@@ -3201,7 +3210,7 @@ export function InventoryManager() {
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/60 text-[11px] text-muted-foreground">
+                            <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/40 text-[11px] text-muted-foreground">
                               <ImageIcon className="h-6 w-6" />
                               <span>Kein Rezeptbild hinterlegt</span>
                               <span className="text-[10px]">
@@ -3211,154 +3220,134 @@ export function InventoryManager() {
                           )}
                         </div>
                       </div>
-                      <div className="flex-1 space-y-3">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <h2 className="text-lg font-semibold">
-                              {selectedItem.name}
-                            </h2>
-                            <TypeBadge type={selectedItem.type} />
-                            {selectedItem.isBio && (
-                              <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
-                                BIO
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                            <div>
-                              Intern:{" "}
-                              <span className="font-medium">
-                                {formatInternalId(
-                                  selectedItem.internalId ?? null
-                                )}
-                              </span>
+                      <div className="flex-1 space-y-4">
+                        <div className="sticky top-0 z-20 bg-background/95 pb-2 backdrop-blur">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <h2 className="text-xl font-semibold tracking-tight">
+                                {selectedItem.name}
+                              </h2>
+                              <TypeBadge type={selectedItem.type} />
+                              {selectedItem.isBio && (
+                                <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-50">
+                                  BIO
+                                </Badge>
+                              )}
                             </div>
-                            {selectedItem.category && (
-                              <div>Kategorie: {selectedItem.category}</div>
-                            )}
-                            {selectedItem.targetPortions != null &&
-                              Number.isFinite(selectedItem.targetPortions) &&
-                              selectedItem.targetPortions > 0 &&
-                              selectedItem.portionUnit && (
-                                <div>
-                                  {selectedItem.targetPortions}{" "}
-                                  {selectedItem.portionUnit}
+                            <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+                              {selectedItem.category && (
+                                <div className="uppercase tracking-wide">
+                                  {selectedItem.category}
                                 </div>
                               )}
-                          </div>
-                          {(selectedItem.isDeklarationsfrei ||
-                            selectedItem.isAllergenfrei ||
-                            selectedItem.isCookChill ||
-                            selectedItem.isFreezeThawStable ||
-                            selectedItem.isPalmOilFree ||
-                            selectedItem.isYeastFree ||
-                            selectedItem.isLactoseFree ||
-                            selectedItem.isGlutenFree) && (
-                            <div className="flex flex-wrap gap-1 text-[10px]">
-                              {selectedItem.isDeklarationsfrei && (
-                                <Badge className="px-2 py-0.5">
-                                  deklarationsfrei
-                                </Badge>
-                              )}
-                              {selectedItem.isAllergenfrei && (
-                                <Badge className="px-2 py-0.5">
-                                  allergenfrei
-                                </Badge>
-                              )}
-                              {selectedItem.isCookChill && (
-                                <Badge className="px-2 py-0.5">
-                                  cook &amp; chill
-                                </Badge>
-                              )}
-                              {selectedItem.isFreezeThawStable && (
-                                <Badge className="px-2 py-0.5">
-                                  freeze/thaw-stable
-                                </Badge>
-                              )}
-                              {selectedItem.isPalmOilFree && (
-                                <Badge className="px-2 py-0.5">
-                                  palmöl-frei
-                                </Badge>
-                              )}
-                              {selectedItem.isYeastFree && (
-                                <Badge className="px-2 py-0.5">
-                                  hefefrei
-                                </Badge>
-                              )}
-                              {selectedItem.isLactoseFree && (
-                                <Badge className="px-2 py-0.5">
-                                  laktosefrei
-                                </Badge>
-                              )}
-                              {selectedItem.isGlutenFree && (
-                                <Badge className="px-2 py-0.5">
-                                  glutenfrei
-                                </Badge>
-                              )}
+                              {selectedItem.targetPortions != null &&
+                                Number.isFinite(selectedItem.targetPortions) &&
+                                selectedItem.targetPortions > 0 &&
+                                selectedItem.portionUnit && (
+                                  <div>
+                                    {selectedItem.targetPortions}{" "}
+                                    {selectedItem.portionUnit}
+                                  </div>
+                                )}
+                              <div>
+                                Intern:{" "}
+                                <span className="font-medium">
+                                  {formatInternalId(
+                                    selectedItem.internalId ?? null
+                                  )}
+                                </span>
+                              </div>
                             </div>
-                          )}
+                            {(selectedItem.isDeklarationsfrei ||
+                              selectedItem.isAllergenfrei ||
+                              selectedItem.isCookChill ||
+                              selectedItem.isFreezeThawStable ||
+                              selectedItem.isPalmOilFree ||
+                              selectedItem.isYeastFree ||
+                              selectedItem.isLactoseFree ||
+                              selectedItem.isGlutenFree) && (
+                              <div className="flex flex-wrap gap-1 text-[10px]">
+                                {selectedItem.isDeklarationsfrei && (
+                                  <Badge className="px-2 py-0.5">
+                                    deklarationsfrei
+                                  </Badge>
+                                )}
+                                {selectedItem.isAllergenfrei && (
+                                  <Badge className="px-2 py-0.5">
+                                    allergenfrei
+                                  </Badge>
+                                )}
+                                {selectedItem.isCookChill && (
+                                  <Badge className="px-2 py-0.5">
+                                    cook &amp; chill
+                                  </Badge>
+                                )}
+                                {selectedItem.isFreezeThawStable && (
+                                  <Badge className="px-2 py-0.5">
+                                    freeze/thaw-stable
+                                  </Badge>
+                                )}
+                                {selectedItem.isPalmOilFree && (
+                                  <Badge className="px-2 py-0.5">
+                                    palmöl-frei
+                                  </Badge>
+                                )}
+                                {selectedItem.isYeastFree && (
+                                  <Badge className="px-2 py-0.5">
+                                    hefefrei
+                                  </Badge>
+                                )}
+                                {selectedItem.isLactoseFree && (
+                                  <Badge className="px-2 py-0.5">
+                                    laktosefrei
+                                  </Badge>
+                                )}
+                                {selectedItem.isGlutenFree && (
+                                  <Badge className="px-2 py-0.5">
+                                    glutenfrei
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         {recipeCalculation && (
-                          <div className="space-y-1 rounded-md border bg-muted/40 px-3 py-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <h3 className="text-xs font-semibold">
-                                Kalkulation
-                              </h3>
-                              <div className="text-[11px] text-muted-foreground">
-                                Zielpreis/Portion:{" "}
-                                {selectedItem.targetSalesPrice != null &&
-                                Number.isFinite(selectedItem.targetSalesPrice)
-                                  ? `${selectedItem.targetSalesPrice.toFixed(
+                          <div className="grid gap-2 text-[11px] text-muted-foreground">
+                            <div className="flex justify-between gap-2">
+                              <span>Gesamtkosten Rezept</span>
+                              <span className="font-medium text-foreground">
+                                {recipeCalculation.totalCost.toFixed(2)} €
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span>Kosten pro Portion</span>
+                              <span className="font-medium text-foreground">
+                                {recipeCalculation.costPerPortion != null
+                                  ? `${recipeCalculation.costPerPortion.toFixed(
                                       2
                                     )} €`
                                   : "—"}
-                              </div>
+                              </span>
                             </div>
-                            <div className="grid gap-1 text-[11px] md:grid-cols-2">
-                              <div className="flex justify-between gap-2">
-                                <span className="text-muted-foreground">
-                                  Gesamtkosten Rezept
-                                </span>
-                                <span className="font-medium">
-                                  {recipeCalculation.totalCost.toFixed(2)} €
-                                </span>
-                              </div>
-                              <div className="flex justify-between gap-2">
-                                <span className="text-muted-foreground">
-                                  Kosten pro Portion
-                                </span>
-                                <span className="font-medium">
-                                  {recipeCalculation.costPerPortion != null
-                                    ? `${recipeCalculation.costPerPortion.toFixed(
-                                        2
-                                      )} €`
-                                    : "—"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between gap-2">
-                                <span className="text-muted-foreground">
-                                  Marge pro Portion
-                                </span>
-                                <span className="font-medium">
-                                  {recipeCalculation.marginPerPortion != null
-                                    ? `${recipeCalculation.marginPerPortion.toFixed(
-                                        2
-                                      )} €`
-                                    : "—"}
-                                </span>
-                              </div>
-                              <div className="flex justify-between gap-2">
-                                <span className="text-muted-foreground">
-                                  Wareneinsatz
-                                </span>
-                                <span className="font-medium">
-                                  {recipeCalculation.goodsSharePercent != null
-                                    ? `${recipeCalculation.goodsSharePercent.toFixed(
-                                        1
-                                      )} %`
-                                    : "—"}
-                                </span>
-                              </div>
+                            <div className="flex justify-between gap-2">
+                              <span>Marge pro Portion</span>
+                              <span className="font-medium text-foreground">
+                                {recipeCalculation.marginPerPortion != null
+                                  ? `${recipeCalculation.marginPerPortion.toFixed(
+                                      2
+                                    )} €`
+                                  : "—"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <span>Wareneinsatz</span>
+                              <span className="font-medium text-foreground">
+                                {recipeCalculation.goodsSharePercent != null
+                                  ? `${recipeCalculation.goodsSharePercent.toFixed(
+                                      1
+                                    )} %`
+                                  : "—"}
+                              </span>
                             </div>
                           </div>
                         )}
@@ -3366,15 +3355,10 @@ export function InventoryManager() {
                     </div>
                     {selectedItem.components &&
                       selectedItem.components.length > 0 && (
-                        <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <h3 className="text-xs font-semibold">
-                              Zutatenstruktur
-                            </h3>
-                            <div className="text-[11px] text-muted-foreground">
-                              Komponentenübersicht ohne Bearbeitung
-                            </div>
-                          </div>
+                        <div className="space-y-2">
+                          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Zutatenstruktur
+                          </h3>
                           <ComponentTree
                             rootItem={selectedItem}
                             itemsById={itemsById}
@@ -3383,24 +3367,21 @@ export function InventoryManager() {
                         </div>
                       )}
                     {preparationStepsInput.length > 0 && (
-                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-xs font-semibold">Zubereitung</h3>
-                          <div className="text-[11px] text-muted-foreground">
-                            Präsentationsansicht
-                          </div>
-                        </div>
-                        <div className="space-y-2">
+                      <div className="space-y-2">
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Zubereitung
+                        </h3>
+                        <div className="space-y-1">
                           {preparationStepsInput.map((step, index) => (
                             <div
                               key={step.id}
-                              className="flex gap-2 rounded-md bg-background/60 px-3 py-2"
+                              className="flex gap-2"
                             >
-                              <span className="mt-[1px] text-[10px] text-muted-foreground">
+                              <span className="mt-[1px] text-[10px] font-semibold text-muted-foreground">
                                 {index + 1}.
                               </span>
                               <div className="space-y-1">
-                                <div className="text-[11px]">
+                                <div className="text-[1.1rem] leading-[1.6]">
                                   {renderTaggedText(
                                     step.text,
                                     ingredientTagOptions
@@ -3418,9 +3399,9 @@ export function InventoryManager() {
                       </div>
                     )}
                     {nutritionSummary && (
-                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3">
+                      <div className="space-y-2">
                         <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-xs font-semibold">
+                          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             Nährwerte
                           </h3>
                           {nutritionSummary.hasMissingData && (
@@ -5702,6 +5683,15 @@ function ComponentTree({ rootItem, itemsById, onSelectItem }: ComponentTreeProps
                     {item.name}
                   </button>
                   <TypeBadge type={item.type} />
+                  {item.type === "eigenproduktion" && onSelectItem && (
+                    <button
+                      type="button"
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary"
+                      onClick={() => onSelectItem(item)}
+                    >
+                      <Link2 className="h-3 w-3" />
+                    </button>
+                  )}
                 </div>
               </div>
               {item.components && item.components.length > 0 && (

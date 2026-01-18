@@ -63,9 +63,28 @@ export async function POST(request: Request) {
       });
 
     if (uploadResult.error) {
+      const message = uploadResult.error.message ?? "";
+      const status = (uploadResult as { statusCode?: number | string }).statusCode;
+      const bucketNotFound =
+        (typeof status === "number" && status === 404) ||
+        (typeof status === "string" && status === "404") ||
+        message.toLowerCase().includes("bucket") ||
+        message.toLowerCase().includes("not found");
+
+      if (bucketNotFound) {
+        return NextResponse.json(
+          {
+            error:
+              'Admin-Aktion erforderlich: Storage-Bucket "recipe-images" existiert nicht. Bitte in Supabase im Bereich "Storage" einen öffentlichen Bucket mit dem Namen "recipe-images" anlegen.',
+            code: "BUCKET_NOT_FOUND",
+          },
+          { status: 500 }
+        );
+      }
+
       return NextResponse.json(
         {
-          error: `Fehler beim Upload in Supabase Storage: ${uploadResult.error.message}`,
+          error: `Fehler beim Upload in Supabase Storage: ${message}`,
         },
         { status: 500 }
       );
