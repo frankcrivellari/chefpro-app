@@ -410,7 +410,8 @@ export function InventoryManager() {
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
   const [proDosageInput, setProDosageInput] = useState("");
-  const [proYieldInput, setProYieldInput] = useState("");
+  const [proYieldWeightInput, setProYieldWeightInput] = useState("");
+  const [proYieldVolumeInput, setProYieldVolumeInput] = useState("");
   const [proPreparationInput, setProPreparationInput] = useState("");
   const [manufacturerInput, setManufacturerInput] = useState("");
   const [nameInput, setNameInput] = useState("");
@@ -964,7 +965,8 @@ export function InventoryManager() {
       setProAllergensInput("");
       setProIngredientsInput("");
       setProDosageInput("");
-      setProYieldInput("");
+      setProYieldWeightInput("");
+      setProYieldVolumeInput("");
       setProPreparationInput("");
       setNameInput("");
       setCategoryInput("");
@@ -1007,10 +1009,26 @@ export function InventoryManager() {
     setIsLactoseFreeInput(selectedItem.isLactoseFree ?? false);
     setIsGlutenFreeInput(selectedItem.isGlutenFree ?? false);
     const allergensText = (selectedItem.allergens ?? []).join(", ");
-    setProAllergensInput(allergensText);
+    setProAllergensInput(
+      allergensText.length > 0
+        ? allergensText
+        : "keine rezeptorisch enthaltenen Allergene"
+    );
     setProIngredientsInput(selectedItem.ingredients ?? "");
     setProDosageInput(selectedItem.dosageInstructions ?? "");
-    setProYieldInput(selectedItem.yieldInfo ?? "");
+    const yieldText = selectedItem.yieldInfo ?? "";
+    if (yieldText.includes("|")) {
+      const [weightRaw, volumeRaw] = yieldText.split("|");
+      setProYieldWeightInput(weightRaw.trim());
+      setProYieldVolumeInput((volumeRaw ?? "").trim());
+    } else if (yieldText.includes("\n")) {
+      const [line1, line2] = yieldText.split("\n");
+      setProYieldWeightInput(line1.trim());
+      setProYieldVolumeInput((line2 ?? "").trim());
+    } else {
+      setProYieldWeightInput(yieldText);
+      setProYieldVolumeInput("");
+    }
     if (selectedItem.type === "eigenproduktion") {
       const raw = selectedItem.preparationSteps;
       let source: unknown = raw;
@@ -1687,7 +1705,11 @@ export function InventoryManager() {
       const allergensArray = proAllergensInput
         .split(",")
         .map((value) => value.trim())
-        .filter((value) => value.length > 0);
+        .filter(
+          (value) =>
+            value.length > 0 &&
+            value !== "keine rezeptorisch enthaltenen Allergene"
+        );
       const parsedTargetPortions = Number(
         targetPortionsInput.replace(",", ".")
       );
@@ -1798,7 +1820,9 @@ export function InventoryManager() {
           allergens: allergensArray,
           ingredients: proIngredientsInput.trim(),
           dosageInstructions: proDosageInput.trim(),
-          yieldInfo: proYieldInput.trim(),
+          yieldInfo: [proYieldWeightInput.trim(), proYieldVolumeInput.trim()]
+            .filter((value) => value.length > 0)
+            .join(" | "),
           preparationSteps: preparationStepsValue,
           targetPortions,
           targetSalesPrice,
@@ -2462,8 +2486,11 @@ export function InventoryManager() {
                           )
                             ? payload.extracted.allergens
                             : [];
+                          const allergensText = extractedAllergens.join(", ");
                           setProAllergensInput(
-                            extractedAllergens.join(", ")
+                            allergensText.length > 0
+                              ? allergensText
+                              : "keine rezeptorisch enthaltenen Allergene"
                           );
                           setProIngredientsInput(
                             typeof payload.extracted.ingredients === "string"
@@ -2476,16 +2503,53 @@ export function InventoryManager() {
                               ? payload.extracted.dosage_instructions
                               : ""
                           );
-                          setProYieldInput(
+                          const extractedYield =
                             typeof payload.extracted.yield_info === "string"
                               ? payload.extracted.yield_info
-                              : ""
-                          );
+                              : "";
+                          if (extractedYield.includes("|")) {
+                            const [weightRaw, volumeRaw] =
+                              extractedYield.split("|");
+                            setProYieldWeightInput(weightRaw.trim());
+                            setProYieldVolumeInput((volumeRaw ?? "").trim());
+                          } else if (extractedYield.includes("\n")) {
+                            const [line1, line2] = extractedYield.split("\n");
+                            setProYieldWeightInput(line1.trim());
+                            setProYieldVolumeInput((line2 ?? "").trim());
+                          } else {
+                            setProYieldWeightInput(extractedYield);
+                            setProYieldVolumeInput("");
+                          }
                           setProPreparationInput(
                             typeof payload.extracted.preparation_steps ===
                               "string"
                               ? payload.extracted.preparation_steps
                               : ""
+                          );
+                          setIsBioInput(!!payload.extracted.is_bio);
+                          setIsDeklarationsfreiInput(
+                            !!payload.extracted.is_deklarationsfrei
+                          );
+                          setIsAllergenfreiInput(
+                            !!payload.extracted.is_allergenfrei
+                          );
+                          setIsCookChillInput(
+                            !!payload.extracted.is_cook_chill
+                          );
+                          setIsFreezeThawStableInput(
+                            !!payload.extracted.is_freeze_thaw_stable
+                          );
+                          setIsPalmOilFreeInput(
+                            !!payload.extracted.is_palm_oil_free
+                          );
+                          setIsYeastFreeInput(
+                            !!payload.extracted.is_yeast_free
+                          );
+                          setIsLactoseFreeInput(
+                            !!payload.extracted.is_lactose_free
+                          );
+                          setIsGlutenFreeInput(
+                            !!payload.extracted.is_gluten_free
                           );
                         }
                         if (payload.extracted && payload.fileUrl) {
@@ -3136,15 +3200,17 @@ export function InventoryManager() {
                                   )}
                                 </div>
                                 <div className="space-y-0.5 text-[11px] text-muted-foreground">
-                                  <div>
-                                    Hersteller-Art.-Nr.:{" "}
-                                    {item.manufacturerArticleNumber &&
-                                    item.manufacturerArticleNumber
-                                      .trim()
-                                      .length > 0
-                                      ? item.manufacturerArticleNumber
-                                      : "—"}
-                                  </div>
+                                  {item.type !== "eigenproduktion" && (
+                                    <div>
+                                      Hersteller-Art.-Nr.:{" "}
+                                      {item.manufacturerArticleNumber &&
+                                      item.manufacturerArticleNumber
+                                        .trim()
+                                        .length > 0
+                                        ? item.manufacturerArticleNumber
+                                        : "—"}
+                                    </div>
+                                  )}
                                   <div>
                                     EAN:{" "}
                                     {item.ean && item.ean.trim().length > 0
@@ -3197,15 +3263,17 @@ export function InventoryManager() {
                                   Intern:{" "}
                                   {formatInternalId(item.internalId ?? null)}
                                 </div>
-                                <div>
-                                  Hersteller-Art.-Nr.:{" "}
-                                  {item.manufacturerArticleNumber &&
-                                  item.manufacturerArticleNumber
-                                    .trim()
-                                    .length > 0
-                                    ? item.manufacturerArticleNumber
-                                    : "—"}
-                                </div>
+                                {item.type !== "eigenproduktion" && (
+                                  <div>
+                                    Hersteller-Art.-Nr.:{" "}
+                                    {item.manufacturerArticleNumber &&
+                                    item.manufacturerArticleNumber
+                                      .trim()
+                                      .length > 0
+                                      ? item.manufacturerArticleNumber
+                                      : "—"}
+                                  </div>
+                                )}
                                 <div>
                                   EAN:{" "}
                                   {item.ean && item.ean.trim().length > 0
@@ -3782,16 +3850,18 @@ export function InventoryManager() {
                           </div>
                         </>
                       )}
-                      <div className="flex items-center gap-1">
-                        <span>Hersteller-Art.-Nr.:</span>
-                        <Input
-                          value={manufacturerInput}
-                          onChange={(event) =>
-                            setManufacturerInput(event.target.value)
-                          }
-                          className="h-7 w-40 px-2 py-1 text-[11px]"
-                        />
-                      </div>
+                      {selectedItem.type !== "eigenproduktion" && (
+                        <div className="flex items-center gap-1">
+                          <span>Hersteller-Art.-Nr.:</span>
+                          <Input
+                            value={manufacturerInput}
+                            onChange={(event) =>
+                              setManufacturerInput(event.target.value)
+                            }
+                            className="h-7 w-40 px-2 py-1 text-[11px]"
+                          />
+                        </div>
+                      )}
                       <div>
                         EAN:{" "}
                         <span className="font-medium">
@@ -4229,14 +4299,27 @@ export function InventoryManager() {
                               />
                             </div>
                             <div className="space-y-1">
-                              <div className="text-[11px] text-muted-foreground">
-                                Ausbeute / Yield
+                          <div className="text-[11px] text-muted-foreground">
+                                Fertig-Gewicht (g/kg)
                               </div>
                               <textarea
                                 rows={2}
-                                value={proYieldInput}
+                                value={proYieldWeightInput}
                                 onChange={(event) =>
-                                  setProYieldInput(event.target.value)
+                                  setProYieldWeightInput(event.target.value)
+                                }
+                                className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="text-[11px] text-muted-foreground">
+                                End-Volumen (ml/l)
+                              </div>
+                              <textarea
+                                rows={2}
+                                value={proYieldVolumeInput}
+                                onChange={(event) =>
+                                  setProYieldVolumeInput(event.target.value)
                                 }
                                 className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                               />
@@ -5371,13 +5454,26 @@ export function InventoryManager() {
                         </div>
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
-                            Ausbeute / Yield
+                            Fertig-Gewicht (g/kg)
                           </div>
                           <textarea
                             rows={2}
-                            value={proYieldInput}
+                            value={proYieldWeightInput}
                             onChange={(event) =>
-                              setProYieldInput(event.target.value)
+                              setProYieldWeightInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            End-Volumen (ml/l)
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={proYieldVolumeInput}
+                            onChange={(event) =>
+                              setProYieldVolumeInput(event.target.value)
                             }
                             className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                           />
@@ -5648,8 +5744,8 @@ export function InventoryManager() {
                                 </div>
                                 <div className="font-medium">
                                   {specItem.manufacturerArticleNumber &&
-                                  specItem.manufacturerArticleNumber.trim().length >
-                                    0
+                                  specItem.manufacturerArticleNumber.trim()
+                                    .length > 0
                                     ? specItem.manufacturerArticleNumber
                                     : "—"}
                                 </div>
