@@ -1024,7 +1024,14 @@ export function InventoryManager() {
           }
         } else {
           source = trimmed;
+          if (trimmed.length > 0) {
+            setProPreparationInput(trimmed);
+          } else {
+            setProPreparationInput("");
+          }
         }
+      } else {
+        setProPreparationInput("");
       }
       if (Array.isArray(source)) {
         const steps = source
@@ -1068,7 +1075,6 @@ export function InventoryManager() {
         setPreparationStepsInput([]);
         setEditingStepId(null);
       }
-      setProPreparationInput("");
     } else {
       const raw = selectedItem.preparationSteps;
       if (typeof raw === "string" && raw.trim().length > 0) {
@@ -2449,6 +2455,38 @@ export function InventoryManager() {
                             enriched,
                           ]);
                           setSelectedItemId(enriched.id);
+                        }
+                        if (payload.extracted) {
+                          const extractedAllergens = Array.isArray(
+                            payload.extracted.allergens
+                          )
+                            ? payload.extracted.allergens
+                            : [];
+                          setProAllergensInput(
+                            extractedAllergens.join(", ")
+                          );
+                          setProIngredientsInput(
+                            typeof payload.extracted.ingredients === "string"
+                              ? payload.extracted.ingredients
+                              : ""
+                          );
+                          setProDosageInput(
+                            typeof payload.extracted.dosage_instructions ===
+                              "string"
+                              ? payload.extracted.dosage_instructions
+                              : ""
+                          );
+                          setProYieldInput(
+                            typeof payload.extracted.yield_info === "string"
+                              ? payload.extracted.yield_info
+                              : ""
+                          );
+                          setProPreparationInput(
+                            typeof payload.extracted.preparation_steps ===
+                              "string"
+                              ? payload.extracted.preparation_steps
+                              : ""
+                          );
                         }
                         if (payload.extracted && payload.fileUrl) {
                           setDocParsed({
