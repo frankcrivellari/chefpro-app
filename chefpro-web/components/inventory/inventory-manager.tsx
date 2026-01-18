@@ -850,32 +850,108 @@ export function InventoryManager() {
 
     const visited = new Set<string>();
 
-    function computeItemNutrition(
+    function getUnitConversion(
+      unit: string | null | undefined
+    ): { kind: "mass" | "volume"; toBase: number } | null {
+      if (!unit) {
+        return null;
+      }
+      const normalized = unit.trim().toLowerCase();
+      if (!normalized) {
+        return null;
+      }
+      if (
+        normalized === "g" ||
+        normalized === "gramm" ||
+        normalized === "gram" ||
+        normalized === "gr"
+      ) {
+        return { kind: "mass", toBase: 1 };
+      }
+      if (normalized === "kg" || normalized === "kilogramm") {
+        return { kind: "mass", toBase: 1000 };
+      }
+      if (normalized === "mg") {
+        return { kind: "mass", toBase: 0.001 };
+      }
+      if (normalized === "ml") {
+        return { kind: "volume", toBase: 1 };
+      }
+      if (
+        normalized === "l" ||
+        normalized === "lt" ||
+        normalized === "liter"
+      ) {
+        return { kind: "volume", toBase: 1000 };
+      }
+      return null;
+    }
+
+    function parseYieldWeightToGrams(input: string): number | null {
+      const trimmed = input.trim();
+      if (!trimmed) {
+        return null;
+      }
+      const firstLine = trimmed.split("\n")[0];
+      const match = firstLine.match(/^([\d.,]+)\s*([a-zA-Z]*)/);
+      if (!match) {
+        return null;
+      }
+      const rawValue = match[1].replace(",", ".");
+      const value = Number(rawValue);
+      if (!Number.isFinite(value) || value <= 0) {
+        return null;
+      }
+      const unitRaw = match[2]?.toLowerCase() ?? "";
+      if (
+        unitRaw === "" ||
+        unitRaw === "g" ||
+        unitRaw === "gramm" ||
+        unitRaw === "gram" ||
+        unitRaw === "gr"
+      ) {
+        return value;
+      }
+      if (unitRaw === "kg" || unitRaw === "kilogramm") {
+        return value * 1000;
+      }
+      if (unitRaw === "mg") {
+        return value * 0.001;
+      }
+      return value;
+    }
+
+    function computeItemProfile(
       item: InventoryItem
-    ): { totals: NutritionTotals | null; missing: boolean } {
+    ): {
+      perGram: NutritionTotals | null;
+      mass: number | null;
+      missing: boolean;
+    } {
       if (visited.has(item.id)) {
-        return { totals: null, missing: true };
+        return { perGram: null, mass: null, missing: true };
       }
       visited.add(item.id);
 
       if (!item.components || item.components.length === 0) {
         const base = item.nutritionPerUnit;
         if (!base) {
-          return { totals: null, missing: true };
+          return { perGram: null, mass: null, missing: true };
         }
-        const normalized: NutritionTotals = {
-          energyKcal: base.energyKcal ?? 0,
-          fat: base.fat ?? 0,
-          saturatedFat: base.saturatedFat ?? 0,
-          carbs: base.carbs ?? 0,
-          sugar: base.sugar ?? 0,
-          protein: base.protein ?? 0,
-          salt: base.salt ?? 0,
+        const perGram: NutritionTotals = {
+          energyKcal: (base.energyKcal ?? 0) / 100,
+          fat: (base.fat ?? 0) / 100,
+          saturatedFat: (base.saturatedFat ?? 0) / 100,
+          carbs: (base.carbs ?? 0) / 100,
+          sugar: (base.sugar ?? 0) / 100,
+          protein: (base.protein ?? 0) / 100,
+          salt: (base.salt ?? 0) / 100,
         };
-        return { totals: normalized, missing: false };
+        return { perGram, mass: 100, missing: false };
       }
 
-      const totals: NutritionTotals = {
+      let totalMass = 0;
+      const batchTotals: NutritionTotals = {
         energyKcal: 0,
         fat: 0,
         saturatedFat: 0,
@@ -903,26 +979,53 @@ export function InventoryManager() {
           missing = true;
           continue;
         }
-        const child = computeItemNutrition(componentItem);
-        if (!child.totals) {
+        const child = computeItemProfile(componentItem);
+        if (!child.perGram) {
           missing = true;
           continue;
         }
-        totals.energyKcal += child.totals.energyKcal * quantity;
-        totals.fat += child.totals.fat * quantity;
-        totals.saturatedFat += child.totals.saturatedFat * quantity;
-        totals.carbs += child.totals.carbs * quantity;
-        totals.sugar += child.totals.sugar * quantity;
-        totals.protein += child.totals.protein * quantity;
-        totals.salt += child.totals.salt * quantity;
+        const unitInfo =
+          getUnitConversion(component.unit) ??
+          getUnitConversion(componentItem.unit);
+        if (!unitInfo) {
+          missing = true;
+          continue;
+        }
+        const mass = quantity * unitInfo.toBase;
+        if (!Number.isFinite(mass) || mass <= 0) {
+          missing = true;
+          continue;
+        }
+        totalMass += mass;
+        batchTotals.energyKcal += child.perGram.energyKcal * mass;
+        batchTotals.fat += child.perGram.fat * mass;
+        batchTotals.saturatedFat += child.perGram.saturatedFat * mass;
+        batchTotals.carbs += child.perGram.carbs * mass;
+        batchTotals.sugar += child.perGram.sugar * mass;
+        batchTotals.protein += child.perGram.protein * mass;
+        batchTotals.salt += child.perGram.salt * mass;
       }
 
-      return { totals, missing };
+      if (!Number.isFinite(totalMass) || totalMass <= 0) {
+        return { perGram: null, mass: null, missing: true };
+      }
+
+      const perGram: NutritionTotals = {
+        energyKcal: batchTotals.energyKcal / totalMass,
+        fat: batchTotals.fat / totalMass,
+        saturatedFat: batchTotals.saturatedFat / totalMass,
+        carbs: batchTotals.carbs / totalMass,
+        sugar: batchTotals.sugar / totalMass,
+        protein: batchTotals.protein / totalMass,
+        salt: batchTotals.salt / totalMass,
+      };
+
+      return { perGram, mass: totalMass, missing };
     }
 
-    const { totals, missing } = computeItemNutrition(rootItem);
+    const { perGram, mass, missing } = computeItemProfile(rootItem);
 
-    if (!totals) {
+    if (!perGram || !mass || !Number.isFinite(mass) || mass <= 0) {
       return {
         perRecipe: null as NutritionTotals | null,
         perPortion: null as NutritionTotals | null,
@@ -930,23 +1033,36 @@ export function InventoryManager() {
       };
     }
 
+    const yieldWeightGrams = parseYieldWeightToGrams(proYieldWeightInput);
+    const recipeMass =
+      yieldWeightGrams && yieldWeightGrams > 0 ? yieldWeightGrams : mass;
+
+    const perRecipe: NutritionTotals = {
+      energyKcal: perGram.energyKcal * recipeMass,
+      fat: perGram.fat * recipeMass,
+      saturatedFat: perGram.saturatedFat * recipeMass,
+      carbs: perGram.carbs * recipeMass,
+      sugar: perGram.sugar * recipeMass,
+      protein: perGram.protein * recipeMass,
+      salt: perGram.salt * recipeMass,
+    };
+
     const portions = selectedItem.targetPortions ?? null;
     const validPortions =
       portions != null && Number.isFinite(portions) && portions > 0
         ? portions
         : null;
 
-    const perRecipe = totals;
     const perPortion =
       validPortions != null
         ? {
-            energyKcal: totals.energyKcal / validPortions,
-            fat: totals.fat / validPortions,
-            saturatedFat: totals.saturatedFat / validPortions,
-            carbs: totals.carbs / validPortions,
-            sugar: totals.sugar / validPortions,
-            protein: totals.protein / validPortions,
-            salt: totals.salt / validPortions,
+            energyKcal: perRecipe.energyKcal / validPortions,
+            fat: perRecipe.fat / validPortions,
+            saturatedFat: perRecipe.saturatedFat / validPortions,
+            carbs: perRecipe.carbs / validPortions,
+            sugar: perRecipe.sugar / validPortions,
+            protein: perRecipe.protein / validPortions,
+            salt: perRecipe.salt / validPortions,
           }
         : null;
 
@@ -955,7 +1071,13 @@ export function InventoryManager() {
       perPortion,
       hasMissingData: missing,
     };
-  }, [editingComponents, isEditingComponents, itemsById, selectedItem]);
+  }, [
+    editingComponents,
+    isEditingComponents,
+    itemsById,
+    proYieldWeightInput,
+    selectedItem,
+  ]);
 
   useEffect(() => {
     setSpecItem(null);
