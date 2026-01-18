@@ -692,23 +692,65 @@ export function InventoryManager() {
             return { x: left, y: top, w: newW, h: newH };
           }
           const refined = tightenByWhitespace(cropCanvas);
+          function computeEdgeCentroid(
+            ctx: CanvasRenderingContext2D,
+            sx: number,
+            sy: number,
+            sw: number,
+            sh: number
+          ) {
+            const img = ctx.getImageData(sx, sy, sw, sh).data;
+            let sum = 0;
+            let cxSum = 0;
+            let cySum = 0;
+            const step = 2;
+            for (let y = 1; y < sh - 1; y += step) {
+              for (let x = 1; x < sw - 1; x += step) {
+                const idx = (y * sw + x) * 4;
+                const r = img[idx], g = img[idx + 1], b = img[idx + 2];
+                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                const idxL = (y * sw + (x - 1)) * 4;
+                const idxR = (y * sw + (x + 1)) * 4;
+                const idxT = ((y - 1) * sw + x) * 4;
+                const idxB = ((y + 1) * sw + x) * 4;
+                const gL = 0.299 * img[idxL] + 0.587 * img[idxL + 1] + 0.114 * img[idxL + 2];
+                const gR = 0.299 * img[idxR] + 0.587 * img[idxR + 1] + 0.114 * img[idxR + 2];
+                const gT = 0.299 * img[idxT] + 0.587 * img[idxT + 1] + 0.114 * img[idxT + 2];
+                const gB = 0.299 * img[idxB] + 0.587 * img[idxB + 1] + 0.114 * img[idxB + 2];
+                const mag = Math.abs(gR - gL) + Math.abs(gB - gT);
+                sum += mag;
+                cxSum += mag * x;
+                cySum += mag * y;
+              }
+            }
+            if (sum <= 0) {
+              return { cx: Math.floor(sw / 2), cy: Math.floor(sh / 2) };
+            }
+            return { cx: Math.floor(cxSum / sum), cy: Math.floor(cySum / sum) };
+          }
+          const centroid = cropCtx
+            ? computeEdgeCentroid(cropCtx, refined.x, refined.y, refined.w, refined.h)
+            : { cx: Math.floor(refined.w / 2), cy: Math.floor(refined.h / 2) };
+          const side = Math.min(refined.w, refined.h);
+          const localX = Math.max(0, Math.min(refined.w - side, Math.floor(centroid.cx - side / 2)));
+          const localY = Math.max(0, Math.min(refined.h - side, Math.floor(centroid.cy - side / 2)));
           const finalCanvas = document.createElement("canvas");
-          finalCanvas.width = refined.w;
-          finalCanvas.height = refined.h;
+          finalCanvas.width = side;
+          finalCanvas.height = side;
           const finalCtx = finalCanvas.getContext("2d");
           if (!finalCtx) {
             continue;
           }
           finalCtx.drawImage(
             cropCanvas,
-            refined.x,
-            refined.y,
-            refined.w,
-            refined.h,
+            refined.x + localX,
+            refined.y + localY,
+            side,
+            side,
             0,
             0,
-            refined.w,
-            refined.h
+            side,
+            side
           );
           const blob: Blob | null = await new Promise((resolve) => {
             finalCanvas.toBlob((b) => resolve(b), "image/jpeg", 0.9);
@@ -3133,252 +3175,19 @@ export function InventoryManager() {
                     </div>
                   </form>
                   {docParsed && (
-                    <div className="space-y-2 rounded-md border bg-background px-3 py-2 text-[11px]">
-                      <div className="font-semibold">
-                        Erkanntes Produkt
-                      </div>
-                      {docPreviewIsGenerating && (
-                        <div className="text-[11px] text-muted-foreground">
-                          Bildvorschau wird aus PDF erzeugt ...
-                        </div>
-                      )}
-                      {docPreviewError && (
-                        <div className="text-[11px] text-destructive">
-                          {docPreviewError}
-                        </div>
-                      )}
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="default"
-                          className="h-7 px-2 text-[11px]"
-                          disabled={isSaving}
-                          onClick={() => {
-                            void handleDocumentFinalSave();
-                          }}
-                        >
-                          {isSaving
-                            ? "Speichere..."
-                            : "Artikel final speichern"}
-                        </Button>
-                      </div>
-                      {docParsed.imageUrl && (
-                        <div className="mt-2 aspect-square w-full overflow-hidden rounded-md bg-black/5">
-                          <img
-                            src={docParsed.imageUrl}
-                            alt={docParsed.name}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      )}
-                      {docParsed.fileUrl && docParsed.fileUrl.toLowerCase().endsWith(".pdf") && (
-                        <div className="mt-2 aspect-square w-full overflow-hidden rounded-md bg-black/5">
-                          <object
-                            data={docParsed.fileUrl}
-                            type="application/pdf"
-                            className="h-full w-full"
-                          >
-                          </object>
-                        </div>
-                      )}
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">
-                          Name
-                        </span>
-                        <span>{docParsed.name}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">
-                          Einheit
-                        </span>
-                        <span>{docParsed.unit}</span>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <span className="text-muted-foreground">
-                          EK-Gesamt
-                        </span>
-                        <span>
-                          {docParsed.purchasePrice.toFixed(2)} €
-                        </span>
-                      </div>
-                      {docParsed.manufacturerArticleNumber && (
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">
-                            Hersteller-Artikelnummer
-                          </span>
-                          <span>{docParsed.manufacturerArticleNumber}</span>
-                        </div>
-                      )}
-                      {docParsed.yieldVolume && (
-                        <div className="flex justify-between gap-2">
-                          <span className="text-muted-foreground">
-                            End-Volumen
-                          </span>
-                          <span>{docParsed.yieldVolume}</span>
-                        </div>
-                      )}
-                      {docParsed.fileUrl && (
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-muted-foreground">
-                            Datenblatt
-                          </span>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-[11px]"
-                            onClick={() => {
-                              window.open(
-                                docParsed.fileUrl,
-                                "_blank",
-                                "noopener,noreferrer"
-                              );
-                            }}
-                          >
-                            Öffnen
-                          </Button>
-                        </div>
-                      )}
-                      {(docParsed.isBio ||
-                        docParsed.isDeklarationsfrei ||
-                        docParsed.isAllergenfrei ||
-                        docParsed.isCookChill ||
-                        docParsed.isFreezeThawStable ||
-                        docParsed.isPalmOilFree ||
-                        docParsed.isYeastFree ||
-                        docParsed.isLactoseFree ||
-                        docParsed.isGlutenFree) && (
-                        <div className="space-y-1">
-                          <div className="text-muted-foreground">
-                            Eigenschaften
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {docParsed.isBio && (
-                              <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
-                                BIO
-                              </Badge>
-                            )}
-                            {docParsed.isDeklarationsfrei && (
-                              <Badge className="px-2 py-0.5 text-[10px]">
-                                deklarationsfrei
-                              </Badge>
-                            )}
-                            {docParsed.isAllergenfrei && (
-                              <Badge className="px-2 py-0.5 text-[10px]">
-                                allergenfrei
-                              </Badge>
-                            )}
-                            {docParsed.isCookChill && (
-                              <Badge className="px-2 py-0.5 text-[10px]">
-                                cook &amp; chill
-                              </Badge>
-                            )}
-                            {docParsed.isFreezeThawStable && (
-                              <Badge className="px-2 py-0.5 text-[10px]">
-                                freeze/thaw-stable
-                              </Badge>
-                            )}
-                            {docParsed.isPalmOilFree && (
-                              <Badge className="px-2 py-0.5 text-[10px]">
-                                palmöl-frei
-                              </Badge>
-                            )}
-                            {docParsed.isYeastFree && (
-                              <Badge className="px-2 py-0.5 text-[10px]">
-                                hefefrei
-                              </Badge>
-                            )}
-                            {docParsed.isLactoseFree && (
-                              <Badge className="px-2 py-0.5 text-[10px]">
-                                laktosefrei
-                              </Badge>
-                            )}
-                            {docParsed.isGlutenFree && (
-                              <Badge className="px-2 py-0.5 text-[10px]">
-                                glutenfrei
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {docParsed.allergens.length > 0 && (
-                        <div className="space-y-1">
-                          <div className="text-muted-foreground">
-                            Allergene
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {docParsed.allergens.map((allergen) => (
-                              <span
-                                key={allergen}
-                                className="rounded-md bg-muted px-2 py-0.5 text-[10px]"
-                              >
-                                {allergen}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {docDosageSteps.length > 0 && (
-                        <div className="space-y-1">
-                          <div className="text-muted-foreground">
-                            Dosierung
-                          </div>
-                          <div className="space-y-1">
-                            {docDosageSteps.map((step) => (
-                              <div
-                                key={step.id}
-                                className="flex items-center gap-2"
-                              >
-                                <Input
-                                  type="number"
-                                  value={step.quantity}
-                                  onChange={(event) =>
-                                    handleDocDosageQuantityChange(
-                                      step.id,
-                                      event.target.value
-                                    )
-                                  }
-                                  className="h-7 w-16 px-2 text-[11px]"
-                                />
-                                <span className="flex-1 truncate">
-                                  {step.line}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {docMatch && (
-                        <div className="mt-2 rounded-md border bg-muted/40 px-2 py-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="space-y-0.5">
-                              <div className="text-[11px] font-semibold">
-                                Möglicher bestehender Artikel
-                              </div>
-                              <div className="text-[11px]">
-                                {docMatch.name}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground">
-                                Einheit: {docMatch.unit} · EK:{" "}
-                                {docMatch.purchasePrice.toFixed(2)} €
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-[11px]"
-                              onClick={() => {
-                                setSelectedItemId(docMatch.id);
-                                setIsDetailView(true);
-                              }}
-                            >
-                              Artikel öffnen
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="default"
+                        className="h-7 px-2 text-[11px]"
+                        disabled={isSaving}
+                        onClick={() => {
+                          void handleDocumentFinalSave();
+                        }}
+                      >
+                        {isSaving ? "Speichere..." : "Artikel final speichern"}
+                      </Button>
                     </div>
                   )}
                 </div>
