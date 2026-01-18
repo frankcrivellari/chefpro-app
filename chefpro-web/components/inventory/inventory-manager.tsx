@@ -128,6 +128,10 @@ type ParsedDocumentItem = {
   purchasePrice: number;
   allergens: string[];
   fileUrl: string;
+  ingredients?: string | null;
+  dosageInstructions?: string | null;
+  yieldInfo?: string | null;
+  preparationText?: string | null;
   isBio?: boolean;
   isDeklarationsfrei?: boolean;
   isAllergenfrei?: boolean;
@@ -2376,6 +2380,10 @@ export function InventoryManager() {
                             unit: string;
                             purchase_price: number;
                             allergens: string[];
+                            ingredients?: string | null;
+                            dosage_instructions?: string | null;
+                            yield_info?: string | null;
+                            preparation_steps?: string | null;
                             is_bio?: boolean;
                             is_deklarationsfrei?: boolean;
                             is_allergenfrei?: boolean;
@@ -2400,12 +2408,47 @@ export function InventoryManager() {
                           throw new Error(message);
                         }
                         if (payload.item) {
-                          const created = payload.item;
+                          const created = payload.item as InventoryItem;
+                          const enriched: InventoryItem = {
+                            ...created,
+                            allergens:
+                              (payload.extracted &&
+                                Array.isArray(
+                                  payload.extracted.allergens
+                                ) &&
+                                payload.extracted.allergens.length > 0
+                                ? payload.extracted.allergens
+                                : created.allergens) ?? [],
+                            ingredients:
+                              (payload.extracted &&
+                                typeof payload.extracted.ingredients ===
+                                  "string"
+                                ? payload.extracted.ingredients
+                                : created.ingredients) ?? null,
+                            dosageInstructions:
+                              (payload.extracted &&
+                                typeof payload.extracted
+                                  .dosage_instructions === "string"
+                                ? payload.extracted.dosage_instructions
+                                : created.dosageInstructions) ?? null,
+                            yieldInfo:
+                              (payload.extracted &&
+                                typeof payload.extracted.yield_info ===
+                                  "string"
+                                ? payload.extracted.yield_info
+                                : created.yieldInfo) ?? null,
+                            preparationSteps:
+                              (payload.extracted &&
+                                typeof payload.extracted
+                                  .preparation_steps === "string"
+                                ? payload.extracted.preparation_steps
+                                : created.preparationSteps) ?? null,
+                          };
                           setItems((previous) => [
                             ...previous,
-                            created,
+                            enriched,
                           ]);
-                          setSelectedItemId(created.id);
+                          setSelectedItemId(enriched.id);
                         }
                         if (payload.extracted && payload.fileUrl) {
                           setDocParsed({
@@ -2415,6 +2458,24 @@ export function InventoryManager() {
                               payload.extracted.purchase_price,
                             allergens: payload.extracted.allergens,
                             fileUrl: payload.fileUrl,
+                            ingredients:
+                              typeof payload.extracted.ingredients === "string"
+                                ? payload.extracted.ingredients
+                                : null,
+                            dosageInstructions:
+                              typeof payload.extracted
+                                .dosage_instructions === "string"
+                                ? payload.extracted.dosage_instructions
+                                : null,
+                            yieldInfo:
+                              typeof payload.extracted.yield_info === "string"
+                                ? payload.extracted.yield_info
+                                : null,
+                            preparationText:
+                              typeof payload.extracted.preparation_steps ===
+                              "string"
+                                ? payload.extracted.preparation_steps
+                                : null,
                             isBio: payload.extracted.is_bio ?? false,
                             isDeklarationsfrei:
                               payload.extracted.is_deklarationsfrei ?? false,
@@ -3537,22 +3598,25 @@ export function InventoryManager() {
                                 className="absolute inset-0 h-full w-full object-cover"
                               />
                             )}
-                            <div className="relative z-10 flex flex-col items-center justify-center gap-2 rounded-md bg-background/70 px-3 py-3 text-center">
-                              {imageIsUploading ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  <span>Bild wird hochgeladen ...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ImageIcon className="h-5 w-5" />
-                                  <span>
-                                    Bild hierher ziehen oder klicken, um ein Bild
-                                    auszuwählen
-                                  </span>
-                                </>
-                              )}
-                            </div>
+                            {(!imageUrlInput && !selectedItem.imageUrl) ||
+                            imageIsUploading ? (
+                              <div className="relative z-10 flex flex-col items-center justify-center gap-2 rounded-md bg-background/70 px-3 py-3 text-center">
+                                {imageIsUploading ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span>Bild wird hochgeladen ...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ImageIcon className="h-5 w-5" />
+                                    <span>
+                                      Bild hierher ziehen oder klicken, um ein Bild
+                                      auszuwählen
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                           <input
                             id="recipe-image-file-input"
@@ -3578,37 +3642,41 @@ export function InventoryManager() {
                             }}
                           />
                         </div>
-                        <div className="flex-1 space-y-1 sm:pl-3">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              placeholder="Bild-URL einfügen"
-                              value={imageUrlInput}
-                              onChange={(event) =>
-                                setImageUrlInput(event.target.value)
-                              }
-                              className="h-8 px-2 py-1 text-[11px]"
-                            />
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={
-                                imageIsUploading ||
-                                imageUrlInput.trim().length === 0
-                              }
-                              onClick={() => {
-                                void handleRecipeImageUrlSave();
-                              }}
-                            >
-                              Übernehmen
-                            </Button>
-                          </div>
-                          {imageUploadError && (
-                            <div className="text-[10px] text-destructive">
-                              {imageUploadError}
+                        {selectedItem.type === "eigenproduktion" &&
+                          !selectedItem.imageUrl &&
+                          imageUrlInput.trim().length === 0 && (
+                            <div className="flex-1 space-y-1 sm:pl-3">
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  placeholder="Bild-URL einfügen"
+                                  value={imageUrlInput}
+                                  onChange={(event) =>
+                                    setImageUrlInput(event.target.value)
+                                  }
+                                  className="h-8 px-2 py-1 text-[11px]"
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={
+                                    imageIsUploading ||
+                                    imageUrlInput.trim().length === 0
+                                  }
+                                  onClick={() => {
+                                    void handleRecipeImageUrlSave();
+                                  }}
+                                >
+                                  Übernehmen
+                                </Button>
+                              </div>
+                              {imageUploadError && (
+                                <div className="text-[10px] text-destructive">
+                                  {imageUploadError}
+                                </div>
+                              )}
                             </div>
                           )}
-                        </div>
                       </div>
                     )}
                     <div className="flex flex-col gap-1">
@@ -5855,7 +5923,7 @@ function ComponentTree({ rootItem, itemsById, onSelectItem }: ComponentTreeProps
                   {linkedRecipe && onSelectItem && (
                     <button
                       type="button"
-                      className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary"
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-primary/70 bg-primary/10 text-primary hover:bg-primary/20"
                       onClick={() => onSelectItem(linkedRecipe)}
                     >
                       <Link2 className="h-3 w-3" />
