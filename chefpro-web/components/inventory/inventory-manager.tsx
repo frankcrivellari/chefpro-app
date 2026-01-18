@@ -78,6 +78,22 @@ type RecipeNutritionSummary = {
   hasMissingData: boolean;
 };
 
+type PdfJsViewport = { width: number; height: number };
+type PdfJsPage = {
+  getViewport: (opts: { scale: number }) => PdfJsViewport;
+  render: (cfg: {
+    canvasContext: CanvasRenderingContext2D;
+    viewport: PdfJsViewport;
+  }) => { promise: Promise<void> };
+};
+type PdfJsDocument = { getPage: (n: number) => Promise<PdfJsPage> };
+type PdfJsLoadingTask = { promise: Promise<PdfJsDocument> };
+type PdfJsModule = {
+  GlobalWorkerOptions?: { workerSrc: string };
+  version?: string;
+  getDocument: (params: { data: ArrayBuffer }) => PdfJsLoadingTask;
+};
+
 type InventoryItem = {
   id: string;
   internalId?: number | null;
@@ -415,6 +431,8 @@ export function InventoryManager() {
   const [docDosageSteps, setDocDosageSteps] = useState<
     { id: string; quantity: string; line: string }[]
   >([]);
+  const [docPreviewIsGenerating, setDocPreviewIsGenerating] = useState(false);
+  const [docPreviewError, setDocPreviewError] = useState<string | null>(null);
   const [proAllergensInput, setProAllergensInput] = useState("");
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
@@ -499,6 +517,95 @@ export function InventoryManager() {
       setActiveSection("zutaten");
     }
   }, [pathname]);
+
+  useEffect(() => {
+    async function generateAndUploadPdfPreview(fileUrl: string, itemId: string) {
+      try {
+        setDocPreviewIsGenerating(true);
+        setDocPreviewError(null);
+        if (typeof window === "undefined") {
+          throw new Error("Nur im Browser ausführbar");
+        }
+        const cdnVersion = "3.11.174";
+        const globalObj = window as unknown as { pdfjsLib?: PdfJsModule };
+        if (!globalObj.pdfjsLib) {
+          await new Promise<void>((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${cdnVersion}/pdf.min.js`;
+            script.async = true;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error("pdf.js konnte nicht geladen werden"));
+            document.head.appendChild(script);
+          });
+        }
+        const pdfjsLib = (window as unknown as { pdfjsLib: PdfJsModule }).pdfjsLib;
+        if (pdfjsLib.GlobalWorkerOptions) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${cdnVersion}/pdf.worker.min.js`;
+        }
+        const res = await fetch(fileUrl);
+        const buf = await res.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: buf });
+        const pdf = await loadingTask.promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        if (!context) {
+          throw new Error("Canvas context nicht verfügbar");
+        }
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: context, viewport }).promise;
+        const blob: Blob = await new Promise((resolve, reject) => {
+          canvas.toBlob(
+            (b) => (b ? resolve(b) : reject(new Error("Bildkonvertierung fehlgeschlagen"))),
+            "image/jpeg",
+            0.9
+          );
+        });
+        const file = new File([blob], "pdf-preview.jpg", { type: "image/jpeg" });
+        const form = new FormData();
+        form.append("file", file);
+        form.append("itemId", itemId);
+        form.append("filename", "pdf-preview.jpg");
+        const response = await fetch("/api/recipe-image-upload", {
+          method: "POST",
+          body: form,
+        });
+        const payload = (await response.json()) as { error?: unknown; imageUrl?: string };
+        if (!response.ok) {
+          let message = "Fehler beim Upload des PDF-Vorschaubilds.";
+          if (payload && typeof payload.error === "string") {
+            message = payload.error;
+          }
+          throw new Error(message);
+        }
+        if (payload.imageUrl) {
+          setDocParsed((prev) => (prev ? { ...prev, imageUrl: payload.imageUrl ?? null } : prev));
+          setItems((previous) =>
+            previous.map((item) =>
+              item.id === itemId ? { ...item, imageUrl: payload.imageUrl ?? null } : item
+            )
+          );
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Fehler bei der PDF-Bild-Erzeugung.";
+        setDocPreviewError(message);
+      } finally {
+        setDocPreviewIsGenerating(false);
+      }
+    }
+    if (
+      docParsed &&
+      docParsed.fileUrl &&
+      docParsed.fileUrl.toLowerCase().endsWith(".pdf") &&
+      !docParsed.imageUrl &&
+      selectedItemId
+    ) {
+      void generateAndUploadPdfPreview(docParsed.fileUrl, selectedItemId);
+    }
+  }, [docParsed, selectedItemId]);
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -2872,6 +2979,16 @@ export function InventoryManager() {
                       <div className="font-semibold">
                         Erkanntes Produkt
                       </div>
+                      {docPreviewIsGenerating && (
+                        <div className="text-[11px] text-muted-foreground">
+                          Bildvorschau wird aus PDF erzeugt ...
+                        </div>
+                      )}
+                      {docPreviewError && (
+                        <div className="text-[11px] text-destructive">
+                          {docPreviewError}
+                        </div>
+                      )}
                       <div className="flex justify-end gap-2">
                         <Button
                           type="button"
