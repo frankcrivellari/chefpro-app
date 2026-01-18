@@ -658,6 +658,42 @@ export function InventoryManager() {
     setDocDosageSteps(steps);
   }, [docParsed]);
 
+  useEffect(() => {
+    if (!docParsed || !docParsed.dosageInstructions) {
+      return;
+    }
+    const lines = docParsed.dosageInstructions
+      .split(/\r?\n/)
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+    const parsedComponents: StandardPreparationComponent[] = lines.map(
+      (line) => {
+        let quantity = 0;
+        let unit = "";
+        const match = line.match(
+          /(\d+([.,]\d+)?)\s*([a-zA-ZäöüÄÖÜß]+)?\s+(.+)/
+        );
+        if (match) {
+          quantity = Number(match[1].replace(",", "."));
+          unit = match[3] ?? "";
+          const name = match[4].trim();
+          return {
+            name,
+            quantity:
+              Number.isFinite(quantity) && quantity > 0 ? quantity : 0,
+            unit,
+          };
+        }
+        return {
+          name: line,
+          quantity: 0,
+          unit: "",
+        };
+      }
+    );
+    setStandardPreparationComponents(parsedComponents);
+  }, [docParsed]);
+
   const recentRecipes = useMemo(() => {
     const recipes = effectiveItems.filter(
       (item) => item.type === "eigenproduktion"
