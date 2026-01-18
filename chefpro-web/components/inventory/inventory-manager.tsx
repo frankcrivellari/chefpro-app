@@ -647,8 +647,71 @@ export function InventoryManager() {
             crop.w,
             crop.h
           );
+          function tightenByWhitespace(source: HTMLCanvasElement) {
+            const ctx = source.getContext("2d");
+            if (!ctx) {
+              return { x: 0, y: 0, w: source.width, h: source.height };
+            }
+            const w = source.width;
+            const h = source.height;
+            const data = ctx.getImageData(0, 0, w, h).data;
+            function isRowWhite(y: number) {
+              let white = 0;
+              for (let x = 0; x < w; x++) {
+                const idx = (y * w + x) * 4;
+                const r = data[idx],
+                  g = data[idx + 1],
+                  b = data[idx + 2];
+                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                if (gray > 240) white++;
+              }
+              return white / w > 0.9;
+            }
+            function isColWhite(x: number) {
+              let white = 0;
+              for (let y = 0; y < h; y++) {
+                const idx = (y * w + x) * 4;
+                const r = data[idx],
+                  g = data[idx + 1],
+                  b = data[idx + 2];
+                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+                if (gray > 240) white++;
+              }
+              return white / h > 0.9;
+            }
+            let top = 0;
+            while (top < h - 1 && isRowWhite(top)) top++;
+            let bottom = h - 1;
+            while (bottom > top + 1 && isRowWhite(bottom)) bottom--;
+            let left = 0;
+            while (left < w - 1 && isColWhite(left)) left++;
+            let right = w - 1;
+            while (right > left + 1 && isColWhite(right)) right--;
+            const newW = Math.max(32, right - left + 1);
+            const newH = Math.max(32, bottom - top + 1);
+            return { x: left, y: top, w: newW, h: newH };
+          }
+          const refined = tightenByWhitespace(cropCanvas);
+          const finalCanvas = document.createElement("canvas");
+          finalCanvas.width = refined.w;
+          finalCanvas.height = refined.h;
+          const finalCtx = finalCanvas.getContext("2d");
+          if (!finalCtx) {
+            continue;
+          }
+          finalCtx.drawImage(
+            cropCanvas,
+            refined.x,
+            refined.y,
+            refined.w,
+            refined.h,
+            0,
+            0,
+            refined.w,
+            refined.h
+          );
           const blob: Blob | null = await new Promise((resolve) => {
-            cropCanvas.toBlob((b) => resolve(b), "image/jpeg", 0.9);
+            finalCanvas.toBlob((b) => resolve(b), "image/jpeg", 0.9);
           });
           if (blob) {
             chosenBlob = blob;
@@ -3109,7 +3172,7 @@ export function InventoryManager() {
                           />
                         </div>
                       )}
-                      {!docParsed.imageUrl && docParsed.fileUrl && docParsed.fileUrl.toLowerCase().endsWith(".pdf") && (
+                      {docParsed.fileUrl && docParsed.fileUrl.toLowerCase().endsWith(".pdf") && (
                         <div className="mt-2 aspect-square w-full overflow-hidden rounded-md bg-black/5">
                           <object
                             data={docParsed.fileUrl}
