@@ -8,6 +8,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import {
   AlertTriangle,
   Loader2,
@@ -376,6 +377,7 @@ function findExactRecipeMatchByName(
 }
 
 export function InventoryManager() {
+  const pathname = usePathname();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
@@ -486,6 +488,17 @@ export function InventoryManager() {
   const [imageIsUploading, setImageIsUploading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [isImageDropActive, setIsImageDropActive] = useState(false);
+
+  useEffect(() => {
+    if (!pathname) {
+      return;
+    }
+    if (pathname.startsWith("/rezepte")) {
+      setActiveSection("rezepte");
+    } else {
+      setActiveSection("zutaten");
+    }
+  }, [pathname]);
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -2402,7 +2415,7 @@ export function InventoryManager() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-background to-muted px-4 py-6 text-foreground md:px-8 md:py-10">
+    <div className="flex min-h-screen flex-col px-4 py-6 text-foreground md:px-8 md:py-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
         <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="space-y-1">
@@ -2415,48 +2428,7 @@ export function InventoryManager() {
             </p>
           </div>
           <div className="flex flex-col gap-2 md:w-[28rem]">
-            <div className="flex items-center gap-2">
-              <div className="inline-flex rounded-md border bg-card p-1 text-[11px]">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveSection("dashboard")}
-                  className={cn(
-                    "h-7 rounded-md px-2",
-                    activeSection === "dashboard" &&
-                      "bg-primary text-primary-foreground"
-                  )}
-                >
-                  Dashboard
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveSection("zutaten")}
-                  className={cn(
-                    "h-7 rounded-md px-2",
-                    activeSection === "zutaten" &&
-                      "bg-primary text-primary-foreground"
-                  )}
-                >
-                  Zutaten & Lager
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveSection("rezepte")}
-                  className={cn(
-                    "h-7 rounded-md px-2",
-                    activeSection === "rezepte" &&
-                      "bg-primary text-primary-foreground"
-                  )}
-                >
-                  Rezepte & Produktion
-                </Button>
-              </div>
+            <div className="flex justify-end">
               <Button
                 type="button"
                 size="sm"
