@@ -348,6 +348,25 @@ function findBestInventoryMatchByName(
   return best.item;
 }
 
+function findExactRecipeMatchByName(
+  targetName: string,
+  items: Iterable<InventoryItem>
+) {
+  const normalized = targetName.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  for (const item of items) {
+    if (item.type !== "eigenproduktion") {
+      continue;
+    }
+    if (item.name.trim().toLowerCase() === normalized) {
+      return item;
+    }
+  }
+  return null;
+}
+
 export function InventoryManager() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filterType, setFilterType] = useState<FilterType>("all");
@@ -5393,123 +5412,251 @@ export function InventoryManager() {
                           </Button>
                         </div>
                         <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-xs">
-                          <div>
-                            <div className="text-[11px] text-muted-foreground">
-                              Hersteller-Art.-Nr.
-                            </div>
-                            <div className="font-medium">
-                              {specItem.manufacturerArticleNumber &&
-                              specItem.manufacturerArticleNumber.trim().length > 0
-                                ? specItem.manufacturerArticleNumber
-                                : "—"}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-[11px] text-muted-foreground">
-                              EAN
-                            </div>
-                            <div className="font-medium">
-                              {specItem.ean && specItem.ean.trim().length > 0
-                                ? specItem.ean
-                                : "—"}
-                            </div>
-                          </div>
-                          {specItem.allergens &&
-                            specItem.allergens.length > 0 && (
-                              <div>
-                                <div className="text-[11px] text-muted-foreground">
-                                  Allergene
-                                </div>
-                                <div className="mt-1 flex flex-wrap gap-1">
-                                  {specItem.allergens.map((allergen) => (
-                                    <span
-                                      key={`${specItem.id}-spec-${allergen}`}
-                                      className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] text-amber-900"
-                                    >
-                                      {allergen}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          {specItem.ingredients && (
-                            <div>
-                              <div className="text-[11px] text-muted-foreground">
-                                Zutaten (Hersteller)
-                              </div>
-                              <div className="mt-1 whitespace-pre-line text-[11px]">
-                                {specItem.ingredients}
-                              </div>
-                            </div>
-                          )}
-                          {specItem.dosageInstructions && (
-                            <div>
-                              <div className="text-[11px] text-muted-foreground">
-                                Dosierungsempfehlung
-                              </div>
-                              <div className="mt-1 whitespace-pre-line text-[11px]">
-                                {specItem.dosageInstructions}
-                              </div>
-                            </div>
-                          )}
-                          {specItem.yieldInfo && (
-                            <div>
-                              <div className="text-[11px] text-muted-foreground">
-                                Ausbeute / Yield
-                              </div>
-                              <div className="mt-1 whitespace-pre-line text-[11px]">
-                                {specItem.yieldInfo}
-                              </div>
-                            </div>
-                          )}
-                          {specItem.preparationSteps && (
-                            <div>
-                              <div className="text-[11px] text-muted-foreground">
-                                Zubereitung
-                              </div>
-                              {Array.isArray(specItem.preparationSteps) ? (
-                                <div className="mt-1 space-y-1 text-[11px]">
-                                  {specItem.preparationSteps.map(
-                                    (step, index) => (
-                                      <div
-                                        key={
-                                          typeof step.id === "string" &&
-                                          step.id.trim().length > 0
-                                            ? step.id
-                                            : `spec-step-${index}`
-                                        }
-                                        className="flex gap-2"
-                                      >
-                                        <span className="mt-[1px] text-[10px] text-muted-foreground">
-                                          {index + 1}.
-                                        </span>
-                                        <div className="space-y-0.5">
-                                          <div>
-                                            {renderTaggedText(
-                                              typeof step.text === "string"
-                                                ? step.text
-                                                : "",
-                                              ingredientTagOptions
-                                            )}
-                                          </div>
-                                          {step.duration && (
-                                            <div className="text-[10px] text-muted-foreground">
-                                              Dauer: {step.duration}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    )
+                          {specItem.type === "eigenproduktion" ? (
+                            <div className="space-y-4">
+                              <div className="space-y-3">
+                                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-black/5">
+                                  {specItem.imageUrl ? (
+                                    <img
+                                      src={specItem.imageUrl}
+                                      alt={specItem.name}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/40 text-[11px] text-muted-foreground">
+                                      <ImageIcon className="h-6 w-6" />
+                                      <span>Kein Rezeptbild hinterlegt</span>
+                                    </div>
                                   )}
                                 </div>
-                              ) : (
-                                <div className="mt-1 text-[11px]">
-                                  {renderTaggedText(
-                                    typeof specItem.preparationSteps ===
-                                      "string"
-                                      ? specItem.preparationSteps
-                                      : "",
-                                    ingredientTagOptions
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <h2 className="text-sm font-semibold tracking-tight">
+                                    {specItem.name}
+                                  </h2>
+                                  <TypeBadge type={specItem.type} />
+                                  {specItem.isBio && (
+                                    <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-50">
+                                      BIO
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                                  {specItem.category && (
+                                    <div className="uppercase tracking-wide">
+                                      {specItem.category}
+                                    </div>
+                                  )}
+                                  {specItem.targetPortions != null &&
+                                    Number.isFinite(specItem.targetPortions) &&
+                                    specItem.targetPortions > 0 &&
+                                    specItem.portionUnit && (
+                                      <div>
+                                        {specItem.targetPortions}{" "}
+                                        {specItem.portionUnit}
+                                      </div>
+                                    )}
+                                  <div>
+                                    Intern:{" "}
+                                    <span className="font-medium">
+                                      {formatInternalId(
+                                        specItem.internalId ?? null
+                                      )}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              {specItem.components &&
+                                specItem.components.length > 0 && (
+                                  <div className="space-y-2">
+                                    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                      Zutatenstruktur
+                                    </h3>
+                                    <ComponentTree
+                                      rootItem={specItem}
+                                      itemsById={itemsById}
+                                      onSelectItem={setSpecItem}
+                                    />
+                                  </div>
+                                )}
+                              {specItem.preparationSteps && (
+                                <div className="space-y-2">
+                                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Zubereitung
+                                  </h3>
+                                  {Array.isArray(specItem.preparationSteps) ? (
+                                    <div className="space-y-1">
+                                      {specItem.preparationSteps.map(
+                                        (step, index) => (
+                                          <div
+                                            key={
+                                              typeof step.id === "string" &&
+                                              step.id.trim().length > 0
+                                                ? step.id
+                                                : `spec-step-${index}`
+                                            }
+                                            className="flex gap-2"
+                                          >
+                                            <span className="mt-[1px] text-[10px] font-semibold text-muted-foreground">
+                                              {index + 1}.
+                                            </span>
+                                            <div className="space-y-1">
+                                              <div className="text-[1.1rem] leading-[1.6]">
+                                                {renderTaggedText(
+                                                  typeof step.text === "string"
+                                                    ? step.text
+                                                    : "",
+                                                  ingredientTagOptions
+                                                )}
+                                              </div>
+                                              {step.duration && (
+                                                <div className="text-[10px] text-muted-foreground">
+                                                  Dauer: {step.duration}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="text-[1.1rem] leading-[1.6]">
+                                      {renderTaggedText(
+                                        typeof specItem.preparationSteps ===
+                                          "string"
+                                          ? specItem.preparationSteps
+                                          : "",
+                                        ingredientTagOptions
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  Hersteller-Art.-Nr.
+                                </div>
+                                <div className="font-medium">
+                                  {specItem.manufacturerArticleNumber &&
+                                  specItem.manufacturerArticleNumber.trim().length >
+                                    0
+                                    ? specItem.manufacturerArticleNumber
+                                    : "—"}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  EAN
+                                </div>
+                                <div className="font-medium">
+                                  {specItem.ean &&
+                                  specItem.ean.trim().length > 0
+                                    ? specItem.ean
+                                    : "—"}
+                                </div>
+                              </div>
+                              {specItem.allergens &&
+                                specItem.allergens.length > 0 && (
+                                  <div>
+                                    <div className="text-[11px] text-muted-foreground">
+                                      Allergene
+                                    </div>
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {specItem.allergens.map((allergen) => (
+                                        <span
+                                          key={`${specItem.id}-spec-${allergen}`}
+                                          className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] text-amber-900"
+                                        >
+                                          {allergen}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              {specItem.ingredients && (
+                                <div>
+                                  <div className="text-[11px] text-muted-foreground">
+                                    Zutaten (Hersteller)
+                                  </div>
+                                  <div className="mt-1 whitespace-pre-line text-[11px]">
+                                    {specItem.ingredients}
+                                  </div>
+                                </div>
+                              )}
+                              {specItem.dosageInstructions && (
+                                <div>
+                                  <div className="text-[11px] text-muted-foreground">
+                                    Dosierungsempfehlung
+                                  </div>
+                                  <div className="mt-1 whitespace-pre-line text-[11px]">
+                                    {specItem.dosageInstructions}
+                                  </div>
+                                </div>
+                              )}
+                              {specItem.yieldInfo && (
+                                <div>
+                                  <div className="text-[11px] text-muted-foreground">
+                                    Ausbeute / Yield
+                                  </div>
+                                  <div className="mt-1 whitespace-pre-line text-[11px]">
+                                    {specItem.yieldInfo}
+                                  </div>
+                                </div>
+                              )}
+                              {specItem.preparationSteps && (
+                                <div>
+                                  <div className="text-[11px] text-muted-foreground">
+                                    Zubereitung
+                                  </div>
+                                  {Array.isArray(specItem.preparationSteps) ? (
+                                    <div className="mt-1 space-y-1 text-[11px]">
+                                      {specItem.preparationSteps.map(
+                                        (step, index) => (
+                                          <div
+                                            key={
+                                              typeof step.id === "string" &&
+                                              step.id.trim().length > 0
+                                                ? step.id
+                                                : `spec-step-${index}`
+                                            }
+                                            className="flex gap-2"
+                                          >
+                                            <span className="mt-[1px] text-[10px] text-muted-foreground">
+                                              {index + 1}.
+                                            </span>
+                                            <div className="space-y-0.5">
+                                              <div>
+                                                {renderTaggedText(
+                                                  typeof step.text === "string"
+                                                    ? step.text
+                                                    : "",
+                                                  ingredientTagOptions
+                                                )}
+                                              </div>
+                                              {step.duration && (
+                                                <div className="text-[10px] text-muted-foreground">
+                                                  Dauer: {step.duration}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="mt-1 text-[11px]">
+                                      {renderTaggedText(
+                                        typeof specItem.preparationSteps ===
+                                          "string"
+                                          ? specItem.preparationSteps
+                                          : "",
+                                        ingredientTagOptions
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                               )}
@@ -5653,12 +5800,33 @@ function ComponentTree({ rootItem, itemsById, onSelectItem }: ComponentTreeProps
   return (
     <div className="space-y-1 rounded-md border bg-card/60 p-3 text-sm">
       {rootItem.components.map((component, index) => {
-        const item = component.itemId
-          ? itemsById.get(component.itemId)
-          : undefined;
-        if (!item) {
-          return null;
+        let item = component.itemId ? itemsById.get(component.itemId) : undefined;
+
+        const nameFallback =
+          (item && item.name) ||
+          (component.deletedItemName && component.deletedItemName) ||
+          "";
+
+        const linkedRecipe =
+          (item && item.type === "eigenproduktion" ? item : null) ||
+          (nameFallback
+            ? findExactRecipeMatchByName(nameFallback, itemsById.values())
+            : null);
+
+        if (!item && linkedRecipe) {
+          item = linkedRecipe;
         }
+
+        const displayName =
+          item?.name ??
+          component.deletedItemName ??
+          "Unbekannte Zutat";
+
+        const nestedComponentsLength =
+          item && item.components ? item.components.length : 0;
+
+        const childRoot =
+          item && nestedComponentsLength > 0 ? item : null;
 
         return (
           <div
@@ -5678,32 +5846,33 @@ function ComponentTree({ rootItem, itemsById, onSelectItem }: ComponentTreeProps
                   <button
                     type="button"
                     className="font-medium underline-offset-2 hover:underline"
-                    onClick={() => onSelectItem && onSelectItem(item)}
+                    onClick={() => item && onSelectItem && onSelectItem(item)}
+                    disabled={!item || !onSelectItem}
                   >
-                    {item.name}
+                    {displayName}
                   </button>
-                  <TypeBadge type={item.type} />
-                  {item.type === "eigenproduktion" && onSelectItem && (
+                  {item && <TypeBadge type={item.type} />}
+                  {linkedRecipe && onSelectItem && (
                     <button
                       type="button"
                       className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-muted-foreground/30 text-muted-foreground hover:border-primary hover:text-primary"
-                      onClick={() => onSelectItem(item)}
+                      onClick={() => onSelectItem(linkedRecipe)}
                     >
                       <Link2 className="h-3 w-3" />
                     </button>
                   )}
                 </div>
               </div>
-              {item.components && item.components.length > 0 && (
+              {childRoot && nestedComponentsLength > 0 && (
                 <span className="text-xs text-muted-foreground">
-                  {item.components.length} untergeordnete Komponenten
+                  {nestedComponentsLength} untergeordnete Komponenten
                 </span>
               )}
             </div>
-            {item.components && item.components.length > 0 && (
+            {childRoot && nestedComponentsLength > 0 && (
               <div className="border-l pl-4">
                 <ComponentTree
-                  rootItem={item}
+                  rootItem={childRoot}
                   itemsById={itemsById}
                   onSelectItem={onSelectItem}
                 />
