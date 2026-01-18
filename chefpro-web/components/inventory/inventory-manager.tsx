@@ -133,6 +133,9 @@ type ParsedDocumentItem = {
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
   preparationText?: string | null;
+  manufacturerArticleNumber?: string | null;
+  yieldVolume?: string | null;
+  imageUrl?: string | null;
   isBio?: boolean;
   isDeklarationsfrei?: boolean;
   isAllergenfrei?: boolean;
@@ -407,6 +410,9 @@ export function InventoryManager() {
   const [docError, setDocError] = useState<string | null>(null);
   const [docParsed, setDocParsed] =
     useState<ParsedDocumentItem | null>(null);
+  const [docDosageSteps, setDocDosageSteps] = useState<
+    { id: string; quantity: string; line: string }[]
+  >([]);
   const [proAllergensInput, setProAllergensInput] = useState("");
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
@@ -630,6 +636,27 @@ export function InventoryManager() {
       effectiveItems
     );
   }, [docParsed, effectiveItems]);
+
+  useEffect(() => {
+    if (!docParsed || !docParsed.dosageInstructions) {
+      setDocDosageSteps([]);
+      return;
+    }
+    const lines = docParsed.dosageInstructions
+      .split(/\r?\n/)
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+    const steps = lines.map((line, index) => {
+      const match = line.match(/(\d+([.,]\d+)?)/);
+      const quantity = match ? match[1].replace(",", ".") : "";
+      return {
+        id: `doc-dose-${index}-${Math.random().toString(36).slice(2)}`,
+        quantity,
+        line,
+      };
+    });
+    setDocDosageSteps(steps);
+  }, [docParsed]);
 
   const recentRecipes = useMemo(() => {
     const recipes = effectiveItems.filter(
@@ -1818,7 +1845,9 @@ export function InventoryManager() {
     }
   }
 
-  async function handleSaveProfiData() {
+  async function handleSaveProfiData(
+    overrideDosageInstructions?: string | null
+  ) {
     if (!selectedItem) {
       return;
     }
@@ -1942,7 +1971,8 @@ export function InventoryManager() {
           manufacturerArticleNumber: manufacturerInput.trim(),
           allergens: allergensArray,
           ingredients: proIngredientsInput.trim(),
-          dosageInstructions: proDosageInput.trim(),
+          dosageInstructions:
+            overrideDosageInstructions ?? proDosageInput.trim(),
           yieldInfo: [proYieldWeightInput.trim(), proYieldVolumeInput.trim()]
             .filter((value) => value.length > 0)
             .join(" | "),
@@ -2072,6 +2102,40 @@ export function InventoryManager() {
     } finally {
       setImageIsUploading(false);
     }
+  }
+
+  function handleDocDosageQuantityChange(id: string, value: string) {
+    setDocDosageSteps((steps) =>
+      steps.map((step) =>
+        step.id === id ? { ...step, quantity: value } : step
+      )
+    );
+  }
+
+  async function handleDocumentFinalSave() {
+    if (!docParsed || !selectedItem) {
+      return;
+    }
+    let dosageText = proDosageInput.trim();
+    if (docDosageSteps.length > 0) {
+      const lines = docDosageSteps.map((step) => {
+        const original = step.line;
+        if (!step.quantity) {
+          return original;
+        }
+        const match = original.match(/(\d+([.,]\d+)?)/);
+        if (!match || match.index === undefined) {
+          return `${step.quantity} ${original}`;
+        }
+        const start = match.index;
+        const end = start + match[0].length;
+        const before = original.slice(0, start);
+        const after = original.slice(end);
+        return `${before}${step.quantity}${after}`;
+      });
+      dosageText = lines.join("\n");
+    }
+    await handleSaveProfiData(dosageText);
   }
 
   async function handleRecipeImageUrlSave() {
@@ -2536,7 +2600,9 @@ export function InventoryManager() {
                             ingredients?: string | null;
                             dosage_instructions?: string | null;
                             yield_info?: string | null;
+                            yield_volume?: string | null;
                             preparation_steps?: string | null;
+                            manufacturer_article_number?: string | null;
                             is_bio?: boolean;
                             is_deklarationsfrei?: boolean;
                             is_allergenfrei?: boolean;
@@ -2546,6 +2612,7 @@ export function InventoryManager() {
                             is_yeast_free?: boolean;
                             is_lactose_free?: boolean;
                             is_gluten_free?: boolean;
+                            image_url?: string | null;
                           };
                           fileUrl?: string;
                         };
@@ -2626,22 +2693,41 @@ export function InventoryManager() {
                               ? payload.extracted.dosage_instructions
                               : ""
                           );
-                          const extractedYield =
+                          let yieldWeight = "";
+                          let yieldVolume = "";
+                          const extractedYieldInfo =
                             typeof payload.extracted.yield_info === "string"
                               ? payload.extracted.yield_info
                               : "";
-                          if (extractedYield.includes("|")) {
+                          if (extractedYieldInfo.includes("|")) {
                             const [weightRaw, volumeRaw] =
-                              extractedYield.split("|");
-                            setProYieldWeightInput(weightRaw.trim());
-                            setProYieldVolumeInput((volumeRaw ?? "").trim());
-                          } else if (extractedYield.includes("\n")) {
-                            const [line1, line2] = extractedYield.split("\n");
-                            setProYieldWeightInput(line1.trim());
-                            setProYieldVolumeInput((line2 ?? "").trim());
+                              extractedYieldInfo.split("|");
+                            yieldWeight = weightRaw.trim();
+                            yieldVolume = (volumeRaw ?? "").trim();
+                          } else if (extractedYieldInfo.includes("\n")) {
+                            const [line1, line2] =
+                              extractedYieldInfo.split("\n");
+                            yieldWeight = line1.trim();
+                            yieldVolume = (line2 ?? "").trim();
                           } else {
-                            setProYieldWeightInput(extractedYield);
-                            setProYieldVolumeInput("");
+                            yieldWeight = extractedYieldInfo.trim();
+                          }
+                          if (
+                            typeof payload.extracted.yield_volume ===
+                              "string" &&
+                            payload.extracted.yield_volume.trim().length > 0
+                          ) {
+                            yieldVolume = payload.extracted.yield_volume.trim();
+                          }
+                          setProYieldWeightInput(yieldWeight);
+                          setProYieldVolumeInput(yieldVolume);
+                          if (
+                            typeof payload.extracted
+                              .manufacturer_article_number === "string"
+                          ) {
+                            setManufacturerInput(
+                              payload.extracted.manufacturer_article_number
+                            );
                           }
                           setProPreparationInput(
                             typeof payload.extracted.preparation_steps ===
@@ -2696,10 +2782,24 @@ export function InventoryManager() {
                               typeof payload.extracted.yield_info === "string"
                                 ? payload.extracted.yield_info
                                 : null,
+                            manufacturerArticleNumber:
+                              typeof payload.extracted
+                                .manufacturer_article_number === "string"
+                                ? payload.extracted.manufacturer_article_number
+                                : null,
+                            yieldVolume:
+                              typeof payload.extracted.yield_volume ===
+                                "string"
+                                ? payload.extracted.yield_volume
+                                : null,
                             preparationText:
                               typeof payload.extracted.preparation_steps ===
                               "string"
                                 ? payload.extracted.preparation_steps
+                                : null,
+                            imageUrl:
+                              typeof payload.extracted.image_url === "string"
+                                ? payload.extracted.image_url
                                 : null,
                             isBio: payload.extracted.is_bio ?? false,
                             isDeklarationsfrei:
@@ -2764,6 +2864,31 @@ export function InventoryManager() {
                       <div className="font-semibold">
                         Erkanntes Produkt
                       </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="default"
+                          className="h-7 px-2 text-[11px]"
+                          disabled={isSaving}
+                          onClick={() => {
+                            void handleDocumentFinalSave();
+                          }}
+                        >
+                          {isSaving
+                            ? "Speichere..."
+                            : "Artikel final speichern"}
+                        </Button>
+                      </div>
+                      {docParsed.imageUrl && (
+                        <div className="mt-2 aspect-square w-full overflow-hidden rounded-md bg-black/5">
+                          <img
+                            src={docParsed.imageUrl}
+                            alt={docParsed.name}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      )}
                       <div className="flex justify-between gap-2">
                         <span className="text-muted-foreground">
                           Name
@@ -2784,6 +2909,22 @@ export function InventoryManager() {
                           {docParsed.purchasePrice.toFixed(2)} €
                         </span>
                       </div>
+                      {docParsed.manufacturerArticleNumber && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">
+                            Hersteller-Artikelnummer
+                          </span>
+                          <span>{docParsed.manufacturerArticleNumber}</span>
+                        </div>
+                      )}
+                      {docParsed.yieldVolume && (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">
+                            End-Volumen
+                          </span>
+                          <span>{docParsed.yieldVolume}</span>
+                        </div>
+                      )}
                       {docParsed.fileUrl && (
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-muted-foreground">
@@ -2881,6 +3022,36 @@ export function InventoryManager() {
                               >
                                 {allergen}
                               </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {docDosageSteps.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-muted-foreground">
+                            Dosierung
+                          </div>
+                          <div className="space-y-1">
+                            {docDosageSteps.map((step) => (
+                              <div
+                                key={step.id}
+                                className="flex items-center gap-2"
+                              >
+                                <Input
+                                  type="number"
+                                  value={step.quantity}
+                                  onChange={(event) =>
+                                    handleDocDosageQuantityChange(
+                                      step.id,
+                                      event.target.value
+                                    )
+                                  }
+                                  className="h-7 w-16 px-2 text-[11px]"
+                                />
+                                <span className="flex-1 truncate">
+                                  {step.line}
+                                </span>
+                              </div>
                             ))}
                           </div>
                         </div>
@@ -5572,7 +5743,9 @@ export function InventoryManager() {
                           type="button"
                           size="sm"
                           disabled={isSaving}
-                          onClick={handleSaveProfiData}
+                          onClick={() => {
+                            void handleSaveProfiData();
+                          }}
                         >
                           {isSaving
                             ? "Speichern..."
