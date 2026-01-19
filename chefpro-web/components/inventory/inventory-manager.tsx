@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   AlertTriangle,
   Loader2,
@@ -238,6 +239,30 @@ const initialItems: InventoryItem[] = [
   },
 ];
 
+function parseStandardPreparationLine(
+  line: string
+): StandardPreparationComponent {
+  const trimmed = line.trim();
+  const match = trimmed.match(
+    /^\s*(\d+(?:[.,]\d+)?(?:\s*-\s*\d+(?:[.,]\d+)?)?)\s*([a-zA-ZäöüÄÖÜß\.%]+)?\s+(.+)\s*$/
+  );
+  if (match) {
+    const rawQty = match[1];
+    const dashIndex = rawQty.indexOf("-");
+    const primaryQty =
+      dashIndex !== -1 ? rawQty.slice(0, dashIndex).trim() : rawQty;
+    const quantity = Number(primaryQty.replace(",", "."));
+    const unit = match[2] ?? "";
+    const name = match[3].trim();
+    return {
+      name,
+      quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 0,
+      unit,
+    };
+  }
+  return { name: trimmed, quantity: 0, unit: "" };
+}
+
 type FilterType = "all" | InventoryType;
 
 type RecipeViewMode = "list" | "grid" | "detailed";
@@ -395,7 +420,7 @@ function findExactRecipeMatchByName(
 export function InventoryManager() {
   const pathname = usePathname();
   const [items, setItems] = useState<InventoryItem[]>([]);
-  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [filterType] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   const [activeSection, setActiveSection] = useState<
     "dashboard" | "zutaten" | "rezepte" | "lager"
@@ -448,6 +473,7 @@ export function InventoryManager() {
   >([]);
   const [docPreviewIsGenerating, setDocPreviewIsGenerating] = useState(false);
   const [docPreviewError, setDocPreviewError] = useState<string | null>(null);
+  const [docPackshotBias, setDocPackshotBias] = useState(0.08);
   const [proAllergensInput, setProAllergensInput] = useState("");
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
@@ -741,9 +767,6 @@ export function InventoryManager() {
             const step = 2;
             for (let y = 1; y < sh - 1; y += step) {
               for (let x = 1; x < sw - 1; x += step) {
-                const idx = (y * sw + x) * 4;
-                const r = img[idx], g = img[idx + 1], b = img[idx + 2];
-                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
                 const idxL = (y * sw + (x - 1)) * 4;
                 const idxR = (y * sw + (x + 1)) * 4;
                 const idxT = ((y - 1) * sw + x) * 4;
@@ -780,7 +803,7 @@ export function InventoryManager() {
             0,
             Math.min(
               finalRegion.h - side,
-              Math.floor(centroid.cy - side / 2 - side * 0.08)
+              Math.floor(centroid.cy - side / 2 - side * docPackshotBias)
             )
           );
           const finalCanvas = document.createElement("canvas");
@@ -854,7 +877,7 @@ export function InventoryManager() {
     ) {
       void generateAndUploadPdfPreview(docParsed.fileUrl, selectedItemId);
     }
-  }, [docParsed, selectedItemId]);
+  }, [docParsed, selectedItemId, docPackshotBias]);
 
   const effectiveItems = items.length > 0 ? items : initialItems;
 
@@ -996,15 +1019,7 @@ export function InventoryManager() {
     search,
   ]);
 
-  const docMatch = useMemo(() => {
-    if (!docParsed) {
-      return null;
-    }
-    return findBestInventoryMatchByName(
-      docParsed.name,
-      effectiveItems
-    );
-  }, [docParsed, effectiveItems]);
+  // docMatch removed (unused)
 
   useEffect(() => {
     if (!docParsed || !docParsed.dosageInstructions) {
@@ -1036,29 +1051,7 @@ export function InventoryManager() {
       .map((value) => value.trim())
       .filter((value) => value.length > 0);
     const parsedComponents: StandardPreparationComponent[] = lines.map(
-      (line) => {
-        let quantity = 0;
-        let unit = "";
-        const match = line.match(
-          /(\d+([.,]\d+)?)\s*([a-zA-ZäöüÄÖÜß]+)?\s+(.+)/
-        );
-        if (match) {
-          quantity = Number(match[1].replace(",", "."));
-          unit = match[3] ?? "";
-          const name = match[4].trim();
-          return {
-            name,
-            quantity:
-              Number.isFinite(quantity) && quantity > 0 ? quantity : 0,
-            unit,
-          };
-        }
-        return {
-          name: line,
-          quantity: 0,
-          unit: "",
-        };
-      }
+      (line) => parseStandardPreparationLine(line)
     );
     setStandardPreparationComponents(parsedComponents);
   }, [docParsed]);
@@ -1104,6 +1097,33 @@ export function InventoryManager() {
     }
     setImageUploadError(null);
     setIsImageDropActive(false);
+  }, [selectedItem]);
+
+  useEffect(() => {
+    if (!selectedItem) {
+      return;
+    }
+    const stdPrep = selectedItem.standardPreparation;
+    if (
+      selectedItem.type === "zukauf" &&
+      (!stdPrep || !Array.isArray(stdPrep.components) || stdPrep.components.length === 0)
+    ) {
+      const text =
+        typeof selectedItem.dosageInstructions === "string"
+          ? selectedItem.dosageInstructions
+          : "";
+      const lines = text
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+      if (lines.length === 0) {
+        return;
+      }
+      const parsedComponents: StandardPreparationComponent[] = lines.map((line) =>
+        parseStandardPreparationLine(line)
+      );
+      setStandardPreparationComponents(parsedComponents);
+    }
   }, [selectedItem]);
 
   const inheritedAllergens = useMemo(() => {
@@ -2502,16 +2522,10 @@ export function InventoryManager() {
     }
   }
 
-  function handleDocDosageQuantityChange(id: string, value: string) {
-    setDocDosageSteps((steps) =>
-      steps.map((step) =>
-        step.id === id ? { ...step, quantity: value } : step
-      )
-    );
-  }
+  // removed unused dosage helpers (merged into handleSaveAll)
 
-  async function handleDocumentFinalSave() {
-    if (!docParsed || !selectedItem) {
+  async function handleSaveAll() {
+    if (!selectedItem) {
       return;
     }
     let dosageText = proDosageInput.trim();
@@ -2534,6 +2548,9 @@ export function InventoryManager() {
       dosageText = lines.join("\n");
     }
     await handleSaveProfiData(dosageText);
+    if (isEditingComponents) {
+      await handleSaveComponents();
+    }
   }
 
   async function handleRecipeImageUrlSave() {
@@ -2710,51 +2727,7 @@ export function InventoryManager() {
     }
   }
 
-  async function handleCreateRecipe() {
-    try {
-      setIsSaving(true);
-      setError(null);
-      const response = await fetch("/api/inventory", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: "Neues Rezept",
-          type: "eigenproduktion" as InventoryType,
-          unit: "Portion",
-          purchasePrice: 0,
-          components: [],
-        }),
-      });
-      if (!response.ok) {
-        let message = "Fehler beim Anlegen des Rezepts.";
-        try {
-          const payload = (await response.json()) as {
-            error?: unknown;
-          };
-          if (payload && typeof payload.error === "string") {
-            message = payload.error;
-          }
-        } catch {
-        }
-        throw new Error(message);
-      }
-      const created = (await response.json()) as InventoryItem;
-      setItems((previous) => [...previous, created]);
-      setActiveSection("rezepte");
-      setSelectedItemId(created.id);
-      setIsDetailView(true);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Fehler beim Anlegen des Rezepts.";
-      setError(message);
-    } finally {
-      setIsSaving(false);
-    }
-  }
+  // removed unused handleCreateRecipe (creation handled in header action)
 
   function formatInternalId(value?: number | null) {
     if (!value || Number.isNaN(value)) {
@@ -2776,8 +2749,7 @@ export function InventoryManager() {
                 : "Lager Manager"}
             </h1>
             <p className="text-sm text-muted-foreground md:text-base">
-              Verwalte Zukaufartikel und Eigenproduktionen mit verschachtelten
-              Komponenten.
+              Verwalte Deine Einkaufsartikel und Grundzutaten
             </p>
           </div>
           <div className="flex flex-col gap-2 md:w-[28rem]">
@@ -2787,13 +2759,52 @@ export function InventoryManager() {
                 size="sm"
                 className="bg-primary text-primary-foreground"
                 disabled={isSaving}
-                onClick={handleCreateRecipe}
+                onClick={async () => {
+                  try {
+                    setIsSaving(true);
+                    setError(null);
+                    const isRecipe = activeSection === "rezepte";
+                    const response = await fetch("/api/inventory", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        name: isRecipe ? "Neues Rezept" : "Neuer Artikel",
+                        type: (isRecipe ? "eigenproduktion" : "zukauf") as InventoryType,
+                        unit: isRecipe ? "Portion" : "Stück",
+                        purchasePrice: 0,
+                        components: [],
+                      }),
+                    });
+                    if (!response.ok) {
+                      let message = "Fehler beim Anlegen.";
+                      try {
+                        const payload = (await response.json()) as { error?: unknown };
+                        if (payload && typeof payload.error === "string") {
+                          message = payload.error;
+                        }
+                      } catch {}
+                      throw new Error(message);
+                    }
+                    const created = (await response.json()) as InventoryItem;
+                    setItems((previous) => [...previous, created]);
+                    setSelectedItemId(created.id);
+                    setIsDetailView(true);
+                  } catch (error) {
+                    const message =
+                      error instanceof Error ? error.message : "Fehler beim Anlegen.";
+                    setError(message);
+                  } finally {
+                    setIsSaving(false);
+                  }
+                }}
               >
-                {isSaving ? "Erstelle..." : "Neues Rezept erstellen"}
+                {isSaving ? "Erstelle..." : "Neuen Artikel anlegen"}
               </Button>
             </div>
             <Input
-              placeholder="Global nach Artikeln und Rezepten suchen"
+              placeholder="Nach Artikeln suchen"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               className="h-9 text-sm"
@@ -3254,68 +3265,59 @@ export function InventoryManager() {
                           (selectedItem && selectedItem.fileUrl) ||
                           "";
                         const isPdf = url.toLowerCase().endsWith(".pdf");
-                        const imgUrl =
-                          (docParsed && docParsed.imageUrl) ||
-                          (selectedItem && selectedItem.imageUrl) ||
-                          null;
                         return (
-                          <div className="grid gap-2 md:grid-cols-2">
-                            <div className="rounded-md border bg-background">
-                              {isPdf ? (
-                                <object
-                                  data={url}
-                                  type="application/pdf"
-                                  className="h-[360px] w-full"
+                          <div className="rounded-md border bg-background">
+                            {isPdf ? (
+                              <object
+                                data={url}
+                                type="application/pdf"
+                                className="h-[360px] w-full"
+                              >
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="block p-2 text-[11px]"
                                 >
-                                  <a
-                                    href={url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="block p-2 text-[11px]"
-                                  >
-                                    PDF öffnen
-                                  </a>
-                                </object>
-                              ) : (
-                                <div className="p-2 text-[11px] text-muted-foreground">
-                                  Keine PDF-Datei verfügbar.
-                                </div>
-                              )}
-                            </div>
-                            <div className="rounded-md border bg-background">
-                              {imgUrl ? (
-                                <img
-                                  src={imgUrl}
-                                  alt="Packshot"
-                                  className="h-[360px] w-full object-cover"
-                                />
-                              ) : (
-                                <div className="p-2 text-[11px] text-muted-foreground">
-                                  Kein Packshot vorhanden.
-                                </div>
-                              )}
-                            </div>
+                                  PDF öffnen
+                                </a>
+                              </object>
+                            ) : (
+                              <div className="p-2 text-[11px] text-muted-foreground">
+                                Keine PDF-Datei verfügbar.
+                              </div>
+                            )}
                           </div>
                         );
                       })()}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground">
+                          Packshot-Höhen-Justierung
+                        </span>
+                        <input
+                          type="range"
+                          min={-0.25}
+                          max={0.25}
+                          step={0.01}
+                          value={docPackshotBias}
+                          onChange={(e) =>
+                            setDocPackshotBias(Number(e.target.value))
+                          }
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            setDocParsed((prev) => (prev ? { ...prev } : prev));
+                          }}
+                        >
+                          Packshot aktualisieren
+                        </Button>
+                      </div>
                     </div>
                   )}
-                  {docParsed && (
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="default"
-                        className="h-7 px-2 text-[11px]"
-                        disabled={isSaving}
-                        onClick={() => {
-                          void handleDocumentFinalSave();
-                        }}
-                      >
-                        {isSaving ? "Speichere..." : "Artikel final speichern"}
-                      </Button>
-                    </div>
-                  )}
+                  {/* Save-Button aus diesem Bereich entfernt; unten rechts global platziert */}
                 </div>
                 <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
                   <div className="flex items-center justify-between gap-2">
@@ -3653,10 +3655,12 @@ export function InventoryManager() {
                             >
                               <div className="relative aspect-[4/3] w-full overflow-hidden">
                                 {item.imageUrl ? (
-                                  <img
+                                  <Image
+                                    unoptimized
                                     src={item.imageUrl}
                                     alt={item.name}
-                                    className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+                                    fill
+                                    className="object-cover transition-transform duration-200 group-hover:scale-[1.03]"
                                   />
                                 ) : (
                                   <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/60 text-[11px] text-muted-foreground">
@@ -3872,50 +3876,27 @@ export function InventoryManager() {
                 )}
                 <div>
                   <CardTitle>Artikeldetails</CardTitle>
-                  <CardDescription>
-                    Sieh dir Struktur und Komponenten der ausgewählten Position an.
-                  </CardDescription>
                 </div>
               </div>
               {selectedItem && selectedItem.type === "eigenproduktion" && (
-                <div className="flex items-center gap-2">
-                  <div className="inline-flex rounded-md border bg-muted/40 p-1 text-[11px]">
-                    <Button
-                      type="button"
-                      variant={
-                        isRecipePresentationMode ? "outline" : "default"
-                      }
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={() => setIsRecipePresentationMode(false)}
-                    >
-                      Bearbeiten
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={
-                        isRecipePresentationMode ? "default" : "outline"
-                      }
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={() => setIsRecipePresentationMode(true)}
-                    >
-                      Präsentation
-                    </Button>
-                  </div>
+                <div className="inline-flex rounded-md border bg-muted/40 p-1 text-[11px]">
                   <Button
                     type="button"
+                    variant={isRecipePresentationMode ? "outline" : "default"}
                     size="sm"
-                    className="bg-emerald-600 px-3 py-1 text-[11px] font-medium text-emerald-50 hover:bg-emerald-700"
-                    disabled={isSaving}
-                    onClick={async () => {
-                      await handleSaveProfiData();
-                      if (isEditingComponents) {
-                        await handleSaveComponents();
-                      }
-                    }}
+                    className="h-7 px-2"
+                    onClick={() => setIsRecipePresentationMode(false)}
                   >
-                    {isSaving ? "Speichere..." : "Rezept fertigstellen"}
+                    Bearbeiten
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={isRecipePresentationMode ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setIsRecipePresentationMode(true)}
+                  >
+                    Präsentation
                   </Button>
                 </div>
               )}
@@ -3934,10 +3915,12 @@ export function InventoryManager() {
                       <div className="w-full max-w-md lg:max-w-sm">
                         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-black/5">
                           {selectedItem.imageUrl ? (
-                            <img
+                            <Image
+                              unoptimized
                               src={selectedItem.imageUrl}
                               alt={selectedItem.name}
-                              className="h-full w-full object-cover"
+                              fill
+                              className="object-cover"
                             />
                           ) : (
                             <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/40 text-[11px] text-muted-foreground">
@@ -4240,10 +4223,12 @@ export function InventoryManager() {
                         }}
                       >
                         {(imageUrlInput || selectedItem.imageUrl) && (
-                          <img
+                          <Image
+                            unoptimized
                             src={imageUrlInput || selectedItem.imageUrl || ""}
                             alt={selectedItem.name}
-                            className="absolute inset-0 h-full w-full object-cover"
+                            fill
+                            className="object-cover"
                           />
                         )}
                         {(!imageUrlInput && !selectedItem.imageUrl) ||
@@ -5615,9 +5600,12 @@ export function InventoryManager() {
                                               })
                                             }
                                           >
-                                            <img
+                                            <Image
+                                              unoptimized
                                               src={step.imageUrl}
                                               alt={`Schritt ${index + 1}`}
+                                              width={800}
+                                              height={600}
                                               className="mt-1 max-h-40 w-full rounded-md object-cover"
                                             />
                                           </button>
@@ -5662,9 +5650,12 @@ export function InventoryManager() {
                                                 })
                                               }
                                             >
-                                              <img
+                                              <Image
+                                                unoptimized
                                                 src={step.imageUrl}
                                                 alt={`Schritt ${index + 1}`}
+                                                width={800}
+                                                height={600}
                                                 className="h-full w-full rounded-md object-cover"
                                               />
                                             </button>
@@ -5895,71 +5886,8 @@ export function InventoryManager() {
                       )}
                     </div>
                   )}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-xs text-muted-foreground">
-                      Diese Ansicht zeigt alle IDs und Profi-Daten für den Artikel.
-                    </div>
-                    {selectedItem.type !== "eigenproduktion" && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
-                        onClick={async () => {
-                          if (!selectedItem) {
-                            return;
-                          }
-                          const confirmed = window.confirm(
-                            "Möchtest du diesen Artikel wirklich löschen?"
-                          );
-                          if (!confirmed) {
-                            return;
-                          }
-                          try {
-                            setIsDeleting(true);
-                            setError(null);
-                            const response = await fetch("/api/inventory", {
-                              method: "DELETE",
-                              headers: {
-                                "Content-Type": "application/json",
-                              },
-                              body: JSON.stringify({ id: selectedItem.id }),
-                            });
-                            const payload = (await response.json()) as {
-                              error?: unknown;
-                              success?: boolean;
-                            };
-                            if (!response.ok || !payload.success) {
-                              let message =
-                                "Fehler beim Löschen des Artikels.";
-                              if (
-                                payload &&
-                                typeof payload.error === "string"
-                              ) {
-                                message = payload.error;
-                              }
-                              throw new Error(message);
-                            }
-                            setItems((previous) =>
-                              previous.filter(
-                                (item) => item.id !== selectedItem.id
-                              )
-                            );
-                            setSelectedItemId(null);
-                          } catch (deleteError) {
-                            const message =
-                              deleteError instanceof Error
-                                ? deleteError.message
-                                : "Fehler beim Löschen des Artikels.";
-                            setError(message);
-                          } finally {
-                            setIsDeleting(false);
-                          }
-                        }}
-                        disabled={isDeleting || isSaving}
-                      >
-                        {isDeleting ? "Lösche..." : "Artikel löschen"}
-                      </Button>
-                    )}
+                  <div className="text-xs text-muted-foreground">
+                    Diese Ansicht zeigt alle IDs und Profi-Daten für den Artikel.
                   </div>
                   {selectedItem.type !== "eigenproduktion" && (
                     <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-xs">
@@ -5967,18 +5895,6 @@ export function InventoryManager() {
                         <h3 className="text-xs font-semibold">
                           Profi-Daten
                         </h3>
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={isSaving}
-                          onClick={() => {
-                            void handleSaveProfiData();
-                          }}
-                        >
-                          {isSaving
-                            ? "Speichern..."
-                            : "Profi-Daten speichern"}
-                        </Button>
                       </div>
                       {selectedItem.fileUrl && (
                         <div className="flex items-center justify-between gap-2">
@@ -6182,10 +6098,12 @@ export function InventoryManager() {
                               <div className="space-y-3">
                                 <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-black/5">
                                   {specItem.imageUrl ? (
-                                    <img
+                                    <Image
+                                      unoptimized
                                       src={specItem.imageUrl}
                                       alt={specItem.name}
-                                      className="h-full w-full object-cover"
+                                      fill
+                                      className="object-cover"
                                     />
                                   ) : (
                                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/40 text-[11px] text-muted-foreground">
@@ -6434,6 +6352,73 @@ export function InventoryManager() {
                 </>
               )}
             </CardContent>
+            {selectedItem && (
+              <div className="flex justify-end gap-2 px-6 pb-6">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-emerald-600 px-3 py-1 text-[11px] font-medium text-emerald-50 hover:bg-emerald-700"
+                  disabled={isSaving}
+                  onClick={() => {
+                    void handleSaveAll();
+                  }}
+                >
+                  {isSaving ? "Speichere..." : "Artikel speichern"}
+                </Button>
+                {selectedItem.type !== "eigenproduktion" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
+                    onClick={async () => {
+                      const confirmed = window.confirm(
+                        "Möchtest du diesen Artikel wirklich löschen?"
+                      );
+                      if (!confirmed) {
+                        return;
+                      }
+                      try {
+                        setIsDeleting(true);
+                        setError(null);
+                        const response = await fetch("/api/inventory", {
+                          method: "DELETE",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({ id: selectedItem.id }),
+                        });
+                        const payload = (await response.json()) as {
+                          error?: unknown;
+                          success?: boolean;
+                        };
+                        if (!response.ok || !payload.success) {
+                          let message = "Fehler beim Löschen des Artikels.";
+                          if (payload && typeof payload.error === "string") {
+                            message = payload.error;
+                          }
+                          throw new Error(message);
+                        }
+                        setItems((previous) =>
+                          previous.filter((item) => item.id !== selectedItem.id)
+                        );
+                        setSelectedItemId(null);
+                      } catch (deleteError) {
+                        const message =
+                          deleteError instanceof Error
+                            ? deleteError.message
+                            : "Fehler beim Löschen des Artikels.";
+                        setError(message);
+                      } finally {
+                        setIsDeleting(false);
+                      }
+                    }}
+                    disabled={isDeleting || isSaving}
+                  >
+                    {isDeleting ? "Lösche..." : "Artikel löschen"}
+                  </Button>
+                )}
+              </div>
+            )}
           </Card>
         </main>
       </div>
@@ -6452,9 +6437,12 @@ export function InventoryManager() {
             >
               Schließen
             </button>
-            <img
+            <Image
+              unoptimized
               src={imageViewer.imageUrl}
               alt="Zubereitungsschritt"
+              width={1600}
+              height={1200}
               className="max-h-[90vh] max-w-[90vw] rounded-md object-contain"
             />
           </div>
