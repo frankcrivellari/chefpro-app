@@ -455,6 +455,7 @@ export function InventoryManager() {
   const [componentUnitInput, setComponentUnitInput] = useState("");
   const [standardPreparationComponents, setStandardPreparationComponents] =
     useState<StandardPreparationComponent[]>([]);
+  const [standardPreparationText, setStandardPreparationText] = useState("");
   const [editingComponents, setEditingComponents] = useState<
     InventoryComponent[]
   >([]);
@@ -1541,6 +1542,7 @@ export function InventoryManager() {
       setPortionUnitInput("");
       setNutritionTagsInput([]);
       setStandardPreparationComponents([]);
+      setStandardPreparationText("");
       setTargetPortionsInput("");
       setTargetSalesPriceInput("");
       setIsBioInput(false);
@@ -1560,6 +1562,7 @@ export function InventoryManager() {
       setEditingStepId(null);
       return;
     }
+    const stdPrep = selectedItem.standardPreparation;
     setNameInput(selectedItem.name);
     setCategoryInput(selectedItem.category ?? "");
     setPortionUnitInput(selectedItem.portionUnit ?? "");
@@ -1679,7 +1682,6 @@ export function InventoryManager() {
       setPreparationStepsInput([]);
       setEditingStepId(null);
     }
-    const stdPrep = selectedItem.standardPreparation;
     if (stdPrep && Array.isArray(stdPrep.components)) {
       setStandardPreparationComponents(
         stdPrep.components
@@ -1696,8 +1698,11 @@ export function InventoryManager() {
               component.unit.trim().length > 0
           )
       );
+      // @ts-ignore
+      setStandardPreparationText(stdPrep.text || "");
     } else {
       setStandardPreparationComponents([]);
+      setStandardPreparationText("");
     }
     setTargetPortionsInput(
       selectedItem.targetPortions != null
@@ -3290,34 +3295,7 @@ export function InventoryManager() {
                           </div>
                         );
                       })()}
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground">
-                          Packshot-Höhen-Justierung
-                        </span>
-                        <input
-                          type="range"
-                          min={-0.25}
-                          max={0.25}
-                          step={0.01}
-                          value={docPackshotBias}
-                          onChange={(e) =>
-                            setDocPackshotBias(Number(e.target.value))
-                          }
-                          className="flex-1"
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => {
-                            setDocParsed((prev) => (prev ? { ...prev } : prev));
-                          }}
-                        >
-                          Packshot aktualisieren
-                        </Button>
-                      </div>
                     </div>
-                  )}
-                  {/* Save-Button aus diesem Bereich entfernt; unten rechts global platziert */}
                 </div>
                 <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
                   <div className="flex items-center justify-between gap-2">
@@ -4273,6 +4251,25 @@ export function InventoryManager() {
                           void handleRecipeImageUpload(file);
                         }}
                       />
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground">
+                          Packshot-Fokus:
+                        </span>
+                        <input
+                          type="range"
+                          min="-0.2"
+                          max="0.4"
+                          step="0.01"
+                          value={docPackshotBias}
+                          onChange={(e) =>
+                            setDocPackshotBias(parseFloat(e.target.value))
+                          }
+                          className="h-1 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-primary"
+                        />
+                        <span className="w-8 text-right text-[11px] text-muted-foreground">
+                          {(docPackshotBias * 100).toFixed(0)}%
+                        </span>
+                      </div>
                     </div>
                     {selectedItem.type === "eigenproduktion" &&
                       !selectedItem.imageUrl &&
@@ -5887,7 +5884,7 @@ export function InventoryManager() {
                     </div>
                   )}
                   <div className="text-xs text-muted-foreground">
-                    Diese Ansicht zeigt alle IDs und Profi-Daten für den Artikel.
+                    Diese Ansicht zeigt alle IDs und Produktspezifikationen für den Artikel.
                   </div>
                   {selectedItem.type !== "eigenproduktion" && (
                     <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-xs">
@@ -6636,4 +6633,7 @@ function ComponentTree({ rootItem, itemsById, onSelectItem }: ComponentTreeProps
       })}
     </div>
   );
+}
+  );
+}
 }
