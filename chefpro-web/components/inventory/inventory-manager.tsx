@@ -562,6 +562,7 @@ export function InventoryManager() {
           const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
           let crop = { x: 0, y: 0, w: canvas.width, h: canvas.height };
           let confidence = 0;
+          let hadDetection = false;
           try {
             const detectResponse = await fetch("/api/pdf-packshot-extract", {
               method: "POST",
@@ -587,6 +588,7 @@ export function InventoryManager() {
               };
               crop = safe;
               confidence = Number(detectPayload.confidence ?? 0.5);
+              hadDetection = true;
               const areaRatio = (safe.w * safe.h) / (canvas.width * canvas.height);
               if (areaRatio > 0.85 || areaRatio < 0.05 || confidence < 0.5) {
                 const strictResponse = await fetch("/api/pdf-packshot-extract", {
@@ -617,6 +619,7 @@ export function InventoryManager() {
                   if (areaRatio2 <= 0.85 && areaRatio2 >= 0.05 && conf2 >= 0.5) {
                     crop = safe2;
                     confidence = conf2;
+                    hadDetection = true;
                   }
                 }
               }
@@ -692,6 +695,12 @@ export function InventoryManager() {
             return { x: left, y: top, w: newW, h: newH };
           }
           const refined = tightenByWhitespace(cropCanvas);
+          const refinedArea = refined.w * refined.h;
+          const originalArea = crop.w * crop.h;
+          const finalRegion =
+            refinedArea < originalArea * 0.1
+              ? { x: 0, y: 0, w: crop.w, h: crop.h }
+              : refined;
           function computeEdgeCentroid(
             ctx: CanvasRenderingContext2D,
             sx: number,
@@ -728,12 +737,14 @@ export function InventoryManager() {
             }
             return { cx: Math.floor(cxSum / sum), cy: Math.floor(cySum / sum) };
           }
-          const centroid = cropCtx
-            ? computeEdgeCentroid(cropCtx, refined.x, refined.y, refined.w, refined.h)
-            : { cx: Math.floor(refined.w / 2), cy: Math.floor(refined.h / 2) };
-          const side = Math.min(refined.w, refined.h);
-          const localX = Math.max(0, Math.min(refined.w - side, Math.floor(centroid.cx - side / 2)));
-          const localY = Math.max(0, Math.min(refined.h - side, Math.floor(centroid.cy - side / 2)));
+          const centroid = hadDetection
+            ? { cx: Math.floor(finalRegion.w / 2), cy: Math.floor(finalRegion.h / 2) }
+            : cropCtx
+            ? computeEdgeCentroid(cropCtx, finalRegion.x, finalRegion.y, finalRegion.w, finalRegion.h)
+            : { cx: Math.floor(finalRegion.w / 2), cy: Math.floor(finalRegion.h / 2) };
+          const side = Math.floor(Math.min(finalRegion.w, finalRegion.h) * 0.95);
+          const localX = Math.max(0, Math.min(finalRegion.w - side, Math.floor(centroid.cx - side / 2)));
+          const localY = Math.max(0, Math.min(finalRegion.h - side, Math.floor(centroid.cy - side / 2)));
           const finalCanvas = document.createElement("canvas");
           finalCanvas.width = side;
           finalCanvas.height = side;
@@ -743,8 +754,8 @@ export function InventoryManager() {
           }
           finalCtx.drawImage(
             cropCanvas,
-            refined.x + localX,
-            refined.y + localY,
+            finalRegion.x + localX,
+            finalRegion.y + localY,
             side,
             side,
             0,

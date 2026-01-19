@@ -1,5 +1,8 @@
+ "use client";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -23,6 +26,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
   return (
     <html lang="de">
       <body
@@ -36,13 +40,19 @@ export default function RootLayout({
             <nav className="flex flex-col gap-1">
               <Link
                 href="/artikel"
-                className="rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground"
+                className={cn(
+                  "rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground",
+                  pathname.startsWith("/artikel") && "bg-primary text-primary-foreground font-semibold"
+                )}
               >
                 Zutaten
               </Link>
               <Link
                 href="/rezepte"
-                className="rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground"
+                className={cn(
+                  "rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground",
+                  pathname.startsWith("/rezepte") && "bg-primary text-primary-foreground font-semibold"
+                )}
               >
                 Rezepte
               </Link>
