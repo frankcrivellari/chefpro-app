@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChefPro | Inventory Manager",
-  description: "Verwaltung von Zukaufartikeln und Eigenproduktionen in ChefPro",
+  title: "Recetui | Inventory Manager",
+  description: "Verwaltung von Zukaufartikeln und Eigenproduktionen in Recetui",
 };
 
 export default function RootLayout({
@@ -30,8 +30,8 @@ export default function RootLayout({
       >
         <div className="flex min-h-screen bg-gradient-to-b from-background to-muted">
           <aside className="hidden w-52 flex-col border-r bg-background/90 px-4 py-6 text-sm text-foreground md:flex">
-            <div className="mb-6 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              ChefPro
+            <div className="mb-6 px-2">
+              <img src="/recetui-header-frei.png" alt="Recetui" className="h-8 w-auto object-contain" />
             </div>
             <SidebarNav />
           </aside>

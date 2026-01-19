@@ -4,6 +4,8 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
+  useCallback,
   type ChangeEvent,
   type FormEvent,
   type ReactNode,
@@ -15,6 +17,7 @@ import {
   Loader2,
   Image as ImageIcon,
   Link2,
+  Search,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -45,6 +48,7 @@ type StandardPreparationComponent = {
 
 type StandardPreparation = {
   components: StandardPreparationComponent[];
+  text?: string | null;
 };
 
 type PreparationStep = {
@@ -169,75 +173,8 @@ const recipeCategories = ["Vorspeise", "Hauptgang", "Dessert"];
 
 const nutritionOptions = ["Vegan", "Vegetarisch", "Halal", "Glutenfrei"];
 
-const initialItems: InventoryItem[] = [
-  {
-    id: "zukauf-tomatendose",
-    name: "Tomaten, gehackt 2,5 kg Dose",
-    type: "zukauf",
-    unit: "Dose",
-    purchasePrice: 4.2,
-    allergens: ["Sellerie"],
-  },
-  {
-    id: "zukauf-zwiebeln",
-    name: "Zwiebeln, frisch 10 kg Sack",
-    type: "zukauf",
-    unit: "kg",
-    purchasePrice: 0.9,
-    allergens: [],
-  },
-  {
-    id: "zukauf-olivenoel",
-    name: "Olivenöl, extra vergine 5 L Kanister",
-    type: "zukauf",
-    unit: "L",
-    purchasePrice: 6.5,
-    allergens: [],
-  },
-  {
-    id: "eigenp-tomatensauce-basis",
-    name: "Tomatensauce Basis",
-    type: "eigenproduktion",
-    unit: "kg",
-    purchasePrice: 0,
-    components: [
-      {
-        itemId: "zukauf-tomatendose",
-        quantity: 1,
-        unit: "Dose",
-      },
-      {
-        itemId: "zukauf-zwiebeln",
-        quantity: 0.5,
-        unit: "kg",
-      },
-      {
-        itemId: "zukauf-olivenoel",
-        quantity: 0.1,
-        unit: "L",
-      },
-    ],
-  },
-  {
-    id: "eigenp-pasta-mit-sauce",
-    name: "Pasta mit Tomatensauce",
-    type: "eigenproduktion",
-    unit: "Portion",
-    purchasePrice: 0,
-    components: [
-      {
-        itemId: "eigenp-tomatensauce-basis",
-        quantity: 0.2,
-        unit: "kg",
-      },
-      {
-        itemId: "zukauf-olivenoel",
-        quantity: 0.02,
-        unit: "L",
-      },
-    ],
-  },
-];
+  // initialItems removed
+
 
 function parseStandardPreparationLine(
   line: string
@@ -420,7 +357,7 @@ function findExactRecipeMatchByName(
 export function InventoryManager() {
   const pathname = usePathname();
   const [items, setItems] = useState<InventoryItem[]>([]);
-  const [filterType] = useState<FilterType>("all");
+  const [filterType, setFilterType] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   const [activeSection, setActiveSection] = useState<
     "dashboard" | "zutaten" | "rezepte" | "lager"
@@ -431,17 +368,10 @@ export function InventoryManager() {
       ? "rezepte"
       : "zutaten"
   );
-  const effectiveFilterType: FilterType = useMemo(() => {
-    if (activeSection === "zutaten") {
-      return "zukauf";
-    }
-    if (activeSection === "rezepte") {
-      return "eigenproduktion";
-    }
-    return filterType;
-  }, [activeSection, filterType]);
+  // effectiveFilterType removed
   const [isDetailView, setIsDetailView] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const lastGenRef = useRef<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState("");
@@ -569,318 +499,355 @@ export function InventoryManager() {
     setSearch("");
     setRecipeCategoryFilter(null);
     setRecipeProFilter(null);
+    if (activeSection === "zutaten") {
+      setFilterType("zukauf");
+    } else if (activeSection === "rezepte") {
+      setFilterType("eigenproduktion");
+    } else {
+      setFilterType("all");
+    }
   }, [activeSection]);
 
-  useEffect(() => {
-    async function generateAndUploadPdfPreview(fileUrl: string, itemId: string) {
-      try {
-        setDocPreviewIsGenerating(true);
-        setDocPreviewError(null);
-        if (typeof window === "undefined") {
-          throw new Error("Nur im Browser ausführbar");
+  const effectiveItems = isLoading ? [] : items;
+
+  const generateAndUploadPdfPreview = useCallback(async (fileUrl: string, itemId: string) => {
+    try {
+      setDocPreviewIsGenerating(true);
+      setDocPreviewError(null);
+      if (typeof window === "undefined") {
+        throw new Error("Nur im Browser ausführbar");
+      }
+      const cdnVersion = "3.11.174";
+      const globalObj = window as unknown as { pdfjsLib?: PdfJsModule };
+      if (!globalObj.pdfjsLib) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${cdnVersion}/pdf.min.js`;
+          script.async = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("pdf.js konnte nicht geladen werden"));
+          document.head.appendChild(script);
+        });
+      }
+      const pdfjsLib = (window as unknown as { pdfjsLib: PdfJsModule }).pdfjsLib;
+      if (pdfjsLib.GlobalWorkerOptions) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${cdnVersion}/pdf.worker.min.js`;
+      }
+      const res = await fetch(fileUrl);
+      const buf = await res.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: buf });
+      const pdf = await loadingTask.promise;
+      const maxPages = Math.min(3, (pdf as unknown as { numPages?: number }).numPages ?? 1);
+      let chosenBlob: Blob | null = null;
+      for (let i = 1; i <= maxPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        if (!context) {
+          continue;
         }
-        const cdnVersion = "3.11.174";
-        const globalObj = window as unknown as { pdfjsLib?: PdfJsModule };
-        if (!globalObj.pdfjsLib) {
-          await new Promise<void>((resolve, reject) => {
-            const script = document.createElement("script");
-            script.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${cdnVersion}/pdf.min.js`;
-            script.async = true;
-            script.onload = () => resolve();
-            script.onerror = () => reject(new Error("pdf.js konnte nicht geladen werden"));
-            document.head.appendChild(script);
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: context, viewport }).promise;
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        let crop = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+        let confidence = 0;
+        let hadDetection = false;
+        try {
+          const detectResponse = await fetch("/api/pdf-packshot-extract", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              dataUrl,
+              width: canvas.width,
+              height: canvas.height,
+            }),
           });
-        }
-        const pdfjsLib = (window as unknown as { pdfjsLib: PdfJsModule }).pdfjsLib;
-        if (pdfjsLib.GlobalWorkerOptions) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${cdnVersion}/pdf.worker.min.js`;
-        }
-        const res = await fetch(fileUrl);
-        const buf = await res.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({ data: buf });
-        const pdf = await loadingTask.promise;
-        const maxPages = Math.min(3, (pdf as unknown as { numPages?: number }).numPages ?? 1);
-        let chosenBlob: Blob | null = null;
-        for (let i = 1; i <= maxPages; i++) {
-          const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = document.createElement("canvas");
-          const context = canvas.getContext("2d");
-          if (!context) {
-            continue;
-          }
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          await page.render({ canvasContext: context, viewport }).promise;
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-          let crop = { x: 0, y: 0, w: canvas.width, h: canvas.height };
-          let confidence = 0;
-          let hadDetection = false;
-          try {
-            const detectResponse = await fetch("/api/pdf-packshot-extract", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                dataUrl,
-                width: canvas.width,
-                height: canvas.height,
-              }),
-            });
-            const detectPayload = (await detectResponse.json()) as {
-              error?: unknown;
-              bbox?: { x: number; y: number; w: number; h: number };
-              confidence?: number;
+          const detectPayload = (await detectResponse.json()) as {
+            error?: unknown;
+            bbox?: { x: number; y: number; w: number; h: number };
+            confidence?: number;
+          };
+          if (detectResponse.ok && detectPayload.bbox) {
+            const { x, y, w, h } = detectPayload.bbox;
+            // Apply bias to Y position (vertical shift)
+            // docPackshotBias is -0.2 to +0.4 (relative to canvas height)
+            const biasOffset = canvas.height * docPackshotBias;
+            const biasedY = y + biasOffset;
+            
+            const safe = {
+              x: Math.max(0, Math.min(canvas.width - 1, Math.floor(x))),
+              y: Math.max(0, Math.min(canvas.height - 1, Math.floor(biasedY))),
+              w: Math.max(1, Math.min(canvas.width, Math.floor(w))),
+              h: Math.max(1, Math.min(canvas.height, Math.floor(h))),
             };
-            if (detectResponse.ok && detectPayload.bbox) {
-              const { x, y, w, h } = detectPayload.bbox;
-              const safe = {
-                x: Math.max(0, Math.min(canvas.width - 1, Math.floor(x))),
-                y: Math.max(0, Math.min(canvas.height - 1, Math.floor(y))),
-                w: Math.max(1, Math.min(canvas.width, Math.floor(w))),
-                h: Math.max(1, Math.min(canvas.height, Math.floor(h))),
+            crop = safe;
+            confidence = Number(detectPayload.confidence ?? 0.5);
+            hadDetection = true;
+            const areaRatio = (safe.w * safe.h) / (canvas.width * canvas.height);
+            if (areaRatio > 0.85 || areaRatio < 0.05 || confidence < 0.5) {
+              const strictResponse = await fetch("/api/pdf-packshot-extract", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  dataUrl,
+                  width: canvas.width,
+                  height: canvas.height,
+                  strict: true,
+                }),
+              });
+              const strictPayload = (await strictResponse.json()) as {
+                error?: unknown;
+                bbox?: { x: number; y: number; w: number; h: number };
+                confidence?: number;
               };
-              crop = safe;
-              confidence = Number(detectPayload.confidence ?? 0.5);
-              hadDetection = true;
-              const areaRatio = (safe.w * safe.h) / (canvas.width * canvas.height);
-              if (areaRatio > 0.85 || areaRatio < 0.05 || confidence < 0.5) {
-                const strictResponse = await fetch("/api/pdf-packshot-extract", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    dataUrl,
-                    width: canvas.width,
-                    height: canvas.height,
-                    strict: true,
-                  }),
-                });
-                const strictPayload = (await strictResponse.json()) as {
-                  error?: unknown;
-                  bbox?: { x: number; y: number; w: number; h: number };
-                  confidence?: number;
+              if (strictResponse.ok && strictPayload.bbox) {
+                const { x: sx, y: sy, w: sw, h: sh } = strictPayload.bbox;
+                const safe2 = {
+                  x: Math.max(0, Math.min(canvas.width - 1, Math.floor(sx))),
+                  y: Math.max(0, Math.min(canvas.height - 1, Math.floor(sy))),
+                  w: Math.max(1, Math.min(canvas.width, Math.floor(sw))),
+                  h: Math.max(1, Math.min(canvas.height, Math.floor(sh))),
                 };
-                if (strictResponse.ok && strictPayload.bbox) {
-                  const { x: sx, y: sy, w: sw, h: sh } = strictPayload.bbox;
-                  const safe2 = {
-                    x: Math.max(0, Math.min(canvas.width - 1, Math.floor(sx))),
-                    y: Math.max(0, Math.min(canvas.height - 1, Math.floor(sy))),
-                    w: Math.max(1, Math.min(canvas.width, Math.floor(sw))),
-                    h: Math.max(1, Math.min(canvas.height, Math.floor(sh))),
-                  };
-                  const areaRatio2 = (safe2.w * safe2.h) / (canvas.width * canvas.height);
-                  const conf2 = Number(strictPayload.confidence ?? confidence);
-                  if (areaRatio2 <= 0.85 && areaRatio2 >= 0.05 && conf2 >= 0.5) {
-                    crop = safe2;
-                    confidence = conf2;
-                    hadDetection = true;
-                  }
+                const areaRatio2 = (safe2.w * safe2.h) / (canvas.width * canvas.height);
+                const conf2 = Number(strictPayload.confidence ?? confidence);
+                if (areaRatio2 <= 0.85 && areaRatio2 >= 0.05 && conf2 >= 0.5) {
+                  crop = safe2;
+                  confidence = conf2;
+                  hadDetection = true;
                 }
               }
             }
-          } catch {
           }
-          if (crop.w === canvas.width && crop.h === canvas.height) {
-            const side = Math.floor(Math.min(canvas.width, canvas.height) * 0.6);
-            const cx = Math.floor((canvas.width - side) / 2);
-            const cy = Math.floor((canvas.height - side) / 2);
-            crop = { x: cx, y: cy, w: side, h: side };
-          }
-          const cropCanvas = document.createElement("canvas");
-          cropCanvas.width = crop.w;
-          cropCanvas.height = crop.h;
-          const cropCtx = cropCanvas.getContext("2d");
-          if (!cropCtx) {
-            continue;
-          }
-          cropCtx.drawImage(
-            canvas,
-            crop.x,
-            crop.y,
-            crop.w,
-            crop.h,
-            0,
-            0,
-            crop.w,
-            crop.h
-          );
-          function tightenByWhitespace(source: HTMLCanvasElement) {
-            const ctx = source.getContext("2d");
-            if (!ctx) {
-              return { x: 0, y: 0, w: source.width, h: source.height };
-            }
-            const w = source.width;
-            const h = source.height;
-            const data = ctx.getImageData(0, 0, w, h).data;
-            function isRowWhite(y: number) {
-              let white = 0;
-              for (let x = 0; x < w; x++) {
-                const idx = (y * w + x) * 4;
-                const r = data[idx],
-                  g = data[idx + 1],
-                  b = data[idx + 2];
-                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-                if (gray > 240) white++;
-              }
-              return white / w > 0.9;
-            }
-            function isColWhite(x: number) {
-              let white = 0;
-              for (let y = 0; y < h; y++) {
-                const idx = (y * w + x) * 4;
-                const r = data[idx],
-                  g = data[idx + 1],
-                  b = data[idx + 2];
-                const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-                if (gray > 240) white++;
-              }
-              return white / h > 0.9;
-            }
-            let top = 0;
-            while (top < h - 1 && isRowWhite(top)) top++;
-            let bottom = h - 1;
-            while (bottom > top + 1 && isRowWhite(bottom)) bottom--;
-            let left = 0;
-            while (left < w - 1 && isColWhite(left)) left++;
-            let right = w - 1;
-            while (right > left + 1 && isColWhite(right)) right--;
-            const newW = Math.max(32, right - left + 1);
-            const newH = Math.max(32, bottom - top + 1);
-            return { x: left, y: top, w: newW, h: newH };
-          }
-          const refined = tightenByWhitespace(cropCanvas);
-          const refinedArea = refined.w * refined.h;
-          const originalArea = crop.w * crop.h;
-          const finalRegion =
-            refinedArea < originalArea * 0.1
-              ? { x: 0, y: 0, w: crop.w, h: crop.h }
-              : refined;
-          function computeEdgeCentroid(
-            ctx: CanvasRenderingContext2D,
-            sx: number,
-            sy: number,
-            sw: number,
-            sh: number
-          ) {
-            const img = ctx.getImageData(sx, sy, sw, sh).data;
-            let sum = 0;
-            let cxSum = 0;
-            let cySum = 0;
-            const step = 2;
-            for (let y = 1; y < sh - 1; y += step) {
-              for (let x = 1; x < sw - 1; x += step) {
-                const idxL = (y * sw + (x - 1)) * 4;
-                const idxR = (y * sw + (x + 1)) * 4;
-                const idxT = ((y - 1) * sw + x) * 4;
-                const idxB = ((y + 1) * sw + x) * 4;
-                const gL = 0.299 * img[idxL] + 0.587 * img[idxL + 1] + 0.114 * img[idxL + 2];
-                const gR = 0.299 * img[idxR] + 0.587 * img[idxR + 1] + 0.114 * img[idxR + 2];
-                const gT = 0.299 * img[idxT] + 0.587 * img[idxT + 1] + 0.114 * img[idxT + 2];
-                const gB = 0.299 * img[idxB] + 0.587 * img[idxB + 1] + 0.114 * img[idxB + 2];
-                const mag = Math.abs(gR - gL) + Math.abs(gB - gT);
-                sum += mag;
-                cxSum += mag * x;
-                cySum += mag * y;
-              }
-            }
-            if (sum <= 0) {
-              return { cx: Math.floor(sw / 2), cy: Math.floor(sh / 2) };
-            }
-            return { cx: Math.floor(cxSum / sum), cy: Math.floor(cySum / sum) };
-          }
-          const centroid = hadDetection
-            ? { cx: Math.floor(finalRegion.w / 2), cy: Math.floor(finalRegion.h / 2) }
-            : cropCtx
-            ? computeEdgeCentroid(cropCtx, finalRegion.x, finalRegion.y, finalRegion.w, finalRegion.h)
-            : { cx: Math.floor(finalRegion.w / 2), cy: Math.floor(finalRegion.h / 2) };
-          const side = Math.floor(Math.min(finalRegion.w, finalRegion.h) * 0.95);
-          const localX = Math.max(
-            0,
-            Math.min(
-              finalRegion.w - side,
-              Math.floor(centroid.cx - side / 2)
-            )
-          );
-          const localY = Math.max(
-            0,
-            Math.min(
-              finalRegion.h - side,
-              Math.floor(centroid.cy - side / 2 - side * docPackshotBias)
-            )
-          );
-          const finalCanvas = document.createElement("canvas");
-          finalCanvas.width = side;
-          finalCanvas.height = side;
-          const finalCtx = finalCanvas.getContext("2d");
-          if (!finalCtx) {
-            continue;
-          }
-          finalCtx.drawImage(
-            cropCanvas,
-            finalRegion.x + localX,
-            finalRegion.y + localY,
-            side,
-            side,
-            0,
-            0,
-            side,
-            side
-          );
-          const blob: Blob | null = await new Promise((resolve) => {
-            finalCanvas.toBlob((b) => resolve(b), "image/jpeg", 0.9);
-          });
-          if (blob) {
-            chosenBlob = blob;
-            break;
-          }
+        } catch {
         }
-        if (!chosenBlob) {
-          throw new Error("Packshot konnte nicht erzeugt werden");
+        if (crop.w === canvas.width && crop.h === canvas.height) {
+          const side = Math.floor(Math.min(canvas.width, canvas.height) * 0.6);
+          const cx = Math.floor((canvas.width - side) / 2);
+          // Apply bias to fallback crop as well
+          const biasOffset = canvas.height * docPackshotBias;
+          const cy = Math.floor((canvas.height - side) / 2 + biasOffset);
+          // Ensure crop stays within bounds
+          const safeY = Math.max(0, Math.min(canvas.height - side, cy));
+          crop = { x: cx, y: safeY, w: side, h: side };
         }
-        const file = new File([chosenBlob], "pdf-packshot.jpg", { type: "image/jpeg" });
-        const form = new FormData();
-        form.append("file", file);
-        form.append("itemId", itemId);
-        form.append("filename", "pdf-preview.jpg");
-        const response = await fetch("/api/recipe-image-upload", {
-          method: "POST",
-          body: form,
+        const cropCanvas = document.createElement("canvas");
+        cropCanvas.width = crop.w;
+        cropCanvas.height = crop.h;
+        const cropCtx = cropCanvas.getContext("2d");
+        if (!cropCtx) {
+          continue;
+        }
+        cropCtx.drawImage(
+          canvas,
+          crop.x,
+          crop.y,
+          crop.w,
+          crop.h,
+          0,
+          0,
+          crop.w,
+          crop.h
+        );
+        function tightenByWhitespace(source: HTMLCanvasElement) {
+          const ctx = source.getContext("2d");
+          if (!ctx) {
+            return { x: 0, y: 0, w: source.width, h: source.height };
+          }
+          const w = source.width;
+          const h = source.height;
+          const data = ctx.getImageData(0, 0, w, h).data;
+          function isRowWhite(y: number) {
+            let white = 0;
+            for (let x = 0; x < w; x++) {
+              const idx = (y * w + x) * 4;
+              const r = data[idx],
+                g = data[idx + 1],
+                b = data[idx + 2];
+              const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+              if (gray > 240) white++;
+            }
+            return white / w > 0.9;
+          }
+          function isColWhite(x: number) {
+            let white = 0;
+            for (let y = 0; y < h; y++) {
+              const idx = (y * w + x) * 4;
+              const r = data[idx],
+                g = data[idx + 1],
+                b = data[idx + 2];
+              const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+              if (gray > 240) white++;
+            }
+            return white / h > 0.9;
+          }
+          let top = 0;
+          while (top < h - 1 && isRowWhite(top)) top++;
+          let bottom = h - 1;
+          while (bottom > top + 1 && isRowWhite(bottom)) bottom--;
+          let left = 0;
+          while (left < w - 1 && isColWhite(left)) left++;
+          let right = w - 1;
+          while (right > left + 1 && isColWhite(right)) right--;
+          const newW = Math.max(32, right - left + 1);
+          const newH = Math.max(32, bottom - top + 1);
+          return { x: left, y: top, w: newW, h: newH };
+        }
+        const refined = tightenByWhitespace(cropCanvas);
+        const refinedArea = refined.w * refined.h;
+        const originalArea = crop.w * crop.h;
+        const finalRegion =
+          refinedArea < originalArea * 0.1
+            ? { x: 0, y: 0, w: crop.w, h: crop.h }
+            : refined;
+        function computeEdgeCentroid(
+          ctx: CanvasRenderingContext2D,
+          sx: number,
+          sy: number,
+          sw: number,
+          sh: number
+        ) {
+          const img = ctx.getImageData(sx, sy, sw, sh).data;
+          let sum = 0;
+          let cxSum = 0;
+          let cySum = 0;
+          const step = 2;
+          for (let y = 1; y < sh - 1; y += step) {
+            for (let x = 1; x < sw - 1; x += step) {
+              const idxL = (y * sw + (x - 1)) * 4;
+              const idxR = (y * sw + (x + 1)) * 4;
+              const idxT = ((y - 1) * sw + x) * 4;
+              const idxB = ((y + 1) * sw + x) * 4;
+              const gL = 0.299 * img[idxL] + 0.587 * img[idxL + 1] + 0.114 * img[idxL + 2];
+              const gR = 0.299 * img[idxR] + 0.587 * img[idxR + 1] + 0.114 * img[idxR + 2];
+              const gT = 0.299 * img[idxT] + 0.587 * img[idxT + 1] + 0.114 * img[idxT + 2];
+              const gB = 0.299 * img[idxB] + 0.587 * img[idxB + 1] + 0.114 * img[idxB + 2];
+              const mag = Math.abs(gR - gL) + Math.abs(gB - gT);
+              sum += mag;
+              cxSum += mag * x;
+              cySum += mag * y;
+            }
+          }
+          if (sum <= 0) {
+            return { cx: Math.floor(sw / 2), cy: Math.floor(sh / 2) };
+          }
+          return { cx: Math.floor(cxSum / sum), cy: Math.floor(cySum / sum) };
+        }
+        const centroid = hadDetection
+          ? { cx: Math.floor(finalRegion.w / 2), cy: Math.floor(finalRegion.h / 2) }
+          : cropCtx
+          ? computeEdgeCentroid(cropCtx, finalRegion.x, finalRegion.y, finalRegion.w, finalRegion.h)
+          : { cx: Math.floor(finalRegion.w / 2), cy: Math.floor(finalRegion.h / 2) };
+        const side = Math.floor(Math.min(finalRegion.w, finalRegion.h) * 0.95);
+        const localX = Math.max(
+          0,
+          Math.min(
+            finalRegion.w - side,
+            Math.floor(centroid.cx - side / 2)
+          )
+        );
+        const localY = Math.max(
+          0,
+          Math.min(
+            finalRegion.h - side,
+            Math.floor(centroid.cy - side / 2 - side * docPackshotBias)
+          )
+        );
+        const finalCanvas = document.createElement("canvas");
+        finalCanvas.width = side;
+        finalCanvas.height = side;
+        const finalCtx = finalCanvas.getContext("2d");
+        if (!finalCtx) {
+          continue;
+        }
+        finalCtx.drawImage(
+          cropCanvas,
+          finalRegion.x + localX,
+          finalRegion.y + localY,
+          side,
+          side,
+          0,
+          0,
+          side,
+          side
+        );
+        const blob: Blob | null = await new Promise((resolve) => {
+          finalCanvas.toBlob((b) => resolve(b), "image/jpeg", 0.9);
         });
-        const payload = (await response.json()) as { error?: unknown; imageUrl?: string };
-        if (!response.ok) {
-          let message = "Fehler beim Upload des PDF-Vorschaubilds.";
-          if (payload && typeof payload.error === "string") {
-            message = payload.error;
-          }
-          throw new Error(message);
+        if (blob) {
+          chosenBlob = blob;
+          break;
         }
-        if (payload.imageUrl) {
-          setDocParsed((prev) => (prev ? { ...prev, imageUrl: payload.imageUrl ?? null } : prev));
-          setItems((previous) =>
-            previous.map((item) =>
-              item.id === itemId ? { ...item, imageUrl: payload.imageUrl ?? null } : item
-            )
-          );
-        }
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Fehler bei der PDF-Bild-Erzeugung.";
-        setDocPreviewError(message);
-      } finally {
-        setDocPreviewIsGenerating(false);
       }
+      if (!chosenBlob) {
+        throw new Error("Packshot konnte nicht erzeugt werden");
+      }
+      const file = new File([chosenBlob], "pdf-packshot.jpg", { type: "image/jpeg" });
+      const form = new FormData();
+      form.append("file", file);
+      form.append("itemId", itemId);
+      form.append("filename", "pdf-preview.jpg");
+      const response = await fetch("/api/recipe-image-upload", {
+        method: "POST",
+        body: form,
+      });
+      const payload = (await response.json()) as { error?: unknown; imageUrl?: string };
+      if (!response.ok) {
+        let message = "Fehler beim Upload des PDF-Vorschaubilds.";
+        if (payload && typeof payload.error === "string") {
+          message = payload.error;
+        }
+        throw new Error(message);
+      }
+      if (payload.imageUrl) {
+        const freshUrl = `${payload.imageUrl}?t=${Date.now()}`;
+        setDocParsed((prev) => (prev ? { ...prev, imageUrl: freshUrl } : prev));
+        setItems((previous) =>
+          previous.map((item) =>
+            item.id === itemId ? { ...item, imageUrl: freshUrl } : item
+          )
+        );
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler bei der PDF-Bild-Erzeugung.";
+      setDocPreviewError(message);
+    } finally {
+      setDocPreviewIsGenerating(false);
     }
-    if (
-      docParsed &&
-      docParsed.fileUrl &&
-      docParsed.fileUrl.toLowerCase().endsWith(".pdf") &&
-      !docParsed.imageUrl &&
-      selectedItemId
-    ) {
-      void generateAndUploadPdfPreview(docParsed.fileUrl, selectedItemId);
-    }
-  }, [docParsed, selectedItemId, docPackshotBias]);
+  }, [docPackshotBias]);
 
-  const effectiveItems = items.length > 0 ? items : initialItems;
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (
+        docParsed &&
+        docParsed.fileUrl &&
+        docParsed.fileUrl.toLowerCase().endsWith(".pdf") &&
+        selectedItemId
+      ) {
+        const key = `${selectedItemId}-${docParsed.fileUrl}-${docPackshotBias}`;
+        if (lastGenRef.current !== key) {
+          lastGenRef.current = key;
+          void generateAndUploadPdfPreview(docParsed.fileUrl, selectedItemId);
+        }
+      } else if (
+        selectedItemId &&
+        effectiveItems.find((i) => i.id === selectedItemId)?.fileUrl?.toLowerCase().endsWith(".pdf")
+      ) {
+        const item = effectiveItems.find((i) => i.id === selectedItemId);
+        if (item && item.fileUrl) {
+          const key = `${selectedItemId}-${item.fileUrl}-${docPackshotBias}`;
+          if (lastGenRef.current !== key) {
+            lastGenRef.current = key;
+            void generateAndUploadPdfPreview(item.fileUrl, selectedItemId);
+          }
+        }
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [docParsed?.fileUrl, selectedItemId, docPackshotBias, effectiveItems, generateAndUploadPdfPreview]);
 
   useEffect(() => {
     let cancelled = false;
@@ -910,7 +877,7 @@ export function InventoryManager() {
           if (data.length > 0) {
             setItems(data);
           } else {
-            setItems(initialItems);
+             setItems([]);
           }
         }
       } catch (error) {
@@ -922,7 +889,7 @@ export function InventoryManager() {
           setError(
             `${message} Es werden Demo-Daten angezeigt.`
           );
-          setItems(initialItems);
+          // setItems(initialItems);
         }
       } finally {
         if (!cancelled) {
@@ -948,7 +915,7 @@ export function InventoryManager() {
 
   const filteredItems = useMemo(() => {
     return effectiveItems.filter((item) => {
-      if (effectiveFilterType !== "all" && item.type !== effectiveFilterType) {
+      if (filterType !== "all" && item.type !== filterType) {
         return false;
       }
       const query = search.trim().toLowerCase();
@@ -1014,7 +981,7 @@ export function InventoryManager() {
   }, [
     activeSection,
     effectiveItems,
-    effectiveFilterType,
+    filterType,
     recipeCategoryFilter,
     recipeProFilter,
     search,
@@ -1091,7 +1058,7 @@ export function InventoryManager() {
     null;
 
   useEffect(() => {
-    if (selectedItem && selectedItem.type === "eigenproduktion") {
+    if (selectedItem) {
       setImageUrlInput(selectedItem.imageUrl ?? "");
     } else {
       setImageUrlInput("");
@@ -1100,32 +1067,7 @@ export function InventoryManager() {
     setIsImageDropActive(false);
   }, [selectedItem]);
 
-  useEffect(() => {
-    if (!selectedItem) {
-      return;
-    }
-    const stdPrep = selectedItem.standardPreparation;
-    if (
-      selectedItem.type === "zukauf" &&
-      (!stdPrep || !Array.isArray(stdPrep.components) || stdPrep.components.length === 0)
-    ) {
-      const text =
-        typeof selectedItem.dosageInstructions === "string"
-          ? selectedItem.dosageInstructions
-          : "";
-      const lines = text
-        .split(/\r?\n/)
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0);
-      if (lines.length === 0) {
-        return;
-      }
-      const parsedComponents: StandardPreparationComponent[] = lines.map((line) =>
-        parseStandardPreparationLine(line)
-      );
-      setStandardPreparationComponents(parsedComponents);
-    }
-  }, [selectedItem]);
+
 
   const inheritedAllergens = useMemo(() => {
     if (!selectedItem || selectedItem.type !== "eigenproduktion") {
@@ -1564,6 +1506,7 @@ export function InventoryManager() {
     }
     const stdPrep = selectedItem.standardPreparation;
     setNameInput(selectedItem.name);
+    setImageUrlInput(selectedItem.imageUrl ?? "");
     setCategoryInput(selectedItem.category ?? "");
     setPortionUnitInput(selectedItem.portionUnit ?? "");
     setNutritionTagsInput(selectedItem.nutritionTags ?? []);
@@ -1698,11 +1641,48 @@ export function InventoryManager() {
               component.unit.trim().length > 0
           )
       );
-      // @ts-ignore
-      setStandardPreparationText(stdPrep.text || "");
+    } else if (selectedItem.type === "zukauf") {
+      const text =
+        typeof selectedItem.dosageInstructions === "string"
+          ? selectedItem.dosageInstructions
+          : "";
+      const lines = text
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+      const parsedComponents: StandardPreparationComponent[] = lines.map(
+        (line) => parseStandardPreparationLine(line)
+      );
+      setStandardPreparationComponents(parsedComponents);
     } else {
       setStandardPreparationComponents([]);
-      setStandardPreparationText("");
+    }
+
+    // Standard Preparation Text Loading with Fallbacks
+    if (stdPrep?.text) {
+      setStandardPreparationText(stdPrep.text);
+    } else {
+      let text = "";
+      if (
+        selectedItem.type === "zukauf" &&
+        typeof selectedItem.dosageInstructions === "string" &&
+        selectedItem.dosageInstructions
+      ) {
+        text = selectedItem.dosageInstructions;
+      }
+      if (!text) {
+        if (typeof selectedItem.preparationSteps === "string") {
+          text = selectedItem.preparationSteps;
+        } else if (
+          Array.isArray(selectedItem.preparationSteps) &&
+          selectedItem.preparationSteps.length > 0
+        ) {
+          text = selectedItem.preparationSteps
+            .map((s) => s.text)
+            .join("\n");
+        }
+      }
+      setStandardPreparationText(text);
     }
     setTargetPortionsInput(
       selectedItem.targetPortions != null
@@ -2268,6 +2248,279 @@ export function InventoryManager() {
     }
   }
 
+  async function handleDocumentUpload(file: File) {
+    try {
+      setDocIsUploading(true);
+      setDocError(null);
+      setDocParsed(null);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("filename", file.name);
+      const response = await fetch(
+        "/api/document-vision-upload",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+      const payload = (await response.json()) as {
+        error?: unknown;
+        item?: InventoryItem;
+        extracted?: {
+          name: string;
+          unit: string;
+          purchase_price: number;
+          nutrition_per_100g?: {
+            energy_kcal?: number;
+            fat?: number;
+            saturated_fat?: number;
+            carbohydrates?: number;
+            sugar?: number;
+            protein?: number;
+            salt?: number;
+          };
+          allergens: string[];
+          ingredients?: string | null;
+          dosage_instructions?: string | null;
+          yield_info?: string | null;
+          yield_volume?: string | null;
+          preparation_steps?: string | null;
+          manufacturer_article_number?: string | null;
+          is_bio?: boolean;
+          is_deklarationsfrei?: boolean;
+          is_allergenfrei?: boolean;
+          is_cook_chill?: boolean;
+          is_freeze_thaw_stable?: boolean;
+          is_palm_oil_free?: boolean;
+          is_yeast_free?: boolean;
+          is_lactose_free?: boolean;
+          is_gluten_free?: boolean;
+          image_url?: string | null;
+        };
+        fileUrl?: string;
+      };
+      if (!response.ok) {
+        let message =
+          "Fehler bei der Dokumenten-Auswertung.";
+        if (
+          payload &&
+          typeof payload.error === "string"
+        ) {
+          message = payload.error;
+        }
+        throw new Error(message);
+      }
+      if (payload.item) {
+        const created = payload.item as InventoryItem;
+        const enriched: InventoryItem = {
+          ...created,
+          allergens:
+            (payload.extracted &&
+              Array.isArray(
+                payload.extracted.allergens
+              ) &&
+              payload.extracted.allergens.length > 0
+              ? payload.extracted.allergens
+              : created.allergens) ?? [],
+          ingredients:
+            (payload.extracted &&
+              typeof payload.extracted.ingredients ===
+                "string"
+              ? payload.extracted.ingredients
+              : created.ingredients) ?? null,
+          dosageInstructions:
+            (payload.extracted &&
+              typeof payload.extracted
+                .dosage_instructions === "string"
+              ? payload.extracted.dosage_instructions
+              : created.dosageInstructions) ?? null,
+          yieldInfo:
+            (payload.extracted &&
+              typeof payload.extracted.yield_info ===
+                "string"
+              ? payload.extracted.yield_info
+              : created.yieldInfo) ?? null,
+          preparationSteps:
+            (payload.extracted &&
+              typeof payload.extracted
+                .preparation_steps === "string"
+              ? payload.extracted.preparation_steps
+              : created.preparationSteps) ?? null,
+        };
+        setItems((previous) => [
+          ...previous,
+          enriched,
+        ]);
+        setSelectedItemId(enriched.id);
+      }
+      if (payload.extracted) {
+        const extractedAllergens = Array.isArray(
+          payload.extracted.allergens
+        )
+          ? payload.extracted.allergens
+          : [];
+        const allergensText = extractedAllergens.join(", ");
+        setProAllergensInput(
+          allergensText.length > 0
+            ? allergensText
+            : "keine rezeptorisch enthaltenen Allergene"
+        );
+        setProIngredientsInput(
+          typeof payload.extracted.ingredients === "string"
+            ? payload.extracted.ingredients
+            : ""
+        );
+        setProDosageInput(
+          typeof payload.extracted.dosage_instructions ===
+            "string"
+            ? payload.extracted.dosage_instructions
+            : ""
+        );
+        let yieldWeight = "";
+        let yieldVolume = "";
+        const extractedYieldInfo =
+          typeof payload.extracted.yield_info === "string"
+            ? payload.extracted.yield_info
+            : "";
+        if (extractedYieldInfo.includes("|")) {
+          const [weightRaw, volumeRaw] =
+            extractedYieldInfo.split("|");
+          yieldWeight = weightRaw.trim();
+          yieldVolume = (volumeRaw ?? "").trim();
+        } else if (extractedYieldInfo.includes("\n")) {
+          const [line1, line2] =
+            extractedYieldInfo.split("\n");
+          yieldWeight = line1.trim();
+          yieldVolume = (line2 ?? "").trim();
+        } else {
+          yieldWeight = extractedYieldInfo.trim();
+        }
+        if (
+          typeof payload.extracted.yield_volume ===
+            "string" &&
+          payload.extracted.yield_volume.trim().length > 0
+        ) {
+          yieldVolume = payload.extracted.yield_volume.trim();
+        }
+        setProYieldWeightInput(yieldWeight);
+        setProYieldVolumeInput(yieldVolume);
+        if (
+          typeof payload.extracted
+            .manufacturer_article_number === "string"
+        ) {
+          setManufacturerInput(
+            payload.extracted.manufacturer_article_number
+          );
+        }
+        setProPreparationInput(
+          typeof payload.extracted.preparation_steps ===
+            "string"
+            ? payload.extracted.preparation_steps
+            : ""
+        );
+        setIsBioInput(!!payload.extracted.is_bio);
+        setIsDeklarationsfreiInput(
+          !!payload.extracted.is_deklarationsfrei
+        );
+        setIsAllergenfreiInput(
+          !!payload.extracted.is_allergenfrei
+        );
+        setIsCookChillInput(
+          !!payload.extracted.is_cook_chill
+        );
+        setIsFreezeThawStableInput(
+          !!payload.extracted.is_freeze_thaw_stable
+        );
+        setIsPalmOilFreeInput(
+          !!payload.extracted.is_palm_oil_free
+        );
+        setIsYeastFreeInput(
+          !!payload.extracted.is_yeast_free
+        );
+        setIsLactoseFreeInput(
+          !!payload.extracted.is_lactose_free
+        );
+        setIsGlutenFreeInput(
+          !!payload.extracted.is_gluten_free
+        );
+      }
+      if (payload.extracted && payload.fileUrl) {
+        if (
+          typeof payload.extracted.image_url === "string" &&
+          payload.extracted.image_url.length > 0
+        ) {
+          setImageUrlInput(payload.extracted.image_url);
+        }
+        setDocParsed({
+          name: payload.extracted.name,
+          unit: payload.extracted.unit,
+          purchasePrice:
+            payload.extracted.purchase_price,
+          allergens: payload.extracted.allergens,
+          fileUrl: payload.fileUrl,
+          ingredients:
+            typeof payload.extracted.ingredients === "string"
+              ? payload.extracted.ingredients
+              : null,
+          dosageInstructions:
+            typeof payload.extracted
+              .dosage_instructions === "string"
+              ? payload.extracted.dosage_instructions
+              : null,
+          yieldInfo:
+            typeof payload.extracted.yield_info === "string"
+              ? payload.extracted.yield_info
+              : null,
+          manufacturerArticleNumber:
+            typeof payload.extracted
+              .manufacturer_article_number === "string"
+              ? payload.extracted.manufacturer_article_number
+              : null,
+          yieldVolume:
+            typeof payload.extracted.yield_volume ===
+              "string"
+              ? payload.extracted.yield_volume
+              : null,
+          preparationText:
+            typeof payload.extracted.preparation_steps ===
+            "string"
+              ? payload.extracted.preparation_steps
+              : null,
+          imageUrl:
+            typeof payload.extracted.image_url === "string"
+              ? payload.extracted.image_url
+              : null,
+          isBio: payload.extracted.is_bio ?? false,
+          isDeklarationsfrei:
+            payload.extracted.is_deklarationsfrei ?? false,
+          isAllergenfrei:
+            payload.extracted.is_allergenfrei ?? false,
+          isCookChill:
+            payload.extracted.is_cook_chill ?? false,
+          isFreezeThawStable:
+            payload.extracted.is_freeze_thaw_stable ?? false,
+          isPalmOilFree:
+            payload.extracted.is_palm_oil_free ?? false,
+          isYeastFree:
+            payload.extracted.is_yeast_free ?? false,
+          isLactoseFree:
+            payload.extracted.is_lactose_free ?? false,
+          isGlutenFree:
+            payload.extracted.is_gluten_free ?? false,
+        });
+      }
+      setDocFile(null);
+    } catch (uploadError) {
+      const message =
+        uploadError instanceof Error
+          ? uploadError.message
+          : "Fehler beim Dokumenten-Upload.";
+      setDocError(message);
+    } finally {
+      setDocIsUploading(false);
+    }
+  }
+
   async function handleSaveProfiData(
     overrideDosageInstructions?: string | null
   ) {
@@ -2317,10 +2570,7 @@ export function InventoryManager() {
         selectedItem.type === "eigenproduktion"
           ? nutritionTagsInput
           : undefined;
-      const imageUrlValue =
-        selectedItem.type === "eigenproduktion"
-          ? imageUrlInput.trim()
-          : undefined;
+      const imageUrlValue = imageUrlInput.trim() || undefined;
       let parsedStandardPreparation: StandardPreparation | null =
         null;
       if (selectedItem.type === "zukauf") {
@@ -2342,9 +2592,11 @@ export function InventoryManager() {
               component.quantity > 0 &&
               component.unit.trim().length > 0
           );
-        if (cleanedComponents.length > 0) {
+        const text = standardPreparationText.trim();
+        if (cleanedComponents.length > 0 || text.length > 0) {
           parsedStandardPreparation = {
             components: cleanedComponents,
+            text: text.length > 0 ? text : null,
           };
         } else {
           parsedStandardPreparation = null;
@@ -2808,20 +3060,14 @@ export function InventoryManager() {
                 {isSaving ? "Erstelle..." : "Neuen Artikel anlegen"}
               </Button>
             </div>
-            <Input
-              placeholder="Nach Artikeln suchen"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="h-9 text-sm"
-            />
           </div>
         </header>
 
         <main
           className={cn(
-            "grid gap-4",
-            !isDetailView &&
-              "md:grid-cols-[minmax(0,1.4fr)_minmax(0,1.8fr)]"
+            "grid gap-4 items-start",
+            (activeSection === "zutaten" || activeSection === "rezepte") &&
+              "md:grid-cols-[220px_1fr]"
           )}
         >
           {activeSection === "dashboard" && !isDetailView && (
@@ -2886,7 +3132,7 @@ export function InventoryManager() {
             </Card>
           )}
           {activeSection === "lager" && (
-            <Card className="flex flex-col" key="lager-placeholder">
+            <Card className="col-span-full flex flex-col" key="lager-placeholder">
               <CardHeader>
                 <CardTitle>Platzhalter</CardTitle>
                 <CardDescription>Mehr Funktionen folgen.</CardDescription>
@@ -2898,15 +3144,85 @@ export function InventoryManager() {
               </CardContent>
             </Card>
           )}
-          {activeSection !== "dashboard" && activeSection !== "lager" && !isDetailView && (
-            <Card className="flex flex-col" key={activeSection}>
-              <CardHeader className="flex flex-row items-center justify-between gap-2">
-                <div>
-                  <CardTitle>Artikelübersicht</CardTitle>
-                  <CardDescription>
-                    Filtere nach Typ und wähle einen Artikel aus.
-                  </CardDescription>
-                </div>
+
+          {(activeSection === "zutaten" || activeSection === "rezepte") && (
+            <div className="flex flex-col gap-4 sticky top-20 max-h-[calc(100vh-8rem)]">
+              <Card className="flex flex-col h-full overflow-hidden">
+                <CardHeader className="pb-3 px-3 pt-3 space-y-2">
+                   <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Suchen..."
+                        className="pl-8 h-9 text-xs"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                      />
+                   </div>
+                   <div className="flex flex-wrap gap-1">
+                      <Badge 
+                        variant={filterType === "all" ? "default" : "outline"} 
+                        className="cursor-pointer text-[10px] px-2 h-5"
+                        onClick={() => setFilterType("all")}
+                      >
+                        Alle
+                      </Badge>
+                      <Badge 
+                        variant={filterType === "eigenproduktion" ? "default" : "outline"} 
+                        className="cursor-pointer text-[10px] px-2 h-5"
+                        onClick={() => setFilterType("eigenproduktion")}
+                      >
+                        Rezepte
+                      </Badge>
+                      <Badge 
+                        variant={filterType === "zukauf" ? "default" : "outline"} 
+                        className="cursor-pointer text-[10px] px-2 h-5"
+                        onClick={() => setFilterType("zukauf")}
+                      >
+                        Zutaten
+                      </Badge>
+                   </div>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-y-auto p-0">
+                  <div className="flex flex-col">
+                  {filteredItems.length === 0 && (
+                    <div className="text-center text-xs text-muted-foreground py-4">
+                      Keine Artikel gefunden.
+                    </div>
+                  )}
+                  {filteredItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedItemId(item.id);
+                        setIsDetailView(true);
+                      }}
+                      className={cn(
+                        "flex w-full flex-col gap-1 border-b px-3 py-2 text-left text-xs transition-colors hover:bg-muted/50",
+                        selectedItem?.id === item.id && "bg-muted"
+                      )}
+                    >
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <span className="font-medium truncate">{item.name}</span>
+                        <TypeBadge type={item.type} />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-muted-foreground w-full">
+                         <span>{item.unit}</span>
+                         <span>{formatInternalId(item.internalId ?? null)}</span>
+                      </div>
+                    </button>
+                  ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+              <Card className={cn("flex flex-col", (activeSection === "zutaten" || activeSection === "rezepte") && "md:col-start-2")} key={activeSection}>
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                  <div>
+                    <CardTitle>Artikel-Import</CardTitle>
+                  </div>
                 {activeSection === "rezepte" && (
                   <div className="inline-flex rounded-md border bg-muted/40 p-1 text-[11px]">
                     <Button
@@ -2962,264 +3278,8 @@ export function InventoryManager() {
                     className="space-y-2"
                     onSubmit={async (event) => {
                       event.preventDefault();
-                      if (!docFile) {
-                        return;
-                      }
-                      try {
-                        setDocIsUploading(true);
-                        setDocError(null);
-                        setDocParsed(null);
-                        const formData = new FormData();
-                        formData.append("file", docFile);
-                        formData.append("filename", docFile.name);
-                        const response = await fetch(
-                          "/api/document-vision-upload",
-                          {
-                            method: "POST",
-                            body: formData,
-                          }
-                        );
-                        const payload = (await response.json()) as {
-                          error?: unknown;
-                          item?: InventoryItem;
-                          extracted?: {
-                            name: string;
-                            unit: string;
-                            purchase_price: number;
-                            allergens: string[];
-                            ingredients?: string | null;
-                            dosage_instructions?: string | null;
-                            yield_info?: string | null;
-                            yield_volume?: string | null;
-                            preparation_steps?: string | null;
-                            manufacturer_article_number?: string | null;
-                            is_bio?: boolean;
-                            is_deklarationsfrei?: boolean;
-                            is_allergenfrei?: boolean;
-                            is_cook_chill?: boolean;
-                            is_freeze_thaw_stable?: boolean;
-                            is_palm_oil_free?: boolean;
-                            is_yeast_free?: boolean;
-                            is_lactose_free?: boolean;
-                            is_gluten_free?: boolean;
-                            image_url?: string | null;
-                          };
-                          fileUrl?: string;
-                        };
-                        if (!response.ok) {
-                          let message =
-                            "Fehler bei der Dokumenten-Auswertung.";
-                          if (
-                            payload &&
-                            typeof payload.error === "string"
-                          ) {
-                            message = payload.error;
-                          }
-                          throw new Error(message);
-                        }
-                        if (payload.item) {
-                          const created = payload.item as InventoryItem;
-                          const enriched: InventoryItem = {
-                            ...created,
-                            allergens:
-                              (payload.extracted &&
-                                Array.isArray(
-                                  payload.extracted.allergens
-                                ) &&
-                                payload.extracted.allergens.length > 0
-                                ? payload.extracted.allergens
-                                : created.allergens) ?? [],
-                            ingredients:
-                              (payload.extracted &&
-                                typeof payload.extracted.ingredients ===
-                                  "string"
-                                ? payload.extracted.ingredients
-                                : created.ingredients) ?? null,
-                            dosageInstructions:
-                              (payload.extracted &&
-                                typeof payload.extracted
-                                  .dosage_instructions === "string"
-                                ? payload.extracted.dosage_instructions
-                                : created.dosageInstructions) ?? null,
-                            yieldInfo:
-                              (payload.extracted &&
-                                typeof payload.extracted.yield_info ===
-                                  "string"
-                                ? payload.extracted.yield_info
-                                : created.yieldInfo) ?? null,
-                            preparationSteps:
-                              (payload.extracted &&
-                                typeof payload.extracted
-                                  .preparation_steps === "string"
-                                ? payload.extracted.preparation_steps
-                                : created.preparationSteps) ?? null,
-                          };
-                          setItems((previous) => [
-                            ...previous,
-                            enriched,
-                          ]);
-                          setSelectedItemId(enriched.id);
-                        }
-                        if (payload.extracted) {
-                          const extractedAllergens = Array.isArray(
-                            payload.extracted.allergens
-                          )
-                            ? payload.extracted.allergens
-                            : [];
-                          const allergensText = extractedAllergens.join(", ");
-                          setProAllergensInput(
-                            allergensText.length > 0
-                              ? allergensText
-                              : "keine rezeptorisch enthaltenen Allergene"
-                          );
-                          setProIngredientsInput(
-                            typeof payload.extracted.ingredients === "string"
-                              ? payload.extracted.ingredients
-                              : ""
-                          );
-                          setProDosageInput(
-                            typeof payload.extracted.dosage_instructions ===
-                              "string"
-                              ? payload.extracted.dosage_instructions
-                              : ""
-                          );
-                          let yieldWeight = "";
-                          let yieldVolume = "";
-                          const extractedYieldInfo =
-                            typeof payload.extracted.yield_info === "string"
-                              ? payload.extracted.yield_info
-                              : "";
-                          if (extractedYieldInfo.includes("|")) {
-                            const [weightRaw, volumeRaw] =
-                              extractedYieldInfo.split("|");
-                            yieldWeight = weightRaw.trim();
-                            yieldVolume = (volumeRaw ?? "").trim();
-                          } else if (extractedYieldInfo.includes("\n")) {
-                            const [line1, line2] =
-                              extractedYieldInfo.split("\n");
-                            yieldWeight = line1.trim();
-                            yieldVolume = (line2 ?? "").trim();
-                          } else {
-                            yieldWeight = extractedYieldInfo.trim();
-                          }
-                          if (
-                            typeof payload.extracted.yield_volume ===
-                              "string" &&
-                            payload.extracted.yield_volume.trim().length > 0
-                          ) {
-                            yieldVolume = payload.extracted.yield_volume.trim();
-                          }
-                          setProYieldWeightInput(yieldWeight);
-                          setProYieldVolumeInput(yieldVolume);
-                          if (
-                            typeof payload.extracted
-                              .manufacturer_article_number === "string"
-                          ) {
-                            setManufacturerInput(
-                              payload.extracted.manufacturer_article_number
-                            );
-                          }
-                          setProPreparationInput(
-                            typeof payload.extracted.preparation_steps ===
-                              "string"
-                              ? payload.extracted.preparation_steps
-                              : ""
-                          );
-                          setIsBioInput(!!payload.extracted.is_bio);
-                          setIsDeklarationsfreiInput(
-                            !!payload.extracted.is_deklarationsfrei
-                          );
-                          setIsAllergenfreiInput(
-                            !!payload.extracted.is_allergenfrei
-                          );
-                          setIsCookChillInput(
-                            !!payload.extracted.is_cook_chill
-                          );
-                          setIsFreezeThawStableInput(
-                            !!payload.extracted.is_freeze_thaw_stable
-                          );
-                          setIsPalmOilFreeInput(
-                            !!payload.extracted.is_palm_oil_free
-                          );
-                          setIsYeastFreeInput(
-                            !!payload.extracted.is_yeast_free
-                          );
-                          setIsLactoseFreeInput(
-                            !!payload.extracted.is_lactose_free
-                          );
-                          setIsGlutenFreeInput(
-                            !!payload.extracted.is_gluten_free
-                          );
-                        }
-                        if (payload.extracted && payload.fileUrl) {
-                          setDocParsed({
-                            name: payload.extracted.name,
-                            unit: payload.extracted.unit,
-                            purchasePrice:
-                              payload.extracted.purchase_price,
-                            allergens: payload.extracted.allergens,
-                            fileUrl: payload.fileUrl,
-                            ingredients:
-                              typeof payload.extracted.ingredients === "string"
-                                ? payload.extracted.ingredients
-                                : null,
-                            dosageInstructions:
-                              typeof payload.extracted
-                                .dosage_instructions === "string"
-                                ? payload.extracted.dosage_instructions
-                                : null,
-                            yieldInfo:
-                              typeof payload.extracted.yield_info === "string"
-                                ? payload.extracted.yield_info
-                                : null,
-                            manufacturerArticleNumber:
-                              typeof payload.extracted
-                                .manufacturer_article_number === "string"
-                                ? payload.extracted.manufacturer_article_number
-                                : null,
-                            yieldVolume:
-                              typeof payload.extracted.yield_volume ===
-                                "string"
-                                ? payload.extracted.yield_volume
-                                : null,
-                            preparationText:
-                              typeof payload.extracted.preparation_steps ===
-                              "string"
-                                ? payload.extracted.preparation_steps
-                                : null,
-                            imageUrl:
-                              typeof payload.extracted.image_url === "string"
-                                ? payload.extracted.image_url
-                                : null,
-                            isBio: payload.extracted.is_bio ?? false,
-                            isDeklarationsfrei:
-                              payload.extracted.is_deklarationsfrei ?? false,
-                            isAllergenfrei:
-                              payload.extracted.is_allergenfrei ?? false,
-                            isCookChill:
-                              payload.extracted.is_cook_chill ?? false,
-                            isFreezeThawStable:
-                              payload.extracted.is_freeze_thaw_stable ?? false,
-                            isPalmOilFree:
-                              payload.extracted.is_palm_oil_free ?? false,
-                            isYeastFree:
-                              payload.extracted.is_yeast_free ?? false,
-                            isLactoseFree:
-                              payload.extracted.is_lactose_free ?? false,
-                            isGlutenFree:
-                              payload.extracted.is_gluten_free ?? false,
-                          });
-                        }
-                        setDocFile(null);
-                      } catch (uploadError) {
-                        const message =
-                          uploadError instanceof Error
-                            ? uploadError.message
-                            : "Fehler beim Dokumenten-Upload.";
-                        setDocError(message);
-                      } finally {
-                        setDocIsUploading(false);
-                      }
+                      if (!docFile) return;
+                      await handleDocumentUpload(docFile);
                     }}
                   >
                     <input
@@ -3836,7 +3896,6 @@ export function InventoryManager() {
                 </div>
               </CardContent>
             </Card>
-          )}
 
           <Card className="flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between gap-2">
@@ -4230,6 +4289,7 @@ export function InventoryManager() {
                           </div>
                         ) : null}
                       </div>
+
                       <input
                         id="recipe-image-file-input"
                         type="file"
@@ -4253,23 +4313,6 @@ export function InventoryManager() {
                         }}
                       />
                       <div className="mt-2 flex items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground">
-                          Packshot-Fokus:
-                        </span>
-                        <input
-                          type="range"
-                          min="-0.2"
-                          max="0.4"
-                          step="0.01"
-                          value={docPackshotBias}
-                          onChange={(e) =>
-                            setDocPackshotBias(parseFloat(e.target.value))
-                          }
-                          className="h-1 flex-1 cursor-pointer appearance-none rounded-lg bg-gray-200 accent-primary"
-                        />
-                        <span className="w-8 text-right text-[11px] text-muted-foreground">
-                          {(docPackshotBias * 100).toFixed(0)}%
-                        </span>
                       </div>
                     </div>
                     {selectedItem.type === "eigenproduktion" &&
@@ -4607,12 +4650,24 @@ export function InventoryManager() {
                             Zeile hinzufügen
                           </Button>
                         </div>
-                        {standardPreparationComponents.length === 0 && (
-                          <div className="rounded-md border border-dashed bg-card px-2 py-2 text-[11px] text-muted-foreground">
-                            Noch keine strukturierte Standard-Zubereitung
-                            hinterlegt.
+                        {standardPreparationComponents.length === 0 && !standardPreparationText && (
+                            <div className="rounded-md border border-dashed bg-card px-2 py-2 text-[11px] text-muted-foreground">
+                              Noch keine strukturierte Standard-Zubereitung
+                              hinterlegt.
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                             <div className="text-[11px] font-medium text-muted-foreground">
+                               Zubereitungsanweisung
+                             </div>
+                             <textarea
+                               rows={4}
+                               value={standardPreparationText}
+                               onChange={(event) => setStandardPreparationText(event.target.value)}
+                               className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                               placeholder="Zubereitungsschritte beschreiben..."
+                             />
                           </div>
-                        )}
                         {standardPreparationComponents.map(
                           (component, index) => (
                             <div
@@ -4977,7 +5032,7 @@ export function InventoryManager() {
                                               setItems(
                                                 inventoryPayload.length > 0
                                                   ? inventoryPayload
-                                                  : initialItems
+                                                  : []
                                               );
                                             }
                                           } catch (swapError) {
@@ -5891,14 +5946,11 @@ export function InventoryManager() {
                     <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-xs">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="text-xs font-semibold">
-                          Profi-Daten
+                          Produktspezifikationen
                         </h3>
                       </div>
                       {selectedItem.fileUrl && (
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="text-[11px] text-muted-foreground">
-                            Original-Datenblatt
-                          </div>
+                        <div className="flex items-center gap-2">
                           <Button
                             type="button"
                             size="sm"
@@ -5913,6 +5965,9 @@ export function InventoryManager() {
                           >
                             Öffnen
                           </Button>
+                          <div className="text-[11px] text-muted-foreground ml-1">
+                            Original-Datenblatt
+                          </div>
                         </div>
                       )}
                       <div className="grid gap-2 md:grid-cols-2">
