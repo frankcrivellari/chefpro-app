@@ -3296,6 +3296,7 @@ export function InventoryManager() {
                         );
                       })()}
                     </div>
+                  )}
                 </div>
                 <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
                   <div className="flex items-center justify-between gap-2">
@@ -6633,7 +6634,4 @@ function ComponentTree({ rootItem, itemsById, onSelectItem }: ComponentTreeProps
       })}
     </div>
   );
-}
-  );
-}
 }
