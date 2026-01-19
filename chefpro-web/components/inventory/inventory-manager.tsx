@@ -398,8 +398,14 @@ export function InventoryManager() {
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   const [activeSection, setActiveSection] = useState<
-    "dashboard" | "zutaten" | "rezepte"
-  >(pathname && pathname.startsWith("/rezepte") ? "rezepte" : "zutaten");
+    "dashboard" | "zutaten" | "rezepte" | "lager"
+  >(
+    pathname && pathname.startsWith("/lager")
+      ? "lager"
+      : pathname && pathname.startsWith("/rezepte")
+      ? "rezepte"
+      : "zutaten"
+  );
   const effectiveFilterType: FilterType = useMemo(() => {
     if (activeSection === "zutaten") {
       return "zukauf";
@@ -520,12 +526,23 @@ export function InventoryManager() {
     if (!pathname) {
       return;
     }
-    const next =
-      pathname.startsWith("/rezepte") ? "rezepte" : "zutaten";
+    const next = pathname.startsWith("/lager")
+      ? "lager"
+      : pathname.startsWith("/rezepte")
+      ? "rezepte"
+      : "zutaten";
     if (next !== activeSection) {
       setActiveSection(next);
     }
   }, [pathname, activeSection]);
+
+  useEffect(() => {
+    setSelectedItemId(null);
+    setIsDetailView(false);
+    setSearch("");
+    setRecipeCategoryFilter(null);
+    setRecipeProFilter(null);
+  }, [activeSection]);
 
   useEffect(() => {
     async function generateAndUploadPdfPreview(fileUrl: string, itemId: string) {
@@ -752,8 +769,20 @@ export function InventoryManager() {
             ? computeEdgeCentroid(cropCtx, finalRegion.x, finalRegion.y, finalRegion.w, finalRegion.h)
             : { cx: Math.floor(finalRegion.w / 2), cy: Math.floor(finalRegion.h / 2) };
           const side = Math.floor(Math.min(finalRegion.w, finalRegion.h) * 0.95);
-          const localX = Math.max(0, Math.min(finalRegion.w - side, Math.floor(centroid.cx - side / 2)));
-          const localY = Math.max(0, Math.min(finalRegion.h - side, Math.floor(centroid.cy - side / 2)));
+          const localX = Math.max(
+            0,
+            Math.min(
+              finalRegion.w - side,
+              Math.floor(centroid.cx - side / 2)
+            )
+          );
+          const localY = Math.max(
+            0,
+            Math.min(
+              finalRegion.h - side,
+              Math.floor(centroid.cy - side / 2 - side * 0.08)
+            )
+          );
           const finalCanvas = document.createElement("canvas");
           finalCanvas.width = side;
           finalCanvas.height = side;
@@ -2740,7 +2769,11 @@ export function InventoryManager() {
         <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-              Inventory Manager
+              {activeSection === "zutaten"
+                ? "Zutaten Manager"
+                : activeSection === "rezepte"
+                ? "Rezept Manager"
+                : "Lager Manager"}
             </h1>
             <p className="text-sm text-muted-foreground md:text-base">
               Verwalte Zukaufartikel und Eigenproduktionen mit verschachtelten
@@ -2836,8 +2869,21 @@ export function InventoryManager() {
               </CardContent>
             </Card>
           )}
-          {activeSection !== "dashboard" && !isDetailView && (
-            <Card className="flex flex-col">
+          {activeSection === "lager" && (
+            <Card className="flex flex-col" key="lager-placeholder">
+              <CardHeader>
+                <CardTitle>Platzhalter</CardTitle>
+                <CardDescription>Mehr Funktionen folgen.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
+                  Lagerverwaltung wird hier bereitgestellt.
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {activeSection !== "dashboard" && activeSection !== "lager" && !isDetailView && (
+            <Card className="flex flex-col" key={activeSection}>
               <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <div>
                   <CardTitle>Artikelübersicht</CardTitle>
@@ -3187,6 +3233,73 @@ export function InventoryManager() {
                       </Button>
                     </div>
                   </form>
+                  {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-medium">
+                        Dokumentenvorschau
+                      </div>
+                      {docPreviewError && (
+                        <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
+                          {docPreviewError}
+                        </div>
+                      )}
+                      {docPreviewIsGenerating && (
+                        <div className="rounded-md border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+                          Packshot wird erzeugt...
+                        </div>
+                      )}
+                      {(() => {
+                        const url =
+                          (docParsed && docParsed.fileUrl) ||
+                          (selectedItem && selectedItem.fileUrl) ||
+                          "";
+                        const isPdf = url.toLowerCase().endsWith(".pdf");
+                        const imgUrl =
+                          (docParsed && docParsed.imageUrl) ||
+                          (selectedItem && selectedItem.imageUrl) ||
+                          null;
+                        return (
+                          <div className="grid gap-2 md:grid-cols-2">
+                            <div className="rounded-md border bg-background">
+                              {isPdf ? (
+                                <object
+                                  data={url}
+                                  type="application/pdf"
+                                  className="h-[360px] w-full"
+                                >
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="block p-2 text-[11px]"
+                                  >
+                                    PDF öffnen
+                                  </a>
+                                </object>
+                              ) : (
+                                <div className="p-2 text-[11px] text-muted-foreground">
+                                  Keine PDF-Datei verfügbar.
+                                </div>
+                              )}
+                            </div>
+                            <div className="rounded-md border bg-background">
+                              {imgUrl ? (
+                                <img
+                                  src={imgUrl}
+                                  alt="Packshot"
+                                  className="h-[360px] w-full object-cover"
+                                />
+                              ) : (
+                                <div className="p-2 text-[11px] text-muted-foreground">
+                                  Kein Packshot vorhanden.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   {docParsed && (
                     <div className="flex justify-end">
                       <Button
