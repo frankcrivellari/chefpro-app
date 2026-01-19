@@ -399,7 +399,16 @@ export function InventoryManager() {
   const [search, setSearch] = useState("");
   const [activeSection, setActiveSection] = useState<
     "dashboard" | "zutaten" | "rezepte"
-  >("zutaten");
+  >(pathname && pathname.startsWith("/rezepte") ? "rezepte" : "zutaten");
+  const effectiveFilterType: FilterType = useMemo(() => {
+    if (activeSection === "zutaten") {
+      return "zukauf";
+    }
+    if (activeSection === "rezepte") {
+      return "eigenproduktion";
+    }
+    return filterType;
+  }, [activeSection, filterType]);
   const [isDetailView, setIsDetailView] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -511,12 +520,12 @@ export function InventoryManager() {
     if (!pathname) {
       return;
     }
-    if (pathname.startsWith("/rezepte")) {
-      setActiveSection("rezepte");
-    } else {
-      setActiveSection("zutaten");
+    const next =
+      pathname.startsWith("/rezepte") ? "rezepte" : "zutaten";
+    if (next !== activeSection) {
+      setActiveSection(next);
     }
-  }, [pathname]);
+  }, [pathname, activeSection]);
 
   useEffect(() => {
     async function generateAndUploadPdfPreview(fileUrl: string, itemId: string) {
@@ -886,7 +895,7 @@ export function InventoryManager() {
 
   const filteredItems = useMemo(() => {
     return effectiveItems.filter((item) => {
-      if (filterType !== "all" && item.type !== filterType) {
+      if (effectiveFilterType !== "all" && item.type !== effectiveFilterType) {
         return false;
       }
       const query = search.trim().toLowerCase();
@@ -952,7 +961,7 @@ export function InventoryManager() {
   }, [
     activeSection,
     effectiveItems,
-    filterType,
+    effectiveFilterType,
     recipeCategoryFilter,
     recipeProFilter,
     search,
@@ -1050,13 +1059,6 @@ export function InventoryManager() {
   }, [filteredItems, selectedItemId]);
 
   useEffect(() => {
-    if (activeSection === "zutaten") {
-      setFilterType("zukauf");
-    } else if (activeSection === "rezepte") {
-      setFilterType("eigenproduktion");
-    } else {
-      setFilterType("all");
-    }
     setIsDetailView(false);
   }, [activeSection]);
 
