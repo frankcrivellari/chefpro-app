@@ -501,6 +501,11 @@ export function InventoryManager() {
   const [imageIsUploading, setImageIsUploading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [isImageDropActive, setIsImageDropActive] = useState(false);
+  
+  // Packshot Drag State
+  const [isPackshotDragging, setIsPackshotDragging] = useState(false);
+  const [packshotDragStart, setPackshotDragStart] = useState({ x: 0, y: 0 });
+  const [packshotType, setPackshotType] = useState<"auto" | "packshot">("auto");
 
   useEffect(() => {
     if (!pathname) {
@@ -3074,6 +3079,45 @@ export function InventoryManager() {
     return `INT-${value}`;
   }
 
+  const handlePackshotMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsPackshotDragging(true);
+    setPackshotDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handlePackshotMouseMove = (e: React.MouseEvent) => {
+    if (!isPackshotDragging) return;
+    
+    const deltaX = e.clientX - packshotDragStart.x;
+    const deltaY = e.clientY - packshotDragStart.y;
+    
+    // Sensitivity: how much % per pixel?
+    // Let's try 0.002 (0.2%) per pixel.
+    const sensitivity = 0.002;
+
+    // Drag right (positive deltaX) -> Move image right -> Decrease percentage -> Decrease packshotFocusX
+    setPackshotFocusX(prev => Math.max(-0.5, Math.min(0.5, prev - deltaX * sensitivity)));
+    setDocPackshotBias(prev => Math.max(-0.5, Math.min(0.5, prev - deltaY * sensitivity)));
+    
+    setPackshotDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handlePackshotMouseUp = () => {
+    setIsPackshotDragging(false);
+    if (packshotType !== "packshot") {
+        setPackshotType("packshot");
+    }
+  };
+
+  const handlePackshotMouseLeave = () => {
+     if (isPackshotDragging) {
+        setIsPackshotDragging(false);
+        if (packshotType !== "packshot") {
+            setPackshotType("packshot");
+        }
+     }
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
       {activeSection === "zutaten" && (
@@ -3347,16 +3391,22 @@ export function InventoryManager() {
                     {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
                       <div className="space-y-2">
                          <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-medium text-[#1F2326]">Packshot Fokus</label>
+                            <label className="text-[11px] font-medium text-[#1F2326]">Packshot Fokus (Drag to Pan)</label>
                             <span className="text-[10px] text-[#6B7176]">
-                              X: {packshotFocusX.toFixed(2)} | Y: {docPackshotBias.toFixed(2)}
+                              {packshotType === "packshot" ? "Manuell gesetzt" : "Automatisch"}
                             </span>
                          </div>
                          <div className="grid grid-cols-[auto_1fr] gap-2">
-                            {/* Removed external Y slider to keep only overlay sliders as requested */}
                             <div className="space-y-2 col-span-2 w-full max-w-full overflow-x-hidden">
                                <div 
-                                 className="group relative h-64 w-full max-w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm"
+                                 className={cn(
+                                   "group relative h-64 w-full max-w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm select-none",
+                                   isPackshotDragging ? "cursor-grabbing" : "cursor-grab"
+                                 )}
+                                 onMouseDown={handlePackshotMouseDown}
+                                 onMouseMove={handlePackshotMouseMove}
+                                 onMouseUp={handlePackshotMouseUp}
+                                 onMouseLeave={handlePackshotMouseLeave}
                                  style={{
                                    ['--x' as string]: `${50 + packshotFocusX * 100}%`,
                                    ['--y' as string]: `${50 + docPackshotBias * 100}%`
@@ -3387,40 +3437,19 @@ export function InventoryManager() {
                                             className="h-full w-full transition-all duration-200"
                                             style={{
                                               objectFit: 'cover',
-                                              objectPosition: 'var(--x, 50%) var(--y, 50%)'
+                                              objectPosition: 'var(--x, 50%) var(--y, 50%)',
+                                              transform: 'scale(1.5)',
+                                              pointerEvents: 'none'
                                             }}
                                           />
-                                          {/* Overlay Sliders */}
-                                          <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="absolute inset-y-2 left-2 flex flex-col justify-center">
-                                               <input
-                                                  type="range"
-                                                  min="-0.5"
-                                                  max="0.5"
-                                                  step="0.05"
-                                                  value={docPackshotBias}
-                                                  onChange={(e) => setDocPackshotBias(parseFloat(e.target.value))}
-                                                  className="h-full w-1 appearance-none rounded-full bg-white/50 accent-[#6B7176] shadow-sm backdrop-blur-sm"
-                                                  style={{ writingMode: "vertical-lr", direction: "rtl" }} 
-                                                />
-                                            </div>
-                                            <div className="absolute inset-x-2 bottom-2 flex items-center justify-center">
-                                                <input
-                                                  type="range"
-                                                  min="-0.5"
-                                                  max="0.5"
-                                                  step="0.05"
-                                                  value={packshotFocusX}
-                                                  onChange={(e) => setPackshotFocusX(parseFloat(e.target.value))}
-                                                  className="h-1 w-full appearance-none rounded-full bg-white/50 accent-[#6B7176] shadow-sm backdrop-blur-sm"
-                                                />
-                                            </div>
+                                          {/* Status Badge */}
+                                          <div className="absolute top-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-[#1F2326] backdrop-blur-sm shadow-sm border border-[#E5E7EB]">
+                                             {packshotType === "packshot" ? "Packshot" : "Auto"}
                                           </div>
                                         </>
                                       );
                                   })()}
                                </div>
-                               {/* No external sliders */}
                             </div>
                          </div>
                       </div>
