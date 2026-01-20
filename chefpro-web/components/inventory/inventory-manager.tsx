@@ -404,7 +404,6 @@ export function InventoryManager() {
   >([]);
   const [docPreviewIsGenerating, setDocPreviewIsGenerating] = useState(false);
   const [docPreviewError, setDocPreviewError] = useState<string | null>(null);
-  const [docPackshotBias, setDocPackshotBias] = useState(0.08);
   const [proAllergensInput, setProAllergensInput] = useState("");
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
@@ -2994,82 +2993,141 @@ export function InventoryManager() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col px-4 py-6 text-foreground md:px-8 md:py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-        <header className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+      {activeSection === "zutaten" && (
+        <aside className="flex w-[280px] flex-col border-r bg-background">
+          <div className="flex flex-col gap-3 border-b p-4">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Suchen..."
+                className="h-9 pl-8 text-xs"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap gap-1">
+              <Badge
+                variant={filterType === "all" ? "default" : "outline"}
+                className="h-5 cursor-pointer px-2 text-[10px]"
+                onClick={() => setFilterType("all")}
+              >
+                Alle
+              </Badge>
+              <Badge
+                variant={filterType === "eigenproduktion" ? "default" : "outline"}
+                className="h-5 cursor-pointer px-2 text-[10px]"
+                onClick={() => setFilterType("eigenproduktion")}
+              >
+                Rezepte
+              </Badge>
+              <Badge
+                variant={filterType === "zukauf" ? "default" : "outline"}
+                className="h-5 cursor-pointer px-2 text-[10px]"
+                onClick={() => setFilterType("zukauf")}
+              >
+                Zutaten
+              </Badge>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <div className="flex flex-col">
+              {filteredItems.length === 0 && (
+                <div className="py-4 text-center text-xs text-muted-foreground">
+                  Keine Artikel gefunden.
+                </div>
+              )}
+              {filteredItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedItemId(item.id);
+                    setIsDetailView(true);
+                  }}
+                  className={cn(
+                    "flex w-full flex-col gap-1 border-b px-4 py-3 text-left text-xs transition-colors hover:bg-muted/50",
+                    selectedItem?.id === item.id && "bg-muted"
+                  )}
+                >
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <span className="truncate font-medium">{item.name}</span>
+                    <TypeBadge type={item.type} />
+                  </div>
+                  <div className="flex w-full justify-between text-[10px] text-muted-foreground">
+                    <span>{item.unit}</span>
+                    <span>{formatInternalId(item.internalId ?? null)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </aside>
+      )}
+
+      <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-muted/10">
+        <header className="flex items-center justify-between border-b bg-background px-6 py-3">
+          <div>
+            <h1 className="text-lg font-semibold">
               {activeSection === "zutaten"
                 ? "Zutaten Manager"
                 : activeSection === "rezepte"
                 ? "Rezept Manager"
                 : "Lager Manager"}
             </h1>
-            <p className="text-sm text-muted-foreground md:text-base">
-              Verwalte Deine Einkaufsartikel und Grundzutaten
-            </p>
           </div>
-          <div className="flex flex-col gap-2 md:w-[28rem]">
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                size="sm"
-                className="bg-primary text-primary-foreground"
-                disabled={isSaving}
-                onClick={async () => {
-                  try {
-                    setIsSaving(true);
-                    setError(null);
-                    const isRecipe = activeSection === "rezepte";
-                    const response = await fetch("/api/inventory", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        name: isRecipe ? "Neues Rezept" : "Neuer Artikel",
-                        type: (isRecipe ? "eigenproduktion" : "zukauf") as InventoryType,
-                        unit: isRecipe ? "Portion" : "Stück",
-                        purchasePrice: 0,
-                        components: [],
-                      }),
-                    });
-                    if (!response.ok) {
-                      let message = "Fehler beim Anlegen.";
-                      try {
-                        const payload = (await response.json()) as { error?: unknown };
-                        if (payload && typeof payload.error === "string") {
-                          message = payload.error;
-                        }
-                      } catch {}
-                      throw new Error(message);
-                    }
-                    const created = (await response.json()) as InventoryItem;
-                    setItems((previous) => [...previous, created]);
-                    setSelectedItemId(created.id);
-                    setIsDetailView(true);
-                  } catch (error) {
-                    const message =
-                      error instanceof Error ? error.message : "Fehler beim Anlegen.";
-                    setError(message);
-                  } finally {
-                    setIsSaving(false);
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className="bg-primary text-primary-foreground"
+              disabled={isSaving}
+              onClick={async () => {
+                try {
+                  setIsSaving(true);
+                  setError(null);
+                  const isRecipe = activeSection === "rezepte";
+                  const response = await fetch("/api/inventory", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      name: isRecipe ? "Neues Rezept" : "Neuer Artikel",
+                      type: (isRecipe ? "eigenproduktion" : "zukauf") as InventoryType,
+                      unit: isRecipe ? "Portion" : "Stück",
+                      purchasePrice: 0,
+                      components: [],
+                    }),
+                  });
+                  if (!response.ok) {
+                    let message = "Fehler beim Anlegen.";
+                    try {
+                      const payload = (await response.json()) as { error?: unknown };
+                      if (payload && typeof payload.error === "string") {
+                        message = payload.error;
+                      }
+                    } catch {}
+                    throw new Error(message);
                   }
-                }}
-              >
-                {isSaving ? "Erstelle..." : "Neuen Artikel anlegen"}
-              </Button>
-            </div>
+                  const created = (await response.json()) as InventoryItem;
+                  setItems((previous) => [...previous, created]);
+                  setSelectedItemId(created.id);
+                  setIsDetailView(true);
+                } catch (error) {
+                  const message =
+                    error instanceof Error ? error.message : "Fehler beim Anlegen.";
+                  setError(message);
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
+            >
+              {isSaving ? "Erstelle..." : "Neuen Artikel anlegen"}
+            </Button>
           </div>
         </header>
-
-        <main
-          className={cn(
-            "grid gap-4 items-start",
-            (activeSection === "zutaten" || activeSection === "rezepte") &&
-              "md:grid-cols-[220px_1fr]"
-          )}
-        >
+        <div className="flex-1 overflow-y-auto p-6">
           {activeSection === "dashboard" && !isDetailView && (
             <Card className="flex flex-col">
               <CardHeader>
@@ -3145,80 +3203,7 @@ export function InventoryManager() {
             </Card>
           )}
 
-          {(activeSection === "zutaten" || activeSection === "rezepte") && (
-            <div className="flex flex-col gap-4 sticky top-20 max-h-[calc(100vh-8rem)]">
-              <Card className="flex flex-col h-full overflow-hidden">
-                <CardHeader className="pb-3 px-3 pt-3 space-y-2">
-                   <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Suchen..."
-                        className="pl-8 h-9 text-xs"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                      />
-                   </div>
-                   <div className="flex flex-wrap gap-1">
-                      <Badge 
-                        variant={filterType === "all" ? "default" : "outline"} 
-                        className="cursor-pointer text-[10px] px-2 h-5"
-                        onClick={() => setFilterType("all")}
-                      >
-                        Alle
-                      </Badge>
-                      <Badge 
-                        variant={filterType === "eigenproduktion" ? "default" : "outline"} 
-                        className="cursor-pointer text-[10px] px-2 h-5"
-                        onClick={() => setFilterType("eigenproduktion")}
-                      >
-                        Rezepte
-                      </Badge>
-                      <Badge 
-                        variant={filterType === "zukauf" ? "default" : "outline"} 
-                        className="cursor-pointer text-[10px] px-2 h-5"
-                        onClick={() => setFilterType("zukauf")}
-                      >
-                        Zutaten
-                      </Badge>
-                   </div>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-y-auto p-0">
-                  <div className="flex flex-col">
-                  {filteredItems.length === 0 && (
-                    <div className="text-center text-xs text-muted-foreground py-4">
-                      Keine Artikel gefunden.
-                    </div>
-                  )}
-                  {filteredItems.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedItemId(item.id);
-                        setIsDetailView(true);
-                      }}
-                      className={cn(
-                        "flex w-full flex-col gap-1 border-b px-3 py-2 text-left text-xs transition-colors hover:bg-muted/50",
-                        selectedItem?.id === item.id && "bg-muted"
-                      )}
-                    >
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <span className="font-medium truncate">{item.name}</span>
-                        <TypeBadge type={item.type} />
-                      </div>
-                      <div className="flex justify-between text-[10px] text-muted-foreground w-full">
-                         <span>{item.unit}</span>
-                         <span>{formatInternalId(item.internalId ?? null)}</span>
-                      </div>
-                    </button>
-                  ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-              <Card className={cn("flex flex-col", (activeSection === "zutaten" || activeSection === "rezepte") && "md:col-start-2")} key={activeSection}>
+              <Card className="flex flex-col" key={activeSection}>
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
                     <CardTitle>Artikel-Import</CardTitle>
@@ -3480,6 +3465,7 @@ export function InventoryManager() {
                     </Button>
                   </div>
                 </form>
+                {activeSection !== "zutaten" && (
                 <div className="flex gap-3">
                   {activeSection === "rezepte" && (
                     <div
@@ -3894,6 +3880,7 @@ export function InventoryManager() {
                       })}
                   </div>
                 </div>
+                )}
               </CardContent>
             </Card>
 
@@ -6473,8 +6460,8 @@ export function InventoryManager() {
               </div>
             )}
           </Card>
-        </main>
-      </div>
+        </div>
+      </main>
       {imageViewer ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
           <button
@@ -6492,7 +6479,7 @@ export function InventoryManager() {
             </button>
             <Image
               unoptimized
-              src={imageViewer.imageUrl}
+              src={imageViewer?.imageUrl}
               alt="Zubereitungsschritt"
               width={1600}
               height={1200}
