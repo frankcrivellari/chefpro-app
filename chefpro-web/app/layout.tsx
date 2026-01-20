@@ -38,7 +38,7 @@ export default function RootLayout({
           <main className="flex min-h-screen flex-1 flex-col">
             <header className="flex h-32 items-center justify-between border-b bg-[#F28C28] px-6">
               <div className="flex items-center gap-4">
-                <img src="/recetui-header-frei.png" alt="Recetui" className="w-[400px] h-auto object-contain" />
+                <img src="/recetui-header-frei.png" alt="Recetui" className="w-[400px] h-auto object-contain mix-blend-normal opacity-100" style={{ mixBlendMode: 'normal', filter: 'none' }} />
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-card-foreground shadow-sm">

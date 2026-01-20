@@ -3354,8 +3354,8 @@ export function InventoryManager() {
                          </div>
                          <div className="grid grid-cols-[auto_1fr] gap-2">
                             {/* Removed external Y slider to keep only overlay sliders as requested */}
-                            <div className="space-y-2 col-span-2">
-                               <div className="group relative aspect-square w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm">
+                            <div className="space-y-2 col-span-2 w-full max-w-full overflow-x-hidden">
+                               <div className="group relative aspect-square w-full max-w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm">
                                   {(() => {
                                       // Prioritize explicit packshot/image URLs over generic file URLs (which might be PDF)
                                       const url = packshotUrl || 
@@ -3368,7 +3368,7 @@ export function InventoryManager() {
                                       const isPdf = url.toLowerCase().endsWith(".pdf");
                                       if (isPdf) {
                                          return (
-                                            <div className="flex h-full items-center justify-center text-xs text-[#6B7176]">
+                                            <div className="flex h-full w-full items-center justify-center text-xs text-[#6B7176]">
                                                PDF-Vorschau unten
                                             </div>
                                          );
@@ -3380,6 +3380,7 @@ export function InventoryManager() {
                                             alt="Preview" 
                                             className="h-full w-full object-cover transition-all duration-200"
                                             style={{
+                                              objectFit: 'cover',
                                               objectPosition: `${50 + packshotFocusX * 100}% ${50 + docPackshotBias * 100}%`
                                             }}
                                           />
