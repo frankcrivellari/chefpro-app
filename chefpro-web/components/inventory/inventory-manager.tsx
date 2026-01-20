@@ -425,6 +425,7 @@ export function InventoryManager() {
   >([]);
   const [docPreviewIsGenerating, setDocPreviewIsGenerating] = useState(false);
   const [docPreviewError, setDocPreviewError] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [proAllergensInput, setProAllergensInput] = useState("");
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
@@ -580,6 +581,7 @@ export function InventoryManager() {
         canvas.height = viewport.height;
         await page.render({ canvasContext: context, viewport }).promise;
         const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+        setPreviewImage(dataUrl);
         let crop = { x: 0, y: 0, w: canvas.width, h: canvas.height };
         let confidence = 0;
         let hadDetection = false;
@@ -843,33 +845,31 @@ export function InventoryManager() {
     }
   }, [packshotTranslate]);
 
-  // Removed automatic re-generation on slider change
+  // Automatic PDF preview generation and Image preview setting
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (
-        docParsed &&
-        docParsed.fileUrl &&
-        docParsed.fileUrl.toLowerCase().endsWith(".pdf") &&
-        selectedItemId
-      ) {
-        // Only generate once per file URL, ignoring bias
-        const key = `${selectedItemId}-${docParsed.fileUrl}`;
-        if (lastGenRef.current !== key) {
-          lastGenRef.current = key;
-          void generateAndUploadPdfPreview(docParsed.fileUrl, selectedItemId);
-        }
-      } else if (
-        selectedItemId &&
-        effectiveItems.find((i) => i.id === selectedItemId)?.fileUrl?.toLowerCase().endsWith(".pdf")
-      ) {
-        const item = effectiveItems.find((i) => i.id === selectedItemId);
-        if (item && item.fileUrl) {
-          const key = `${selectedItemId}-${item.fileUrl}`;
-          if (lastGenRef.current !== key) {
-            lastGenRef.current = key;
-            void generateAndUploadPdfPreview(item.fileUrl, selectedItemId);
-          }
-        }
+      // Determine the active file URL
+      const url = (docParsed && docParsed.fileUrl) || 
+                  (selectedItemId && effectiveItems.find((i) => i.id === selectedItemId)?.fileUrl);
+      
+      if (!url) {
+          setPreviewImage(null);
+          return;
+      }
+
+      const isPdf = url.toLowerCase().endsWith(".pdf");
+
+      if (isPdf) {
+         if (selectedItemId) {
+            const key = `${selectedItemId}-${url}`;
+            if (lastGenRef.current !== key) {
+               lastGenRef.current = key;
+               void generateAndUploadPdfPreview(url, selectedItemId);
+            }
+         }
+      } else {
+         // It's an image, set it as preview directly
+         setPreviewImage(url);
       }
     }, 500);
 
@@ -3421,57 +3421,7 @@ export function InventoryManager() {
                       </form>
                     </div>
 
-                    {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
-                      <div className="space-y-2">
-                         <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-medium text-[#1F2326]">Packshot Fokus (Zuschneiden)</label>
-                         </div>
-                         <div className="flex flex-col gap-2">
-                            <div className="group relative w-full max-w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm select-none flex items-center justify-center bg-gray-50 min-h-[200px]">
-                               {(() => {
-                                   const url = packshotUrl || 
-                                               (selectedItem && selectedItem.imageUrl) || 
-                                               (docParsed && docParsed.imageUrl) || 
-                                               (docParsed && docParsed.fileUrl) || 
-                                               (selectedItem && selectedItem.fileUrl) || 
-                                               "";
-                                   
-                                   const isPdf = url.toLowerCase().endsWith(".pdf");
-                                   if (isPdf) {
-                                      return (
-                                         <div className="flex h-64 w-full items-center justify-center text-xs text-[#6B7176]">
-                                            PDF-Vorschau unten
-                                         </div>
-                                      );
-                                   }
-                                   return (
-                                     <ReactCrop crop={crop} onChange={(c) => setCrop(c)} aspect={1}>
-                                       <img 
-                                         ref={packshotImgRef}
-                                         src={url} 
-                                         alt="Preview" 
-                                         className="max-h-[400px] w-auto object-contain"
-                                         onLoad={() => {
-                                            // Reset crop on new image load if needed
-                                         }}
-                                       />
-                                     </ReactCrop>
-                                   );
-                               })()}
-                            </div>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="w-full text-xs" 
-                              onClick={handleSaveCrop}
-                              disabled={!crop || imageIsUploading}
-                            >
-                              {imageIsUploading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <ImageIcon className="mr-2 h-3 w-3" />}
-                              Ausschnitt festlegen
-                            </Button>
-                         </div>
-                      </div>
-                    )}
+
                   </CardContent>
                 </Card>
 
@@ -3514,6 +3464,17 @@ export function InventoryManager() {
                    <CardContent className="flex-1 overflow-y-auto p-4">
                       {selectedItem ? (
                          <div className="space-y-4">
+                            {(packshotUrl || selectedItem.imageUrl || (docParsed && docParsed.imageUrl)) && (
+                                <div className="flex justify-center mb-4">
+                                    <div className="relative h-40 w-40 overflow-hidden rounded-md border border-gray-200 bg-white">
+                                        <img 
+                                            src={packshotUrl || selectedItem.imageUrl || (docParsed && docParsed.imageUrl) || ""} 
+                                            alt="Packshot" 
+                                            className="h-full w-full object-contain"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                             <div className="grid gap-4">
                                <div className="grid gap-2">
                                   <label className="text-xs font-medium text-[#1F2326]">Artikelname</label>
@@ -3700,37 +3661,53 @@ export function InventoryManager() {
                           Packshot wird erzeugt...
                         </div>
                       )}
-                      {(() => {
-                        const url =
-                          (docParsed && docParsed.fileUrl) ||
-                          (selectedItem && selectedItem.fileUrl) ||
-                          "";
-                        const isPdf = url.toLowerCase().endsWith(".pdf");
-                        return (
-                          <div className="rounded-md border bg-background w-full max-w-full overflow-hidden">
-                            {isPdf ? (
-                              <object
-                                data={url}
-                                type="application/pdf"
-                                className="h-[360px] !w-full"
-                              >
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="block p-2 text-[11px]"
-                                >
-                                  PDF öffnen
-                                </a>
-                              </object>
-                            ) : (
-                              <div className="p-2 text-[11px] text-muted-foreground">
-                                Keine PDF-Datei verfügbar.
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
+                      
+                      <div className="rounded-md border bg-background w-full max-w-full overflow-hidden flex flex-col items-center min-h-[400px]">
+                        {previewImage ? (
+                            <ReactCrop crop={crop} onChange={(c) => setCrop(c)} aspect={1} className="max-w-full">
+                                <img
+                                    ref={packshotImgRef}
+                                    src={previewImage}
+                                    alt="Preview"
+                                    className="max-h-[600px] w-auto object-contain"
+                                    style={{ maxWidth: '100%' }}
+                                />
+                            </ReactCrop>
+                        ) : (
+                           (() => {
+                                const url = (docParsed && docParsed.fileUrl) || (selectedItem && selectedItem.fileUrl) || "";
+                                const isPdf = url.toLowerCase().endsWith(".pdf");
+                                return isPdf ? (
+                                    <object
+                                        data={url}
+                                        type="application/pdf"
+                                        className="h-[600px] !w-full"
+                                    >
+                                        <a href={url} target="_blank" rel="noreferrer" className="block p-2 text-[11px]">
+                                            PDF öffnen
+                                        </a>
+                                    </object>
+                                ) : (
+                                    <div className="p-4 text-xs text-muted-foreground">
+                                        Keine Vorschau verfügbar.
+                                    </div>
+                                );
+                           })()
+                        )}
+                      </div>
+
+                      <div className="flex justify-end">
+                          <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="text-xs" 
+                              onClick={handleSaveCrop}
+                              disabled={!crop || imageIsUploading || !previewImage}
+                            >
+                              {imageIsUploading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <ImageIcon className="mr-2 h-3 w-3" />}
+                              Ausschnitt festlegen
+                          </Button>
+                      </div>
                     </div>
                   )}
                 </div>
