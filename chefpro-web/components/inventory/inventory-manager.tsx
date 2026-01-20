@@ -2767,6 +2767,40 @@ export function InventoryManager() {
     }
   }
 
+  async function handleDelete() {
+    if (!selectedItem) return;
+
+    if (
+      !window.confirm(
+        `Möchten Sie den Artikel "${selectedItem.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const response = await fetch("/api/inventory", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedItem.id }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Fehler beim Löschen");
+      }
+
+      setItems((prev) => prev.filter((i) => i.id !== selectedItem.id));
+      setSelectedItemId(null);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Fehler beim Löschen");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleRecipeImageUpload(file: File) {
     if (!selectedItem) {
       return;
@@ -3248,50 +3282,7 @@ export function InventoryManager() {
                 <Card className="flex flex-col overflow-hidden border-none bg-white shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
                     <CardTitle className="text-base text-[#1F2326]">Import &amp; Vorschau</CardTitle>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 border-[#E5E7EB] text-xs text-[#1F2326] hover:bg-[#F6F7F5]"
-                      onClick={async () => {
-                        try {
-                          setIsSaving(true);
-                          setError(null);
-                          for (const item of STAPLE_ITEMS) {
-                            await fetch("/api/inventory", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                name: item.name,
-                                type: item.item_type,
-                                unit: item.unit,
-                                purchasePrice: item.purchase_price,
-                                category: "Basic",
-                                portionUnit: "",
-                                nutritionTags: [],
-                                components: [],
-                                nutritionPerUnit: {
-                                  energyKcal: item.nutrition_per_unit.kcal,
-                                  fat: item.nutrition_per_unit.fat,
-                                  saturatedFat: 0,
-                                  carbs: item.nutrition_per_unit.carbs,
-                                  sugar: 0,
-                                  protein: item.nutrition_per_unit.protein,
-                                  salt: 0,
-                                }
-                              }),
-                            });
-                          }
-                          window.location.reload(); 
-                        } catch (err) {
-                          console.error(err);
-                          setError("Fehler beim Importieren der Basics");
-                        } finally {
-                          setIsSaving(false);
-                        }
-                      }}
-                    >
-                      Basics importieren
-                    </Button>
+
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
                     <div className="space-y-2 rounded-md border border-[#E5E7EB] bg-[#F6F7F5]/50 p-3 text-xs">
@@ -3490,7 +3481,15 @@ export function InventoryManager() {
                                      placeholder="Zubereitungsschritte..."
                                   />
                                </div>
-                               <div className="flex justify-end">
+                               <div className="flex justify-between items-center">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-[#6B7176] hover:text-destructive hover:bg-destructive/10"
+                                    onClick={handleDelete}
+                                  >
+                                    Artikel löschen
+                                  </Button>
                                   <Button 
                                     size="sm" 
                                     className="bg-[#4F8F4E] text-white hover:bg-[#3d7a3c]"
@@ -3542,50 +3541,7 @@ export function InventoryManager() {
                   <div>
                     <CardTitle>Artikel-Import</CardTitle>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    onClick={async () => {
-                      try {
-                        setIsSaving(true);
-                        setError(null);
-                        for (const item of STAPLE_ITEMS) {
-                          await fetch("/api/inventory", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              name: item.name,
-                              type: item.item_type,
-                              unit: item.unit,
-                              purchasePrice: item.purchase_price,
-                              category: "Basic",
-                              portionUnit: "",
-                              nutritionTags: [],
-                              components: [],
-                              nutritionPerUnit: {
-                                energyKcal: item.nutrition_per_unit.kcal,
-                                fat: item.nutrition_per_unit.fat,
-                                saturatedFat: 0,
-                                carbs: item.nutrition_per_unit.carbs,
-                                sugar: 0,
-                                protein: item.nutrition_per_unit.protein,
-                                salt: 0,
-                              }
-                            }),
-                          });
-                        }
-                        window.location.reload(); 
-                      } catch (err) {
-                        console.error(err);
-                        setError("Fehler beim Importieren der Basics");
-                      } finally {
-                        setIsSaving(false);
-                      }
-                    }}
-                  >
-                    Basics importieren
-                  </Button>
+
                 {activeSection === "rezepte" && (
                   <div className="inline-flex rounded-md border bg-muted/40 p-1 text-[11px]">
                     <Button
