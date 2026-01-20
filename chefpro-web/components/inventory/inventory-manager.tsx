@@ -840,8 +840,9 @@ export function InventoryManager() {
     } finally {
       setDocPreviewIsGenerating(false);
     }
-  }, [docPackshotBias]);
+  }, []); // removed docPackshotBias dependency
 
+  // Removed automatic re-generation on slider change
   useEffect(() => {
     const timer = setTimeout(() => {
       if (
@@ -850,7 +851,8 @@ export function InventoryManager() {
         docParsed.fileUrl.toLowerCase().endsWith(".pdf") &&
         selectedItemId
       ) {
-        const key = `${selectedItemId}-${docParsed.fileUrl}-${docPackshotBias}`;
+        // Only generate once per file URL, ignoring bias
+        const key = `${selectedItemId}-${docParsed.fileUrl}`;
         if (lastGenRef.current !== key) {
           lastGenRef.current = key;
           void generateAndUploadPdfPreview(docParsed.fileUrl, selectedItemId);
@@ -861,7 +863,7 @@ export function InventoryManager() {
       ) {
         const item = effectiveItems.find((i) => i.id === selectedItemId);
         if (item && item.fileUrl) {
-          const key = `${selectedItemId}-${item.fileUrl}-${docPackshotBias}`;
+          const key = `${selectedItemId}-${item.fileUrl}`;
           if (lastGenRef.current !== key) {
             lastGenRef.current = key;
             void generateAndUploadPdfPreview(item.fileUrl, selectedItemId);
@@ -871,7 +873,7 @@ export function InventoryManager() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [docParsed?.fileUrl, selectedItemId, docPackshotBias, effectiveItems, generateAndUploadPdfPreview]);
+  }, [docParsed?.fileUrl, selectedItemId, effectiveItems, generateAndUploadPdfPreview]);
 
   useEffect(() => {
     let cancelled = false;
@@ -3351,19 +3353,8 @@ export function InventoryManager() {
                             </span>
                          </div>
                          <div className="grid grid-cols-[auto_1fr] gap-2">
-                            <div className="flex h-[200px] flex-col justify-center">
-                              <input
-                                type="range"
-                                min="-0.5"
-                                max="0.5"
-                                step="0.05"
-                                value={docPackshotBias}
-                                onChange={(e) => setDocPackshotBias(parseFloat(e.target.value))}
-                                className="h-[180px] w-1 appearance-none rounded-full bg-[#6B7176]/20 accent-[#6B7176]"
-                                style={{ writingMode: "vertical-lr", direction: "rtl" }} 
-                              />
-                            </div>
-                            <div className="space-y-2">
+                            {/* Removed external Y slider to keep only overlay sliders as requested */}
+                            <div className="space-y-2 col-span-2">
                                <div className="group relative aspect-square w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm">
                                   {(() => {
                                       // Prioritize explicit packshot/image URLs over generic file URLs (which might be PDF)
@@ -3422,18 +3413,7 @@ export function InventoryManager() {
                                       );
                                   })()}
                                </div>
-                               {/* External X Slider (Physical) */}
-                               <div className="flex items-center justify-center">
-                                  <input
-                                    type="range"
-                                    min="-0.5"
-                                    max="0.5"
-                                    step="0.05"
-                                    value={packshotFocusX}
-                                    onChange={(e) => setPackshotFocusX(parseFloat(e.target.value))}
-                                    className="h-1 w-full appearance-none rounded-full bg-[#6B7176]/20 accent-[#6B7176]"
-                                  />
-                               </div>
+                               {/* No external sliders */}
                             </div>
                          </div>
                       </div>
