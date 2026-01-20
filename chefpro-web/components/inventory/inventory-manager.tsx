@@ -2833,6 +2833,7 @@ export function InventoryManager() {
       }
       if (payload.imageUrl) {
         setImageUrlInput(payload.imageUrl);
+        setPackshotUrl(payload.imageUrl);
         setItems((previous) =>
           previous.map((item) =>
             item.id === selectedItem.id
@@ -2917,12 +2918,14 @@ export function InventoryManager() {
       }
       if (payload.item) {
         const updated = payload.item;
+        if (updated.imageUrl) setPackshotUrl(updated.imageUrl);
         setItems((previous) =>
           previous.map((item) =>
             item.id === updated.id ? { ...item, ...updated } : item
           )
         );
       } else {
+        if (trimmed.length > 0) setPackshotUrl(trimmed);
         setItems((previous) =>
           previous.map((item) =>
             item.id === selectedItem.id
@@ -3363,7 +3366,14 @@ export function InventoryManager() {
                             <div className="space-y-2">
                                <div className="group relative aspect-square w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm">
                                   {(() => {
-                                      const url = (docParsed && docParsed.fileUrl) || (selectedItem && selectedItem.fileUrl) || packshotUrl || "";
+                                      // Prioritize explicit packshot/image URLs over generic file URLs (which might be PDF)
+                                      const url = packshotUrl || 
+                                                  (selectedItem && selectedItem.imageUrl) || 
+                                                  (docParsed && docParsed.imageUrl) || 
+                                                  (docParsed && docParsed.fileUrl) || 
+                                                  (selectedItem && selectedItem.fileUrl) || 
+                                                  "";
+                                      
                                       const isPdf = url.toLowerCase().endsWith(".pdf");
                                       if (isPdf) {
                                          return (
@@ -3412,7 +3422,18 @@ export function InventoryManager() {
                                       );
                                   })()}
                                </div>
-                               {/* Removed external X slider since it is now overlayed */}
+                               {/* External X Slider (Physical) */}
+                               <div className="flex items-center justify-center">
+                                  <input
+                                    type="range"
+                                    min="-0.5"
+                                    max="0.5"
+                                    step="0.05"
+                                    value={packshotFocusX}
+                                    onChange={(e) => setPackshotFocusX(parseFloat(e.target.value))}
+                                    className="h-1 w-full appearance-none rounded-full bg-[#6B7176]/20 accent-[#6B7176]"
+                                  />
+                               </div>
                             </div>
                          </div>
                       </div>
@@ -3427,8 +3448,7 @@ export function InventoryManager() {
                          {selectedItem && (
                             <Button
                               size="sm"
-                              variant="ghost"
-                              className="h-6 px-2 text-[#6B7176] hover:text-destructive hover:bg-destructive/10"
+                              className="h-6 border border-destructive/20 bg-destructive/5 px-2 text-destructive hover:bg-destructive/10"
                               onClick={handleDelete}
                             >
                               Artikel löschen
