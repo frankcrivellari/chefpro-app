@@ -10,6 +10,8 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
 import {
@@ -423,9 +425,6 @@ export function InventoryManager() {
   >([]);
   const [docPreviewIsGenerating, setDocPreviewIsGenerating] = useState(false);
   const [docPreviewError, setDocPreviewError] = useState<string | null>(null);
-  const [packshotTranslate, setPackshotTranslate] = useState({ x: 0, y: 0 });
-  const currentTranslateRef = useRef({ x: 0, y: 0 });
-  const packshotImgRef = useRef<HTMLImageElement>(null);
   const [proAllergensInput, setProAllergensInput] = useState("");
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
@@ -503,10 +502,10 @@ export function InventoryManager() {
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [isImageDropActive, setIsImageDropActive] = useState(false);
   
-  // Packshot Drag State
-  const [isPackshotDragging, setIsPackshotDragging] = useState(false);
-  const [packshotDragStart, setPackshotDragStart] = useState({ x: 0, y: 0 });
-  const [packshotType, setPackshotType] = useState<"auto" | "packshot">("auto");
+  // Crop State
+  const [crop, setCrop] = useState<Crop>();
+  const packshotImgRef = useRef<HTMLImageElement>(null);
+  const [packshotTranslate, setPackshotTranslate] = useState({ x: 0, y: 0 }); // Kept for build compatibility but unused in crop logic
 
   useEffect(() => {
     if (!pathname) {
@@ -601,11 +600,8 @@ export function InventoryManager() {
           };
           if (detectResponse.ok && detectPayload.bbox) {
             const { x, y, w, h } = detectPayload.bbox;
-            // Apply bias to Y position (vertical shift)
-            // docPackshotBias is -0.2 to +0.4 (relative to canvas height)
-            // Apply bias from drag-to-pan
-            const biasOffset = packshotTranslate.y;
-            const biasedY = y + biasOffset;
+            // No bias applied for automatic detection
+            const biasedY = y;
             
             const safe = {
               x: Math.max(0, Math.min(canvas.width - 1, Math.floor(x))),
@@ -655,10 +651,8 @@ export function InventoryManager() {
         }
         if (crop.w === canvas.width && crop.h === canvas.height) {
           const side = Math.floor(Math.min(canvas.width, canvas.height) * 0.6);
-          const cx = Math.floor((canvas.width - side) / 2 + packshotTranslate.x);
-          // Apply bias to fallback crop as well
-          const biasOffset = packshotTranslate.y;
-          const cy = Math.floor((canvas.height - side) / 2 + biasOffset);
+          const cx = Math.floor((canvas.width - side) / 2);
+          const cy = Math.floor((canvas.height - side) / 2);
           // Ensure crop stays within bounds
           const safeY = Math.max(0, Math.min(canvas.height - side, cy));
           crop = { x: cx, y: safeY, w: side, h: side };
@@ -3081,60 +3075,80 @@ export function InventoryManager() {
     return `INT-${value}`;
   }
 
-  const handlePackshotMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsPackshotDragging(true);
-    currentTranslateRef.current = packshotTranslate;
-    setPackshotDragStart({ x: e.clientX, y: e.clientY });
-  };
+  const handleSaveCrop = async () => {
+    if (!crop || !packshotImgRef.current || !selectedItem) return;
 
-  const handlePackshotMouseMove = (e: React.MouseEvent) => {
-    if (!isPackshotDragging) return;
+    const image = packshotImgRef.current;
+    const canvas = document.createElement("canvas");
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
     
-    const deltaX = e.clientX - packshotDragStart.x;
-    const deltaY = e.clientY - packshotDragStart.y;
-    
-    const newX = currentTranslateRef.current.x + deltaX;
-    const newY = currentTranslateRef.current.y + deltaY;
-    
-    if (packshotImgRef.current) {
-        packshotImgRef.current.style.transform = `scale(2.5) translate3d(${newX}px, ${newY}px, 0)`;
-    }
-  };
+    // Use the crop width/height for the canvas
+    const pixelCrop = {
+      x: crop.x * scaleX,
+      y: crop.y * scaleY,
+      width: crop.width * scaleX,
+      height: crop.height * scaleY,
+    };
 
-  const handlePackshotMouseUp = (e: React.MouseEvent) => {
-    if (!isPackshotDragging) return;
-    setIsPackshotDragging(false);
-    
-    const deltaX = e.clientX - packshotDragStart.x;
-    const deltaY = e.clientY - packshotDragStart.y;
-    
-    const finalX = currentTranslateRef.current.x + deltaX;
-    const finalY = currentTranslateRef.current.y + deltaY;
-    
-    setPackshotTranslate({ x: finalX, y: finalY });
-    
-    if (packshotType !== "packshot") {
-        setPackshotType("packshot");
-    }
-  };
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
+    const ctx = canvas.getContext("2d");
 
-  const handlePackshotMouseLeave = (e: React.MouseEvent) => {
-     if (isPackshotDragging) {
-        setIsPackshotDragging(false);
+    if (!ctx) return;
+
+    ctx.drawImage(
+      image,
+      pixelCrop.x,
+      pixelCrop.y,
+      pixelCrop.width,
+      pixelCrop.height,
+      0,
+      0,
+      pixelCrop.width,
+      pixelCrop.height
+    );
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+
+      try {
+        setImageIsUploading(true);
+        setImageUploadError(null);
         
-        const deltaX = e.clientX - packshotDragStart.x;
-        const deltaY = e.clientY - packshotDragStart.y;
-        
-        const finalX = currentTranslateRef.current.x + deltaX;
-        const finalY = currentTranslateRef.current.y + deltaY;
-        
-        setPackshotTranslate({ x: finalX, y: finalY });
+        // Use a new file name
+        const file = new File([blob], "packshot-crop.jpg", { type: "image/jpeg" });
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("itemId", selectedItem.id);
 
-        if (packshotType !== "packshot") {
-            setPackshotType("packshot");
+        const response = await fetch("/api/recipe-image-upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const payload = (await response.json());
+        if (!response.ok) {
+           throw new Error(payload.error || "Fehler beim Hochladen des Ausschnitts");
         }
-     }
+
+        if (payload.imageUrl) {
+          const freshUrl = `${payload.imageUrl}?t=${Date.now()}`;
+          setPackshotUrl(freshUrl);
+          setItems((prev) =>
+            prev.map((item) =>
+              item.id === selectedItem.id ? { ...item, imageUrl: freshUrl } : item
+            )
+          );
+          // Reset crop
+          setCrop(undefined);
+        }
+      } catch (err) {
+        setImageUploadError(err instanceof Error ? err.message : "Upload fehlgeschlagen");
+      } finally {
+        setImageIsUploading(false);
+      }
+    }, "image/jpeg", 0.95);
   };
 
   return (
@@ -3410,62 +3424,51 @@ export function InventoryManager() {
                     {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
                       <div className="space-y-2">
                          <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-medium text-[#1F2326]">Packshot Fokus (Drag to Pan)</label>
-                            <span className="text-[10px] text-[#6B7176]">
-                              {packshotType === "packshot" ? "Manuell gesetzt" : "Automatisch"}
-                            </span>
+                            <label className="text-[11px] font-medium text-[#1F2326]">Packshot Fokus (Zuschneiden)</label>
                          </div>
-                         <div className="grid grid-cols-[auto_1fr] gap-2">
-                            <div className="space-y-2 col-span-2 w-full max-w-full overflow-x-hidden">
-                               <div 
-                                 className={cn(
-                                   "group relative h-64 w-full max-w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm select-none",
-                                   isPackshotDragging ? "cursor-grabbing" : "cursor-grab"
-                                 )}
-                                 onMouseDown={handlePackshotMouseDown}
-                                 onMouseMove={handlePackshotMouseMove}
-                                 onMouseUp={handlePackshotMouseUp}
-                                 onMouseLeave={handlePackshotMouseLeave}
-                               >
-                                  {(() => {
-                                      // Prioritize explicit packshot/image URLs over generic file URLs (which might be PDF)
-                                      const url = packshotUrl || 
-                                                  (selectedItem && selectedItem.imageUrl) || 
-                                                  (docParsed && docParsed.imageUrl) || 
-                                                  (docParsed && docParsed.fileUrl) || 
-                                                  (selectedItem && selectedItem.fileUrl) || 
-                                                  "";
-                                      
-                                      const isPdf = url.toLowerCase().endsWith(".pdf");
-                                      if (isPdf) {
-                                         return (
-                                            <div className="flex h-full w-full items-center justify-center text-xs text-[#6B7176]">
-                                               PDF-Vorschau unten
-                                            </div>
-                                         );
-                                      }
+                         <div className="flex flex-col gap-2">
+                            <div className="group relative w-full max-w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm select-none flex items-center justify-center bg-gray-50 min-h-[200px]">
+                               {(() => {
+                                   const url = packshotUrl || 
+                                               (selectedItem && selectedItem.imageUrl) || 
+                                               (docParsed && docParsed.imageUrl) || 
+                                               (docParsed && docParsed.fileUrl) || 
+                                               (selectedItem && selectedItem.fileUrl) || 
+                                               "";
+                                   
+                                   const isPdf = url.toLowerCase().endsWith(".pdf");
+                                   if (isPdf) {
                                       return (
-                                        <>
-                                          <img 
-                                            ref={packshotImgRef}
-                                            src={url} 
-                                            alt="Preview" 
-                                            className="h-full w-full transition-all duration-200"
-                                            style={{
-                                              objectFit: 'cover',
-                                              transform: `scale(2.5) translate3d(${packshotTranslate.x}px, ${packshotTranslate.y}px, 0)`,
-                                              pointerEvents: 'none'
-                                            }}
-                                          />
-                                          {/* Status Badge */}
-                                          <div className="absolute top-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-[#1F2326] backdrop-blur-sm shadow-sm border border-[#E5E7EB]">
-                                             {packshotType === "packshot" ? "Packshot" : "Auto"}
-                                          </div>
-                                        </>
+                                         <div className="flex h-64 w-full items-center justify-center text-xs text-[#6B7176]">
+                                            PDF-Vorschau unten
+                                         </div>
                                       );
-                                  })()}
-                               </div>
+                                   }
+                                   return (
+                                     <ReactCrop crop={crop} onChange={(c) => setCrop(c)} aspect={1}>
+                                       <img 
+                                         ref={packshotImgRef}
+                                         src={url} 
+                                         alt="Preview" 
+                                         className="max-h-[400px] w-auto object-contain"
+                                         onLoad={() => {
+                                            // Reset crop on new image load if needed
+                                         }}
+                                       />
+                                     </ReactCrop>
+                                   );
+                               })()}
                             </div>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="w-full text-xs" 
+                              onClick={handleSaveCrop}
+                              disabled={!crop || imageIsUploading}
+                            >
+                              {imageIsUploading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <ImageIcon className="mr-2 h-3 w-3" />}
+                              Ausschnitt festlegen
+                            </Button>
                          </div>
                       </div>
                     )}
@@ -3704,12 +3707,12 @@ export function InventoryManager() {
                           "";
                         const isPdf = url.toLowerCase().endsWith(".pdf");
                         return (
-                          <div className="rounded-md border bg-background">
+                          <div className="rounded-md border bg-background w-full max-w-full overflow-hidden">
                             {isPdf ? (
                               <object
                                 data={url}
                                 type="application/pdf"
-                                className="h-[360px] w-full"
+                                className="h-[360px] !w-full"
                               >
                                 <a
                                   href={url}
