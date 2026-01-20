@@ -3355,7 +3355,13 @@ export function InventoryManager() {
                          <div className="grid grid-cols-[auto_1fr] gap-2">
                             {/* Removed external Y slider to keep only overlay sliders as requested */}
                             <div className="space-y-2 col-span-2 w-full max-w-full overflow-x-hidden">
-                               <div className="group relative aspect-square w-full max-w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm">
+                               <div 
+                                 className="group relative h-64 w-full max-w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm"
+                                 style={{
+                                   ['--x' as string]: `${50 + packshotFocusX * 100}%`,
+                                   ['--y' as string]: `${50 + docPackshotBias * 100}%`
+                                 }}
+                               >
                                   {(() => {
                                       // Prioritize explicit packshot/image URLs over generic file URLs (which might be PDF)
                                       const url = packshotUrl || 
@@ -3378,10 +3384,10 @@ export function InventoryManager() {
                                           <img 
                                             src={url} 
                                             alt="Preview" 
-                                            className="h-full w-full object-cover transition-all duration-200"
+                                            className="h-full w-full transition-all duration-200"
                                             style={{
                                               objectFit: 'cover',
-                                              objectPosition: `${50 + packshotFocusX * 100}% ${50 + docPackshotBias * 100}%`
+                                              objectPosition: 'var(--x, 50%) var(--y, 50%)'
                                             }}
                                           />
                                           {/* Overlay Sliders */}
@@ -3521,12 +3527,13 @@ export function InventoryManager() {
               </div>
 
               {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
-                 <Card className="h-[500px] shrink-0 overflow-hidden border-none bg-white shadow-sm">
-                    <div className="h-full w-full bg-[#F6F7F5]">
+                 <Card className="h-[500px] shrink-0 overflow-hidden border-none bg-white shadow-sm w-full max-w-[100vw]">
+                    <div className="h-full w-full bg-[#F6F7F5] overflow-x-hidden">
                        <object
                           data={(docParsed?.fileUrl || selectedItem?.fileUrl || "")}
                           type="application/pdf"
                           className="h-full w-full"
+                          style={{ width: '100% !important' }}
                        >
                           <div className="flex h-full items-center justify-center text-[#6B7176]">
                              Keine Vorschau verfügbar.
