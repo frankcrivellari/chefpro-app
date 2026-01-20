@@ -492,6 +492,8 @@ export function InventoryManager() {
     | "palmoelfrei"
     | null
   >(null);
+  const [ingredientCategoryFilter, setIngredientCategoryFilter] =
+    useState<string | null>(null);
   const [isRecipePresentationMode, setIsRecipePresentationMode] =
     useState(false);
   const [imageUrlInput, setImageUrlInput] = useState("");
@@ -519,6 +521,7 @@ export function InventoryManager() {
     setSearch("");
     setRecipeCategoryFilter(null);
     setRecipeProFilter(null);
+    setIngredientCategoryFilter(null);
     if (activeSection === "zutaten") {
       setFilterType("zukauf");
     } else if (activeSection === "rezepte") {
@@ -935,8 +938,17 @@ export function InventoryManager() {
 
   const filteredItems = useMemo(() => {
     return effectiveItems.filter((item) => {
-      if (activeSection === "zutaten" && item.type !== "zukauf") {
-        return false;
+      if (activeSection === "zutaten") {
+        if (item.type !== "zukauf") {
+          return false;
+        }
+        if (
+          ingredientCategoryFilter &&
+          (item.category ?? "").toLowerCase() !==
+            ingredientCategoryFilter.toLowerCase()
+        ) {
+          return false;
+        }
       }
       if (filterType !== "all" && item.type !== filterType) {
         return false;
@@ -1528,6 +1540,14 @@ export function InventoryManager() {
       return;
     }
     const stdPrep = selectedItem.standardPreparation;
+    setStandardPreparationComponents(stdPrep?.components ?? []);
+    setStandardPreparationText(
+      stdPrep?.text ??
+        (selectedItem.type === "zukauf" &&
+        typeof selectedItem.preparationSteps === "string"
+          ? selectedItem.preparationSteps
+          : "")
+    );
     setNameInput(selectedItem.name);
     setImageUrlInput(selectedItem.imageUrl ?? "");
     setCategoryInput(selectedItem.category ?? "");
@@ -1686,24 +1706,22 @@ export function InventoryManager() {
       setStandardPreparationText(stdPrep.text);
     } else {
       let text = "";
-      if (
+      // Prioritize preparationSteps over dosageInstructions for better AI result mapping
+      if (typeof selectedItem.preparationSteps === "string" && selectedItem.preparationSteps.trim().length > 0) {
+        text = selectedItem.preparationSteps;
+      } else if (
+        Array.isArray(selectedItem.preparationSteps) &&
+        selectedItem.preparationSteps.length > 0
+      ) {
+        text = selectedItem.preparationSteps
+          .map((s) => s.text)
+          .join("\n");
+      } else if (
         selectedItem.type === "zukauf" &&
         typeof selectedItem.dosageInstructions === "string" &&
         selectedItem.dosageInstructions
       ) {
         text = selectedItem.dosageInstructions;
-      }
-      if (!text) {
-        if (typeof selectedItem.preparationSteps === "string") {
-          text = selectedItem.preparationSteps;
-        } else if (
-          Array.isArray(selectedItem.preparationSteps) &&
-          selectedItem.preparationSteps.length > 0
-        ) {
-          text = selectedItem.preparationSteps
-            .map((s) => s.text)
-            .join("\n");
-        }
       }
       setStandardPreparationText(text);
     }
@@ -3019,13 +3037,13 @@ export function InventoryManager() {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
       {activeSection === "zutaten" && (
-        <aside className="flex w-[280px] flex-col border-r border-[#6B7176] bg-[#F6F7F5]">
+        <aside className="flex w-[280px] flex-col border-r border-[#6B7176] bg-[#1F2326]">
           <div className="flex flex-col gap-3 border-b border-[#6B7176] p-4">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-[#6B7176]" />
               <Input
                 placeholder="Suchen..."
-                className="h-9 border-[#6B7176] bg-white pl-8 text-xs text-[#1F2326] placeholder:text-[#6B7176]"
+                className="h-9 border-[#6B7176] bg-[#2A2E33] pl-8 text-xs text-white placeholder:text-[#6B7176]"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -3033,19 +3051,19 @@ export function InventoryManager() {
             <div className="flex flex-wrap gap-1">
               <Badge
                 variant="outline"
-                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-[#1F2326] hover:bg-[#6B7176]/10"
+                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
               >
                 Trockenlager
               </Badge>
               <Badge
                 variant="outline"
-                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-[#1F2326] hover:bg-[#6B7176]/10"
+                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
               >
                 Kühlung
               </Badge>
               <Badge
                 variant="outline"
-                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-[#1F2326] hover:bg-[#6B7176]/10"
+                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
               >
                 Obst/Gemüse
               </Badge>
@@ -3067,12 +3085,12 @@ export function InventoryManager() {
                     setIsDetailView(true);
                   }}
                   className={cn(
-                    "flex w-full flex-col gap-1 border-b border-[#6B7176]/20 px-4 py-3 text-left text-xs transition-colors hover:bg-[#6B7176]/10",
-                    selectedItem?.id === item.id && "bg-[#6B7176]/10"
+                    "flex w-full flex-col gap-1 border-b border-[#6B7176]/20 px-4 py-3 text-left text-xs transition-colors hover:bg-white/5",
+                    selectedItem?.id === item.id && "bg-white/10"
                   )}
                 >
                   <div className="flex w-full items-center justify-between gap-2">
-                    <span className="truncate font-medium text-[#1F2326]">{item.name}</span>
+                    <span className="truncate font-medium text-white">{item.name}</span>
                     <TypeBadge type={item.type} />
                   </div>
                   <div className="flex w-full justify-between text-[10px] text-[#6B7176]">
@@ -3225,15 +3243,15 @@ export function InventoryManager() {
           )}
 
           {activeSection === "zutaten" ? (
-            <div className="flex h-full flex-col gap-4">
-              <div className="grid h-full grid-cols-2 gap-4 overflow-hidden">
-                <Card className="flex flex-col overflow-hidden">
-                  <CardHeader className="flex flex-row items-center justify-between gap-2 border-b bg-muted/20 px-4 py-3">
-                    <CardTitle className="text-base">Import &amp; Vorschau</CardTitle>
+            <div className="flex h-full flex-col gap-4 overflow-y-auto bg-[#F6F7F5] p-6">
+              <div className="grid min-h-[600px] grid-cols-2 gap-4">
+                <Card className="flex flex-col overflow-hidden border-none bg-white shadow-sm">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
+                    <CardTitle className="text-base text-[#1F2326]">Import &amp; Vorschau</CardTitle>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs"
+                      className="h-7 border-[#E5E7EB] text-xs text-[#1F2326] hover:bg-[#F6F7F5]"
                       onClick={async () => {
                         try {
                           setIsSaving(true);
@@ -3276,9 +3294,9 @@ export function InventoryManager() {
                     </Button>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-                    <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
+                    <div className="space-y-2 rounded-md border border-[#E5E7EB] bg-[#F6F7F5]/50 p-3 text-xs">
                        <div className="flex items-center justify-between gap-2">
-                        <div className="font-semibold">Dokumenten-Upload</div>
+                        <div className="font-semibold text-[#1F2326]">Dokumenten-Upload</div>
                         {docError && <span className="text-[11px] text-destructive">{docError}</span>}
                       </div>
                       <form
@@ -3298,19 +3316,19 @@ export function InventoryManager() {
                             setDocParsed(null);
                             setDocError(null);
                           }}
-                          className="block w-full text-[11px] text-foreground file:mr-2 file:rounded-md file:border file:border-input file:bg-background file:px-2 file:py-1 file:text-[11px] file:font-medium file:text-foreground hover:file:bg-accent"
+                          className="block w-full text-[11px] text-[#6B7176] file:mr-2 file:rounded-md file:border file:border-[#E5E7EB] file:bg-white file:px-2 file:py-1 file:text-[11px] file:font-medium file:text-[#1F2326] hover:file:bg-[#F6F7F5]"
                         />
                         <div className="flex justify-end gap-2">
-                          <Button type="submit" size="sm" disabled={docIsUploading || !docFile}>
+                          <Button type="submit" size="sm" className="bg-[#4F8F4E] text-white hover:bg-[#3d7a3c]" disabled={docIsUploading || !docFile}>
                             {docIsUploading ? "Lade hoch..." : "Dokument auswerten"}
                           </Button>
                         </div>
                       </form>
                     </div>
                     
-                    <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
+                    <div className="space-y-2 rounded-md border border-[#E5E7EB] bg-[#F6F7F5]/50 p-3 text-xs">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="font-semibold">KI-Schnellimport</div>
+                        <div className="font-semibold text-[#1F2326]">KI-Schnellimport</div>
                         {aiError && <span className="text-[11px] text-destructive">{aiError}</span>}
                       </div>
                       <form className="space-y-2" onSubmit={handleAiParse}>
@@ -3318,11 +3336,11 @@ export function InventoryManager() {
                           value={aiText}
                           onChange={(event) => setAiText(event.target.value)}
                           rows={2}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          className="w-full rounded-md border border-[#E5E7EB] bg-white px-2 py-1 text-xs text-[#1F2326] placeholder:text-[#6B7176] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8F4E] focus-visible:ring-offset-2"
                           placeholder='Beispiel: 3kg Sack Mehl Type 405 für 4,50€ bei Metro'
                         />
                         <div className="flex justify-end gap-2">
-                          <Button type="submit" size="sm" disabled={aiIsParsing || !aiText.trim()}>
+                          <Button type="submit" size="sm" className="bg-[#4F8F4E] text-white hover:bg-[#3d7a3c]" disabled={aiIsParsing || !aiText.trim()}>
                             {aiIsParsing ? "Analysiere..." : "Analysieren"}
                           </Button>
                         </div>
@@ -3332,8 +3350,8 @@ export function InventoryManager() {
                     {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
                       <div className="space-y-2">
                          <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-medium">Packshot Fokus</label>
-                            <span className="text-[10px] text-muted-foreground">
+                            <label className="text-[11px] font-medium text-[#1F2326]">Packshot Fokus</label>
+                            <span className="text-[10px] text-[#6B7176]">
                               X: {packshotFocusX.toFixed(2)} | Y: {docPackshotBias.toFixed(2)}
                             </span>
                          </div>
@@ -3346,43 +3364,68 @@ export function InventoryManager() {
                                 step="0.05"
                                 value={docPackshotBias}
                                 onChange={(e) => setDocPackshotBias(parseFloat(e.target.value))}
-                                className="h-[180px] w-1.5 appearance-none rounded-full bg-muted-foreground/20 accent-primary"
+                                className="h-[180px] w-1 appearance-none rounded-full bg-[#6B7176]/20 accent-[#6B7176]"
                                 style={{ writingMode: "vertical-lr", direction: "rtl" }} 
                               />
                             </div>
                             <div className="space-y-2">
-                               <div className="relative aspect-square w-full overflow-hidden rounded-md border bg-muted/10">
+                               <div className="group relative aspect-square w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm">
                                   {(() => {
                                       const url = (docParsed && docParsed.fileUrl) || (selectedItem && selectedItem.fileUrl) || "";
                                       const isPdf = url.toLowerCase().endsWith(".pdf");
                                       if (isPdf) {
                                          return (
-                                            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                                            <div className="flex h-full items-center justify-center text-xs text-[#6B7176]">
                                                PDF-Vorschau unten
                                             </div>
                                          );
                                       }
                                       return (
-                                        <img 
-                                          src={url} 
-                                          alt="Preview" 
-                                          className="h-full w-full object-cover transition-all duration-200"
-                                          style={{
-                                            objectPosition: `${50 + packshotFocusX * 100}% ${50 + docPackshotBias * 100}%`
-                                          }}
-                                        />
+                                        <>
+                                          <img 
+                                            src={url} 
+                                            alt="Preview" 
+                                            className="h-full w-full object-cover transition-all duration-200"
+                                            style={{
+                                              objectPosition: `${50 + packshotFocusX * 100}% ${50 + docPackshotBias * 100}%`
+                                            }}
+                                          />
+                                          {/* Overlay Sliders */}
+                                          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                            {/* We can use the external sliders or move them here. User requested "Verschiebe die Fokus-Slider direkt zum Packshot-Bild".
+                                                I will keep the external ones but style them as requested, or overlay them?
+                                                "Verschiebe die Fokus-Slider direkt zum Packshot-Bild" -> "Move sliders directly to the packshot image".
+                                                So I should overlay them.
+                                            */}
+                                            <div className="absolute inset-y-2 left-2 flex flex-col justify-center">
+                                               <input
+                                                  type="range"
+                                                  min="-0.5"
+                                                  max="0.5"
+                                                  step="0.05"
+                                                  value={docPackshotBias}
+                                                  onChange={(e) => setDocPackshotBias(parseFloat(e.target.value))}
+                                                  className="h-full w-1 appearance-none rounded-full bg-white/50 accent-[#6B7176] shadow-sm backdrop-blur-sm"
+                                                  style={{ writingMode: "vertical-lr", direction: "rtl" }} 
+                                                />
+                                            </div>
+                                            <div className="absolute inset-x-2 bottom-2 flex items-center justify-center">
+                                                <input
+                                                  type="range"
+                                                  min="-0.5"
+                                                  max="0.5"
+                                                  step="0.05"
+                                                  value={packshotFocusX}
+                                                  onChange={(e) => setPackshotFocusX(parseFloat(e.target.value))}
+                                                  className="h-1 w-full appearance-none rounded-full bg-white/50 accent-[#6B7176] shadow-sm backdrop-blur-sm"
+                                                />
+                                            </div>
+                                          </div>
+                                        </>
                                       );
                                   })()}
                                </div>
-                               <input
-                                  type="range"
-                                  min="-0.5"
-                                  max="0.5"
-                                  step="0.05"
-                                  value={packshotFocusX}
-                                  onChange={(e) => setPackshotFocusX(parseFloat(e.target.value))}
-                                  className="h-1.5 w-full appearance-none rounded-full bg-muted-foreground/20 accent-primary"
-                               />
+                               {/* Removed external X slider since it is now overlayed */}
                             </div>
                          </div>
                       </div>
@@ -3390,13 +3433,13 @@ export function InventoryManager() {
                   </CardContent>
                 </Card>
 
-                <Card className="flex flex-col overflow-hidden">
-                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b bg-muted/20 px-4 py-3">
-                      <CardTitle className="text-base">Stammdaten</CardTitle>
+                <Card className="flex flex-col overflow-hidden border-none bg-white shadow-sm">
+                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
+                      <CardTitle className="text-base text-[#1F2326]">Stammdaten</CardTitle>
                       <div className="flex gap-1">
-                         <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground hover:bg-muted">Trockenlager</Badge>
-                         <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground hover:bg-muted">Kühlung</Badge>
-                         <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground hover:bg-muted">Obst/Gemüse</Badge>
+                         <Badge variant="outline" className="border-[#E5E7EB] text-[10px] font-normal text-[#6B7176] hover:bg-[#F6F7F5]">Trockenlager</Badge>
+                         <Badge variant="outline" className="border-[#E5E7EB] text-[10px] font-normal text-[#6B7176] hover:bg-[#F6F7F5]">Kühlung</Badge>
+                         <Badge variant="outline" className="border-[#E5E7EB] text-[10px] font-normal text-[#6B7176] hover:bg-[#F6F7F5]">Obst/Gemüse</Badge>
                       </div>
                    </CardHeader>
                    <CardContent className="flex-1 overflow-y-auto p-4">
@@ -3404,9 +3447,10 @@ export function InventoryManager() {
                          <div className="space-y-4">
                             <div className="grid gap-4">
                                <div className="grid gap-2">
-                                  <label className="text-xs font-medium">Artikelname</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">Artikelname</label>
                                   <Input 
                                     value={selectedItem.name} 
+                                    className="border-[#E5E7EB] bg-white text-[#1F2326]"
                                     onChange={(e) => {
                                        const val = e.target.value;
                                        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, name: val } : i));
@@ -3415,17 +3459,20 @@ export function InventoryManager() {
                                </div>
                                <div className="grid grid-cols-2 gap-4">
                                   <div className="grid gap-2">
-                                    <label className="text-xs font-medium">Einheit</label>
-                                    <Input value={selectedItem.unit} onChange={(e) => {
+                                    <label className="text-xs font-medium text-[#1F2326]">Einheit</label>
+                                    <Input value={selectedItem.unit} 
+                                      className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                      onChange={(e) => {
                                        const val = e.target.value;
                                        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, unit: val } : i));
                                     }} />
                                   </div>
                                   <div className="grid gap-2">
-                                    <label className="text-xs font-medium">EK-Preis</label>
+                                    <label className="text-xs font-medium text-[#1F2326]">EK-Preis</label>
                                     <Input 
                                       type="number" 
                                       value={selectedItem.purchasePrice} 
+                                      className="border-[#E5E7EB] bg-white text-[#1F2326]"
                                       onChange={(e) => {
                                          const val = parseFloat(e.target.value);
                                          setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, purchasePrice: val } : i));
@@ -3434,18 +3481,19 @@ export function InventoryManager() {
                                   </div>
                                </div>
                                <div className="space-y-2">
-                                  <label className="text-xs font-medium">Standard-Zubereitung</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">Standard-Zubereitung</label>
                                   <Textarea 
                                      value={standardPreparationText || ""}
                                      onChange={(e) => setStandardPreparationText(e.target.value)}
                                      rows={6}
-                                     className="text-xs"
+                                     className="border-[#E5E7EB] bg-white text-xs text-[#1F2326] placeholder:text-[#6B7176]"
                                      placeholder="Zubereitungsschritte..."
                                   />
                                </div>
                                <div className="flex justify-end">
                                   <Button 
                                     size="sm" 
+                                    className="bg-[#4F8F4E] text-white hover:bg-[#3d7a3c]"
                                     onClick={async () => {
                                        try {
                                           setIsSaving(true);
@@ -3463,7 +3511,7 @@ export function InventoryManager() {
                             </div>
                          </div>
                       ) : (
-                         <div className="flex h-full flex-col items-center justify-center text-muted-foreground text-xs">
+                         <div className="flex h-full flex-col items-center justify-center text-[#6B7176] text-xs">
                             <p>Wähle einen Artikel aus der Liste.</p>
                          </div>
                       )}
@@ -3472,14 +3520,14 @@ export function InventoryManager() {
               </div>
 
               {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
-                 <Card className="h-[500px] shrink-0 overflow-hidden">
-                    <div className="h-full w-full bg-muted/10">
+                 <Card className="h-[500px] shrink-0 overflow-hidden border-none bg-white shadow-sm">
+                    <div className="h-full w-full bg-[#F6F7F5]">
                        <object
                           data={(docParsed?.fileUrl || selectedItem?.fileUrl || "")}
                           type="application/pdf"
                           className="h-full w-full"
                        >
-                          <div className="flex h-full items-center justify-center text-muted-foreground">
+                          <div className="flex h-full items-center justify-center text-[#6B7176]">
                              Keine Vorschau verfügbar.
                           </div>
                        </object>
