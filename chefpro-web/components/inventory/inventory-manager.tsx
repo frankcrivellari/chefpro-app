@@ -3426,7 +3426,35 @@ export function InventoryManager() {
 
                 <Card className="flex flex-col overflow-hidden border-none bg-white shadow-sm">
                    <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
-                      <CardTitle className="text-base text-[#1F2326]">Stammdaten</CardTitle>
+                      <div className="flex items-center gap-2">
+                         <CardTitle className="text-base text-[#1F2326]">Stammdaten</CardTitle>
+                         {selectedItem && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-[#6B7176] hover:text-destructive hover:bg-destructive/10"
+                              onClick={handleDelete}
+                            >
+                              Artikel löschen
+                            </Button>
+                         )}
+                         <Button 
+                           size="sm" 
+                           className="h-6 bg-[#4F8F4E] px-2 text-white hover:bg-[#3d7a3c]"
+                           onClick={async () => {
+                              try {
+                                 setIsSaving(true);
+                                 await handleSaveProfiData();
+                              } catch (e) {
+                                 setError(e instanceof Error ? e.message : "Fehler beim Speichern");
+                              } finally {
+                                 setIsSaving(false);
+                              }
+                           }}
+                         >
+                           Speichern
+                         </Button>
+                      </div>
                       <div className="flex gap-1">
                          <Badge variant="outline" className="border-[#E5E7EB] text-[10px] font-normal text-[#6B7176] hover:bg-[#F6F7F5]">Trockenlager</Badge>
                          <Badge variant="outline" className="border-[#E5E7EB] text-[10px] font-normal text-[#6B7176] hover:bg-[#F6F7F5]">Kühlung</Badge>
@@ -3482,30 +3510,7 @@ export function InventoryManager() {
                                   />
                                </div>
                                <div className="flex justify-between items-center">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="text-[#6B7176] hover:text-destructive hover:bg-destructive/10"
-                                    onClick={handleDelete}
-                                  >
-                                    Artikel löschen
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    className="bg-[#4F8F4E] text-white hover:bg-[#3d7a3c]"
-                                    onClick={async () => {
-                                       try {
-                                          setIsSaving(true);
-                                          await handleSaveProfiData();
-                                       } catch (e) {
-                                          setError(e instanceof Error ? e.message : "Fehler beim Speichern");
-                                       } finally {
-                                          setIsSaving(false);
-                                       }
-                                    }}
-                                  >
-                                    Speichern
-                                  </Button>
+                                  {/* Buttons moved to header */}
                                </div>
                             </div>
                          </div>
