@@ -423,8 +423,9 @@ export function InventoryManager() {
   >([]);
   const [docPreviewIsGenerating, setDocPreviewIsGenerating] = useState(false);
   const [docPreviewError, setDocPreviewError] = useState<string | null>(null);
-  const [docPackshotBias, setDocPackshotBias] = useState(0);
-  const [packshotFocusX, setPackshotFocusX] = useState(0);
+  const [packshotTranslate, setPackshotTranslate] = useState({ x: 0, y: 0 });
+  const currentTranslateRef = useRef({ x: 0, y: 0 });
+  const packshotImgRef = useRef<HTMLImageElement>(null);
   const [proAllergensInput, setProAllergensInput] = useState("");
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
@@ -602,7 +603,7 @@ export function InventoryManager() {
             const { x, y, w, h } = detectPayload.bbox;
             // Apply bias to Y position (vertical shift)
             // docPackshotBias is -0.2 to +0.4 (relative to canvas height)
-            const biasOffset = canvas.height * docPackshotBias;
+            const biasOffset = 0;
             const biasedY = y + biasOffset;
             
             const safe = {
@@ -3082,6 +3083,7 @@ export function InventoryManager() {
   const handlePackshotMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsPackshotDragging(true);
+    currentTranslateRef.current = packshotTranslate;
     setPackshotDragStart({ x: e.clientX, y: e.clientY });
   };
 
@@ -3091,27 +3093,43 @@ export function InventoryManager() {
     const deltaX = e.clientX - packshotDragStart.x;
     const deltaY = e.clientY - packshotDragStart.y;
     
-    // Sensitivity: how much % per pixel?
-    // Let's try 0.002 (0.2%) per pixel.
-    const sensitivity = 0.002;
-
-    // Drag right (positive deltaX) -> Move image right -> Decrease percentage -> Decrease packshotFocusX
-    setPackshotFocusX(prev => Math.max(-0.5, Math.min(0.5, prev - deltaX * sensitivity)));
-    setDocPackshotBias(prev => Math.max(-0.5, Math.min(0.5, prev - deltaY * sensitivity)));
+    const newX = currentTranslateRef.current.x + deltaX;
+    const newY = currentTranslateRef.current.y + deltaY;
     
-    setPackshotDragStart({ x: e.clientX, y: e.clientY });
+    if (packshotImgRef.current) {
+        packshotImgRef.current.style.transform = `scale(2.5) translate3d(${newX}px, ${newY}px, 0)`;
+    }
   };
 
-  const handlePackshotMouseUp = () => {
+  const handlePackshotMouseUp = (e: React.MouseEvent) => {
+    if (!isPackshotDragging) return;
     setIsPackshotDragging(false);
+    
+    const deltaX = e.clientX - packshotDragStart.x;
+    const deltaY = e.clientY - packshotDragStart.y;
+    
+    const finalX = currentTranslateRef.current.x + deltaX;
+    const finalY = currentTranslateRef.current.y + deltaY;
+    
+    setPackshotTranslate({ x: finalX, y: finalY });
+    
     if (packshotType !== "packshot") {
         setPackshotType("packshot");
     }
   };
 
-  const handlePackshotMouseLeave = () => {
+  const handlePackshotMouseLeave = (e: React.MouseEvent) => {
      if (isPackshotDragging) {
         setIsPackshotDragging(false);
+        
+        const deltaX = e.clientX - packshotDragStart.x;
+        const deltaY = e.clientY - packshotDragStart.y;
+        
+        const finalX = currentTranslateRef.current.x + deltaX;
+        const finalY = currentTranslateRef.current.y + deltaY;
+        
+        setPackshotTranslate({ x: finalX, y: finalY });
+
         if (packshotType !== "packshot") {
             setPackshotType("packshot");
         }
