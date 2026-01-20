@@ -3017,15 +3017,15 @@ export function InventoryManager() {
   }
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+    <div className="flex h-screen w-full overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
       {activeSection === "zutaten" && (
-        <aside className="flex w-[280px] flex-col border-r bg-background">
-          <div className="flex flex-col gap-3 border-b p-4">
+        <aside className="flex w-[280px] flex-col border-r border-[#6B7176] bg-[#F6F7F5]">
+          <div className="flex flex-col gap-3 border-b border-[#6B7176] p-4">
             <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-[#6B7176]" />
               <Input
                 placeholder="Suchen..."
-                className="h-9 pl-8 text-xs"
+                className="h-9 border-[#6B7176] bg-white pl-8 text-xs text-[#1F2326] placeholder:text-[#6B7176]"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -3033,19 +3033,19 @@ export function InventoryManager() {
             <div className="flex flex-wrap gap-1">
               <Badge
                 variant="outline"
-                className="h-5 cursor-pointer px-2 text-[10px] hover:bg-muted"
+                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-[#1F2326] hover:bg-[#6B7176]/10"
               >
                 Trockenlager
               </Badge>
               <Badge
                 variant="outline"
-                className="h-5 cursor-pointer px-2 text-[10px] hover:bg-muted"
+                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-[#1F2326] hover:bg-[#6B7176]/10"
               >
                 Kühlung
               </Badge>
               <Badge
                 variant="outline"
-                className="h-5 cursor-pointer px-2 text-[10px] hover:bg-muted"
+                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-[#1F2326] hover:bg-[#6B7176]/10"
               >
                 Obst/Gemüse
               </Badge>
@@ -3054,7 +3054,7 @@ export function InventoryManager() {
           <div className="flex-1 overflow-y-auto">
             <div className="flex flex-col">
               {filteredItems.length === 0 && (
-                <div className="py-4 text-center text-xs text-muted-foreground">
+                <div className="py-4 text-center text-xs text-[#6B7176]">
                   Keine Artikel gefunden.
                 </div>
               )}
@@ -3067,15 +3067,15 @@ export function InventoryManager() {
                     setIsDetailView(true);
                   }}
                   className={cn(
-                    "flex w-full flex-col gap-1 border-b px-4 py-3 text-left text-xs transition-colors hover:bg-muted/50",
-                    selectedItem?.id === item.id && "bg-muted"
+                    "flex w-full flex-col gap-1 border-b border-[#6B7176]/20 px-4 py-3 text-left text-xs transition-colors hover:bg-[#6B7176]/10",
+                    selectedItem?.id === item.id && "bg-[#6B7176]/10"
                   )}
                 >
                   <div className="flex w-full items-center justify-between gap-2">
-                    <span className="truncate font-medium">{item.name}</span>
+                    <span className="truncate font-medium text-[#1F2326]">{item.name}</span>
                     <TypeBadge type={item.type} />
                   </div>
-                  <div className="flex w-full justify-between text-[10px] text-muted-foreground">
+                  <div className="flex w-full justify-between text-[10px] text-[#6B7176]">
                     <span>{item.unit}</span>
                     <span>{formatInternalId(item.internalId ?? null)}</span>
                   </div>
@@ -3086,8 +3086,8 @@ export function InventoryManager() {
         </aside>
       )}
 
-      <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-muted/10">
-        <header className="flex items-center justify-between border-b bg-background px-6 py-3">
+      <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-[#F6F7F5]">
+        <header className="flex items-center justify-between border-b border-[#6B7176] bg-[#1F2326] px-6 py-3 text-white">
           <div>
             <h1 className="text-lg font-semibold">
               {activeSection === "zutaten"
@@ -3101,7 +3101,7 @@ export function InventoryManager() {
             <Button
               type="button"
               size="sm"
-              className="bg-primary text-primary-foreground"
+              className="bg-[#4F8F4E] text-white hover:bg-[#3d7a3c]"
               disabled={isSaving}
               onClick={async () => {
                 try {
