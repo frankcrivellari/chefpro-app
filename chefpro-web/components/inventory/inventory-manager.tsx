@@ -497,6 +497,7 @@ export function InventoryManager() {
   const [isRecipePresentationMode, setIsRecipePresentationMode] =
     useState(false);
   const [imageUrlInput, setImageUrlInput] = useState("");
+  const [packshotUrl, setPackshotUrl] = useState("");
   const [imageIsUploading, setImageIsUploading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [isImageDropActive, setIsImageDropActive] = useState(false);
@@ -3362,7 +3363,7 @@ export function InventoryManager() {
                             <div className="space-y-2">
                                <div className="group relative aspect-square w-full overflow-hidden rounded-md border border-[#E5E7EB] bg-white shadow-sm">
                                   {(() => {
-                                      const url = (docParsed && docParsed.fileUrl) || (selectedItem && selectedItem.fileUrl) || "";
+                                      const url = (docParsed && docParsed.fileUrl) || (selectedItem && selectedItem.fileUrl) || packshotUrl || "";
                                       const isPdf = url.toLowerCase().endsWith(".pdf");
                                       if (isPdf) {
                                          return (
@@ -3382,12 +3383,7 @@ export function InventoryManager() {
                                             }}
                                           />
                                           {/* Overlay Sliders */}
-                                          <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                                            {/* We can use the external sliders or move them here. User requested "Verschiebe die Fokus-Slider direkt zum Packshot-Bild".
-                                                I will keep the external ones but style them as requested, or overlay them?
-                                                "Verschiebe die Fokus-Slider direkt zum Packshot-Bild" -> "Move sliders directly to the packshot image".
-                                                So I should overlay them.
-                                            */}
+                                          <div className="absolute inset-0 flex items-center justify-center">
                                             <div className="absolute inset-y-2 left-2 flex flex-col justify-center">
                                                <input
                                                   type="range"
