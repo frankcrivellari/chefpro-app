@@ -603,7 +603,8 @@ export function InventoryManager() {
             const { x, y, w, h } = detectPayload.bbox;
             // Apply bias to Y position (vertical shift)
             // docPackshotBias is -0.2 to +0.4 (relative to canvas height)
-            const biasOffset = 0;
+            // Apply bias from drag-to-pan
+            const biasOffset = packshotTranslate.y;
             const biasedY = y + biasOffset;
             
             const safe = {
@@ -654,9 +655,9 @@ export function InventoryManager() {
         }
         if (crop.w === canvas.width && crop.h === canvas.height) {
           const side = Math.floor(Math.min(canvas.width, canvas.height) * 0.6);
-          const cx = Math.floor((canvas.width - side) / 2);
+          const cx = Math.floor((canvas.width - side) / 2 + packshotTranslate.x);
           // Apply bias to fallback crop as well
-          const biasOffset = canvas.height * docPackshotBias;
+          const biasOffset = packshotTranslate.y;
           const cy = Math.floor((canvas.height - side) / 2 + biasOffset);
           // Ensure crop stays within bounds
           const safeY = Math.max(0, Math.min(canvas.height - side, cy));
@@ -774,14 +775,14 @@ export function InventoryManager() {
           0,
           Math.min(
             finalRegion.w - side,
-            Math.floor(centroid.cx - side / 2 + side * packshotFocusX)
+            Math.floor(centroid.cx - side / 2 + packshotTranslate.x)
           )
         );
         const localY = Math.max(
           0,
           Math.min(
             finalRegion.h - side,
-            Math.floor(centroid.cy - side / 2 - side * docPackshotBias)
+            Math.floor(centroid.cy - side / 2 + packshotTranslate.y)
           )
         );
         const finalCanvas = document.createElement("canvas");
@@ -846,7 +847,7 @@ export function InventoryManager() {
     } finally {
       setDocPreviewIsGenerating(false);
     }
-  }, []); // removed docPackshotBias dependency
+  }, [packshotTranslate]);
 
   // Removed automatic re-generation on slider change
   useEffect(() => {
@@ -3425,10 +3426,6 @@ export function InventoryManager() {
                                  onMouseMove={handlePackshotMouseMove}
                                  onMouseUp={handlePackshotMouseUp}
                                  onMouseLeave={handlePackshotMouseLeave}
-                                 style={{
-                                   ['--x' as string]: `${50 + packshotFocusX * 100}%`,
-                                   ['--y' as string]: `${50 + docPackshotBias * 100}%`
-                                 }}
                                >
                                   {(() => {
                                       // Prioritize explicit packshot/image URLs over generic file URLs (which might be PDF)
@@ -3450,13 +3447,13 @@ export function InventoryManager() {
                                       return (
                                         <>
                                           <img 
+                                            ref={packshotImgRef}
                                             src={url} 
                                             alt="Preview" 
                                             className="h-full w-full transition-all duration-200"
                                             style={{
                                               objectFit: 'cover',
-                                              objectPosition: 'var(--x, 50%) var(--y, 50%)',
-                                              transform: 'scale(1.5)',
+                                              transform: `scale(2.5) translate3d(${packshotTranslate.x}px, ${packshotTranslate.y}px, 0)`,
                                               pointerEvents: 'none'
                                             }}
                                           />
@@ -3686,21 +3683,7 @@ export function InventoryManager() {
                   </form>
                   {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
                     <div className="space-y-2">
-                      <div className="flex flex-col gap-1 rounded-md border bg-muted/20 p-2">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-medium text-muted-foreground">Packshot Bias (Vertikale Verschiebung)</label>
-                          <span className="text-[10px] text-muted-foreground">{docPackshotBias.toFixed(2)}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="-0.5"
-                          max="0.5"
-                          step="0.05"
-                          value={docPackshotBias}
-                          onChange={(e) => setDocPackshotBias(parseFloat(e.target.value))}
-                          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-muted-foreground/20 accent-primary"
-                        />
-                      </div>
+
                       <div className="text-[11px] font-medium">
                         Dokumentenvorschau
                       </div>
