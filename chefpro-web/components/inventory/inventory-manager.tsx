@@ -173,6 +173,19 @@ const recipeCategories = ["Vorspeise", "Hauptgang", "Dessert"];
 
 const nutritionOptions = ["Vegan", "Vegetarisch", "Halal", "Glutenfrei"];
 
+const STAPLE_ITEMS = [
+  {"name": "Speisesalz (fein)", "item_type": "zukauf", "unit": "kg", "purchase_price": 0.85, "is_staple": true, "nutrition_per_unit": {"kcal": 0, "fat": 0, "carbs": 0, "protein": 0}},
+  {"name": "Kristallzucker", "item_type": "zukauf", "unit": "kg", "purchase_price": 1.30, "is_staple": true, "nutrition_per_unit": {"kcal": 400, "fat": 0, "carbs": 100, "protein": 0}},
+  {"name": "Pflanzenöl (Raps)", "item_type": "zukauf", "unit": "l", "purchase_price": 1.95, "is_staple": true, "nutrition_per_unit": {"kcal": 828, "fat": 92, "carbs": 0, "protein": 0}},
+  {"name": "Butter", "item_type": "zukauf", "unit": "kg", "purchase_price": 7.50, "is_staple": true, "nutrition_per_unit": {"kcal": 717, "fat": 81, "carbs": 0.7, "protein": 0.8}},
+  {"name": "Vollmilch 3,5%", "item_type": "zukauf", "unit": "l", "purchase_price": 1.15, "is_staple": true, "nutrition_per_unit": {"kcal": 64, "fat": 3.5, "carbs": 4.8, "protein": 3.4}},
+  {"name": "Schlagsahne 30%", "item_type": "zukauf", "unit": "l", "purchase_price": 4.20, "is_staple": true, "nutrition_per_unit": {"kcal": 292, "fat": 30, "carbs": 3.2, "protein": 2.4}},
+  {"name": "Weizenmehl 405", "item_type": "zukauf", "unit": "kg", "purchase_price": 0.90, "is_staple": true, "nutrition_per_unit": {"kcal": 348, "fat": 1, "carbs": 72, "protein": 10}},
+  {"name": "Zwiebeln gelb", "item_type": "zukauf", "unit": "kg", "purchase_price": 0.95, "is_staple": true, "nutrition_per_unit": {"kcal": 40, "fat": 0.1, "carbs": 9, "protein": 1.1}},
+  {"name": "Knoblauch", "item_type": "zukauf", "unit": "kg", "purchase_price": 6.50, "is_staple": true, "nutrition_per_unit": {"kcal": 149, "fat": 0.5, "carbs": 33, "protein": 6.4}},
+  {"name": "Eier (M)", "item_type": "zukauf", "unit": "stk", "purchase_price": 0.18, "is_staple": true, "nutrition_per_unit": {"kcal": 80, "fat": 5.5, "carbs": 0.5, "protein": 7}}
+];
+
   // initialItems removed
 
 
@@ -404,6 +417,7 @@ export function InventoryManager() {
   >([]);
   const [docPreviewIsGenerating, setDocPreviewIsGenerating] = useState(false);
   const [docPreviewError, setDocPreviewError] = useState<string | null>(null);
+  const [docPackshotBias, setDocPackshotBias] = useState(0);
   const [proAllergensInput, setProAllergensInput] = useState("");
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
@@ -3016,14 +3030,20 @@ export function InventoryManager() {
               </Badge>
               <Badge
                 variant={filterType === "eigenproduktion" ? "default" : "outline"}
-                className="h-5 cursor-pointer px-2 text-[10px]"
+                className={cn(
+                  "h-5 cursor-pointer px-2 text-[10px]",
+                  filterType === "eigenproduktion" && "bg-[var(--recetui-orange)] hover:bg-[var(--recetui-orange)]/90 text-white border-transparent"
+                )}
                 onClick={() => setFilterType("eigenproduktion")}
               >
                 Rezepte
               </Badge>
               <Badge
                 variant={filterType === "zukauf" ? "default" : "outline"}
-                className="h-5 cursor-pointer px-2 text-[10px]"
+                className={cn(
+                  "h-5 cursor-pointer px-2 text-[10px]",
+                  filterType === "zukauf" && "bg-[var(--recetui-green)] hover:bg-[var(--recetui-green)]/90 text-white border-transparent"
+                )}
                 onClick={() => setFilterType("zukauf")}
               >
                 Zutaten
@@ -3208,6 +3228,50 @@ export function InventoryManager() {
                   <div>
                     <CardTitle>Artikel-Import</CardTitle>
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={async () => {
+                      try {
+                        setIsSaving(true);
+                        setError(null);
+                        for (const item of STAPLE_ITEMS) {
+                          await fetch("/api/inventory", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              name: item.name,
+                              type: item.item_type,
+                              unit: item.unit,
+                              purchasePrice: item.purchase_price,
+                              category: "Basic",
+                              portionUnit: "",
+                              nutritionTags: [],
+                              components: [],
+                              nutritionPerUnit: {
+                                energyKcal: item.nutrition_per_unit.kcal,
+                                fat: item.nutrition_per_unit.fat,
+                                saturatedFat: 0,
+                                carbs: item.nutrition_per_unit.carbs,
+                                sugar: 0,
+                                protein: item.nutrition_per_unit.protein,
+                                salt: 0,
+                              }
+                            }),
+                          });
+                        }
+                        window.location.reload(); 
+                      } catch (err) {
+                        console.error(err);
+                        setError("Fehler beim Importieren der Basics");
+                      } finally {
+                        setIsSaving(false);
+                      }
+                    }}
+                  >
+                    Basics importieren
+                  </Button>
                 {activeSection === "rezepte" && (
                   <div className="inline-flex rounded-md border bg-muted/40 p-1 text-[11px]">
                     <Button
@@ -3296,6 +3360,21 @@ export function InventoryManager() {
                   </form>
                   {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
                     <div className="space-y-2">
+                      <div className="flex flex-col gap-1 rounded-md border bg-muted/20 p-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-medium text-muted-foreground">Packshot Bias (Vertikale Verschiebung)</label>
+                          <span className="text-[10px] text-muted-foreground">{docPackshotBias.toFixed(2)}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="-0.5"
+                          max="0.5"
+                          step="0.05"
+                          value={docPackshotBias}
+                          onChange={(e) => setDocPackshotBias(parseFloat(e.target.value))}
+                          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-muted-foreground/20 accent-primary"
+                        />
+                      </div>
                       <div className="text-[11px] font-medium">
                         Dokumentenvorschau
                       </div>

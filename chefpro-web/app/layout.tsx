@@ -30,12 +30,25 @@ export default function RootLayout({
       >
         <div className="flex min-h-screen bg-gradient-to-b from-background to-muted">
           <aside className="hidden w-52 flex-col border-r bg-background/90 px-4 py-6 text-sm text-foreground md:flex">
-            <div className="mb-6 px-2">
+            {/* <div className="mb-6 px-2">
               <img src="/recetui-header-frei.png" alt="Recetui" className="h-8 w-auto object-contain" />
-            </div>
+            </div> */}
             <SidebarNav />
           </aside>
           <main className="flex min-h-screen flex-1 flex-col">
+            <header className="flex h-16 items-center justify-between border-b bg-background px-6">
+              <div className="flex items-center gap-4">
+                <img src="/recetui-header-frei.png" alt="Recetui" className="h-8 w-auto object-contain" />
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-card-foreground shadow-sm">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                    MM
+                  </div>
+                  <span className="hidden sm:inline-block">Max Mustermann</span>
+                </div>
+              </div>
+            </header>
             {children}
           </main>
         </div>

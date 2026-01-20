@@ -4,39 +4,47 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  /* Recetui Custom Palette */
+  --recetui-white: #F6F7F5;
+  --recetui-black: #1F2326;
+  --recetui-green: #4F8F4E;
+  --recetui-orange: #F28C28;
+  --recetui-grey: #6B7176;
+
+  /* Semantic Mappings */
+  --background: var(--recetui-white);
+  --foreground: var(--recetui-black);
+  --card: var(--recetui-white);
+  --card-foreground: var(--recetui-black);
+  --popover: var(--recetui-white);
+  --popover-foreground: var(--recetui-black);
+  --primary: var(--recetui-black);
+  --primary-foreground: var(--recetui-white);
+  --secondary: var(--recetui-grey);
+  --secondary-foreground: var(--recetui-white);
+  --muted: #E5E7EB; /* Lighter grey for muted backgrounds, or stick to system default? Using a neutral grey. */
+  --muted-foreground: var(--recetui-grey);
+  --accent: var(--recetui-green);
+  --accent-foreground: var(--recetui-white);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: var(--recetui-green);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: var(--recetui-white);
+  --sidebar-foreground: var(--recetui-black);
+  --sidebar-primary: var(--recetui-black);
+  --sidebar-primary-foreground: var(--recetui-white);
+  --sidebar-accent: #E5E7EB;
+  --sidebar-accent-foreground: var(--recetui-black);
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: var(--recetui-green);
 }
 
 .dark {
@@ -111,15 +119,11 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+  /* Recetui Custom Colors */
+  --color-recetui-white: var(--recetui-white);
+  --color-recetui-black: var(--recetui-black);
+  --color-recetui-green: var(--recetui-green);
+  --color-recetui-orange: var(--recetui-orange);
+  --color-recetui-grey: var(--recetui-grey);
 }
