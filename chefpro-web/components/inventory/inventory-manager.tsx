@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 type InventoryType = "zukauf" | "eigenproduktion";
@@ -183,7 +184,12 @@ const STAPLE_ITEMS = [
   {"name": "Weizenmehl 405", "item_type": "zukauf", "unit": "kg", "purchase_price": 0.90, "is_staple": true, "nutrition_per_unit": {"kcal": 348, "fat": 1, "carbs": 72, "protein": 10}},
   {"name": "Zwiebeln gelb", "item_type": "zukauf", "unit": "kg", "purchase_price": 0.95, "is_staple": true, "nutrition_per_unit": {"kcal": 40, "fat": 0.1, "carbs": 9, "protein": 1.1}},
   {"name": "Knoblauch", "item_type": "zukauf", "unit": "kg", "purchase_price": 6.50, "is_staple": true, "nutrition_per_unit": {"kcal": 149, "fat": 0.5, "carbs": 33, "protein": 6.4}},
-  {"name": "Eier (M)", "item_type": "zukauf", "unit": "stk", "purchase_price": 0.18, "is_staple": true, "nutrition_per_unit": {"kcal": 80, "fat": 5.5, "carbs": 0.5, "protein": 7}}
+  {"name": "Eier (M)", "item_type": "zukauf", "unit": "stk", "purchase_price": 0.18, "is_staple": true, "nutrition_per_unit": {"kcal": 80, "fat": 5.5, "carbs": 0.5, "protein": 7}},
+  {"name": "Zitronen", "item_type": "zukauf", "unit": "kg", "purchase_price": 2.50, "is_staple": true, "nutrition_per_unit": {"kcal": 29, "fat": 0.3, "carbs": 9, "protein": 1.1}},
+  {"name": "Karotten", "item_type": "zukauf", "unit": "kg", "purchase_price": 1.20, "is_staple": true, "nutrition_per_unit": {"kcal": 41, "fat": 0.2, "carbs": 10, "protein": 0.9}},
+  {"name": "Kartoffeln (festkochend)", "item_type": "zukauf", "unit": "kg", "purchase_price": 1.50, "is_staple": true, "nutrition_per_unit": {"kcal": 77, "fat": 0.1, "carbs": 17, "protein": 2}},
+  {"name": "Pfeffer schwarz (gemahlen)", "item_type": "zukauf", "unit": "kg", "purchase_price": 25.00, "is_staple": true, "nutrition_per_unit": {"kcal": 251, "fat": 3.3, "carbs": 64, "protein": 10}},
+  {"name": "Honig", "item_type": "zukauf", "unit": "kg", "purchase_price": 12.00, "is_staple": true, "nutrition_per_unit": {"kcal": 304, "fat": 0, "carbs": 82, "protein": 0.3}}
 ];
 
   // initialItems removed
@@ -418,6 +424,7 @@ export function InventoryManager() {
   const [docPreviewIsGenerating, setDocPreviewIsGenerating] = useState(false);
   const [docPreviewError, setDocPreviewError] = useState<string | null>(null);
   const [docPackshotBias, setDocPackshotBias] = useState(0);
+  const [packshotFocusX, setPackshotFocusX] = useState(0);
   const [proAllergensInput, setProAllergensInput] = useState("");
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
@@ -757,7 +764,7 @@ export function InventoryManager() {
           0,
           Math.min(
             finalRegion.w - side,
-            Math.floor(centroid.cx - side / 2)
+            Math.floor(centroid.cx - side / 2 + side * packshotFocusX)
           )
         );
         const localY = Math.max(
@@ -928,6 +935,9 @@ export function InventoryManager() {
 
   const filteredItems = useMemo(() => {
     return effectiveItems.filter((item) => {
+      if (activeSection === "zutaten" && item.type !== "zukauf") {
+        return false;
+      }
       if (filterType !== "all" && item.type !== filterType) {
         return false;
       }
@@ -3022,31 +3032,22 @@ export function InventoryManager() {
             </div>
             <div className="flex flex-wrap gap-1">
               <Badge
-                variant={filterType === "all" ? "default" : "outline"}
-                className="h-5 cursor-pointer px-2 text-[10px]"
-                onClick={() => setFilterType("all")}
+                variant="outline"
+                className="h-5 cursor-pointer px-2 text-[10px] hover:bg-muted"
               >
-                Alle
+                Trockenlager
               </Badge>
               <Badge
-                variant={filterType === "eigenproduktion" ? "default" : "outline"}
-                className={cn(
-                  "h-5 cursor-pointer px-2 text-[10px]",
-                  filterType === "eigenproduktion" && "bg-[var(--recetui-orange)] hover:bg-[var(--recetui-orange)]/90 text-white border-transparent"
-                )}
-                onClick={() => setFilterType("eigenproduktion")}
+                variant="outline"
+                className="h-5 cursor-pointer px-2 text-[10px] hover:bg-muted"
               >
-                Rezepte
+                Kühlung
               </Badge>
               <Badge
-                variant={filterType === "zukauf" ? "default" : "outline"}
-                className={cn(
-                  "h-5 cursor-pointer px-2 text-[10px]",
-                  filterType === "zukauf" && "bg-[var(--recetui-green)] hover:bg-[var(--recetui-green)]/90 text-white border-transparent"
-                )}
-                onClick={() => setFilterType("zukauf")}
+                variant="outline"
+                className="h-5 cursor-pointer px-2 text-[10px] hover:bg-muted"
               >
-                Zutaten
+                Obst/Gemüse
               </Badge>
             </div>
           </div>
@@ -3208,7 +3209,7 @@ export function InventoryManager() {
                 )}
               </CardContent>
             </Card>
-          )}
+            )}
           {activeSection === "lager" && (
             <Card className="col-span-full flex flex-col" key="lager-placeholder">
               <CardHeader>
@@ -3223,6 +3224,271 @@ export function InventoryManager() {
             </Card>
           )}
 
+          {activeSection === "zutaten" ? (
+            <div className="flex h-full flex-col gap-4">
+              <div className="grid h-full grid-cols-2 gap-4 overflow-hidden">
+                <Card className="flex flex-col overflow-hidden">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2 border-b bg-muted/20 px-4 py-3">
+                    <CardTitle className="text-base">Import &amp; Vorschau</CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={async () => {
+                        try {
+                          setIsSaving(true);
+                          setError(null);
+                          for (const item of STAPLE_ITEMS) {
+                            await fetch("/api/inventory", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                name: item.name,
+                                type: item.item_type,
+                                unit: item.unit,
+                                purchasePrice: item.purchase_price,
+                                category: "Basic",
+                                portionUnit: "",
+                                nutritionTags: [],
+                                components: [],
+                                nutritionPerUnit: {
+                                  energyKcal: item.nutrition_per_unit.kcal,
+                                  fat: item.nutrition_per_unit.fat,
+                                  saturatedFat: 0,
+                                  carbs: item.nutrition_per_unit.carbs,
+                                  sugar: 0,
+                                  protein: item.nutrition_per_unit.protein,
+                                  salt: 0,
+                                }
+                              }),
+                            });
+                          }
+                          window.location.reload(); 
+                        } catch (err) {
+                          console.error(err);
+                          setError("Fehler beim Importieren der Basics");
+                        } finally {
+                          setIsSaving(false);
+                        }
+                      }}
+                    >
+                      Basics importieren
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
+                       <div className="flex items-center justify-between gap-2">
+                        <div className="font-semibold">Dokumenten-Upload</div>
+                        {docError && <span className="text-[11px] text-destructive">{docError}</span>}
+                      </div>
+                      <form
+                        className="space-y-2"
+                        onSubmit={async (event) => {
+                          event.preventDefault();
+                          if (!docFile) return;
+                          await handleDocumentUpload(docFile);
+                        }}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={(event) => {
+                            const file = event.target.files && event.target.files[0] ? event.target.files[0] : null;
+                            setDocFile(file);
+                            setDocParsed(null);
+                            setDocError(null);
+                          }}
+                          className="block w-full text-[11px] text-foreground file:mr-2 file:rounded-md file:border file:border-input file:bg-background file:px-2 file:py-1 file:text-[11px] file:font-medium file:text-foreground hover:file:bg-accent"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button type="submit" size="sm" disabled={docIsUploading || !docFile}>
+                            {docIsUploading ? "Lade hoch..." : "Dokument auswerten"}
+                          </Button>
+                        </div>
+                      </form>
+                    </div>
+                    
+                    <div className="space-y-2 rounded-md border bg-card/60 p-3 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-semibold">KI-Schnellimport</div>
+                        {aiError && <span className="text-[11px] text-destructive">{aiError}</span>}
+                      </div>
+                      <form className="space-y-2" onSubmit={handleAiParse}>
+                        <textarea
+                          value={aiText}
+                          onChange={(event) => setAiText(event.target.value)}
+                          rows={2}
+                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          placeholder='Beispiel: 3kg Sack Mehl Type 405 für 4,50€ bei Metro'
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button type="submit" size="sm" disabled={aiIsParsing || !aiText.trim()}>
+                            {aiIsParsing ? "Analysiere..." : "Analysieren"}
+                          </Button>
+                        </div>
+                      </form>
+                    </div>
+
+                    {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
+                      <div className="space-y-2">
+                         <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-medium">Packshot Fokus</label>
+                            <span className="text-[10px] text-muted-foreground">
+                              X: {packshotFocusX.toFixed(2)} | Y: {docPackshotBias.toFixed(2)}
+                            </span>
+                         </div>
+                         <div className="grid grid-cols-[auto_1fr] gap-2">
+                            <div className="flex h-[200px] flex-col justify-center">
+                              <input
+                                type="range"
+                                min="-0.5"
+                                max="0.5"
+                                step="0.05"
+                                value={docPackshotBias}
+                                onChange={(e) => setDocPackshotBias(parseFloat(e.target.value))}
+                                className="h-[180px] w-1.5 appearance-none rounded-full bg-muted-foreground/20 accent-primary"
+                                style={{ writingMode: "vertical-lr", direction: "rtl" }} 
+                              />
+                            </div>
+                            <div className="space-y-2">
+                               <div className="relative aspect-square w-full overflow-hidden rounded-md border bg-muted/10">
+                                  {(() => {
+                                      const url = (docParsed && docParsed.fileUrl) || (selectedItem && selectedItem.fileUrl) || "";
+                                      const isPdf = url.toLowerCase().endsWith(".pdf");
+                                      if (isPdf) {
+                                         return (
+                                            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+                                               PDF-Vorschau unten
+                                            </div>
+                                         );
+                                      }
+                                      return (
+                                        <img 
+                                          src={url} 
+                                          alt="Preview" 
+                                          className="h-full w-full object-cover transition-all duration-200"
+                                          style={{
+                                            objectPosition: `${50 + packshotFocusX * 100}% ${50 + docPackshotBias * 100}%`
+                                          }}
+                                        />
+                                      );
+                                  })()}
+                               </div>
+                               <input
+                                  type="range"
+                                  min="-0.5"
+                                  max="0.5"
+                                  step="0.05"
+                                  value={packshotFocusX}
+                                  onChange={(e) => setPackshotFocusX(parseFloat(e.target.value))}
+                                  className="h-1.5 w-full appearance-none rounded-full bg-muted-foreground/20 accent-primary"
+                               />
+                            </div>
+                         </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="flex flex-col overflow-hidden">
+                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b bg-muted/20 px-4 py-3">
+                      <CardTitle className="text-base">Stammdaten</CardTitle>
+                      <div className="flex gap-1">
+                         <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground hover:bg-muted">Trockenlager</Badge>
+                         <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground hover:bg-muted">Kühlung</Badge>
+                         <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground hover:bg-muted">Obst/Gemüse</Badge>
+                      </div>
+                   </CardHeader>
+                   <CardContent className="flex-1 overflow-y-auto p-4">
+                      {selectedItem ? (
+                         <div className="space-y-4">
+                            <div className="grid gap-4">
+                               <div className="grid gap-2">
+                                  <label className="text-xs font-medium">Artikelname</label>
+                                  <Input 
+                                    value={selectedItem.name} 
+                                    onChange={(e) => {
+                                       const val = e.target.value;
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, name: val } : i));
+                                    }}
+                                  />
+                               </div>
+                               <div className="grid grid-cols-2 gap-4">
+                                  <div className="grid gap-2">
+                                    <label className="text-xs font-medium">Einheit</label>
+                                    <Input value={selectedItem.unit} onChange={(e) => {
+                                       const val = e.target.value;
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, unit: val } : i));
+                                    }} />
+                                  </div>
+                                  <div className="grid gap-2">
+                                    <label className="text-xs font-medium">EK-Preis</label>
+                                    <Input 
+                                      type="number" 
+                                      value={selectedItem.purchasePrice} 
+                                      onChange={(e) => {
+                                         const val = parseFloat(e.target.value);
+                                         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, purchasePrice: val } : i));
+                                      }} 
+                                    />
+                                  </div>
+                               </div>
+                               <div className="space-y-2">
+                                  <label className="text-xs font-medium">Standard-Zubereitung</label>
+                                  <Textarea 
+                                     value={standardPreparationText || ""}
+                                     onChange={(e) => setStandardPreparationText(e.target.value)}
+                                     rows={6}
+                                     className="text-xs"
+                                     placeholder="Zubereitungsschritte..."
+                                  />
+                               </div>
+                               <div className="flex justify-end">
+                                  <Button 
+                                    size="sm" 
+                                    onClick={async () => {
+                                       try {
+                                          setIsSaving(true);
+                                          await handleSaveProfiData();
+                                       } catch (e) {
+                                          setError(e instanceof Error ? e.message : "Fehler beim Speichern");
+                                       } finally {
+                                          setIsSaving(false);
+                                       }
+                                    }}
+                                  >
+                                    Speichern
+                                  </Button>
+                               </div>
+                            </div>
+                         </div>
+                      ) : (
+                         <div className="flex h-full flex-col items-center justify-center text-muted-foreground text-xs">
+                            <p>Wähle einen Artikel aus der Liste.</p>
+                         </div>
+                      )}
+                   </CardContent>
+                </Card>
+              </div>
+
+              {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
+                 <Card className="h-[500px] shrink-0 overflow-hidden">
+                    <div className="h-full w-full bg-muted/10">
+                       <object
+                          data={(docParsed?.fileUrl || selectedItem?.fileUrl || "")}
+                          type="application/pdf"
+                          className="h-full w-full"
+                       >
+                          <div className="flex h-full items-center justify-center text-muted-foreground">
+                             Keine Vorschau verfügbar.
+                          </div>
+                       </object>
+                    </div>
+                 </Card>
+              )}
+            </div>
+          ) : (
+            <>
               <Card className="flex flex-col" key={activeSection}>
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
@@ -3544,7 +3810,6 @@ export function InventoryManager() {
                     </Button>
                   </div>
                 </form>
-                {activeSection !== "zutaten" && (
                 <div className="flex gap-3">
                   {activeSection === "rezepte" && (
                     <div
@@ -3959,7 +4224,6 @@ export function InventoryManager() {
                       })}
                   </div>
                 </div>
-                )}
               </CardContent>
             </Card>
 
@@ -6539,6 +6803,8 @@ export function InventoryManager() {
               </div>
             )}
           </Card>
+            </>
+          )}
         </div>
       </main>
       {imageViewer ? (

@@ -123,6 +123,8 @@ export async function POST(request: Request) {
     targetSalesPrice?: number | null;
     category?: string | null;
     portionUnit?: string | null;
+    purchasePrice?: number;
+    unit?: string;
     nutritionTags?: string[];
     standardPreparation?: StandardPreparation | null;
     isBio?: boolean;
@@ -157,6 +159,8 @@ export async function POST(request: Request) {
     target_sales_price?: number | null;
     category?: string | null;
     portion_unit?: string | null;
+    purchase_price?: number;
+    unit?: string;
     nutrition_tags?: string[] | null;
     standard_preparation?: StandardPreparation | null;
     is_bio?: boolean;
@@ -184,6 +188,17 @@ export async function POST(request: Request) {
       body.manufacturerArticleNumber.trim().length > 0
         ? body.manufacturerArticleNumber.trim()
         : null;
+  }
+
+  if (typeof body.purchasePrice === "number") {
+    updates.purchase_price = body.purchasePrice;
+  }
+
+  if (typeof body.unit === "string") {
+    const trimmedUnit = body.unit.trim();
+    if (trimmedUnit.length > 0) {
+      updates.unit = trimmedUnit;
+    }
   }
 
   if (body.allergens) {
