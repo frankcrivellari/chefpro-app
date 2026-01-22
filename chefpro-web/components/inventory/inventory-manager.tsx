@@ -3538,18 +3538,34 @@ export function InventoryManager() {
               </div>
 
               {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
-                 <Card className="h-[500px] shrink-0 overflow-hidden border-none bg-white shadow-sm w-full max-w-[100vw]">
-                    <div className="h-full w-full bg-[#F6F7F5] overflow-x-hidden">
-                       <object
-                          data={(docParsed?.fileUrl || selectedItem?.fileUrl || "")}
-                          type="application/pdf"
-                          className="h-full w-full"
-                          style={{ width: '100% !important' }}
-                       >
+                 <Card className="h-[600px] shrink-0 overflow-hidden border-none bg-white shadow-sm w-full max-w-[100vw]">
+                    <div className="relative h-full w-full bg-[#F6F7F5] overflow-auto flex items-center justify-center p-4">
+                       {docPreviewIsGenerating ? (
+                          <div className="flex flex-col items-center gap-2 text-[#6B7176]">
+                             <Loader2 className="h-8 w-8 animate-spin" />
+                             <span className="text-xs">Vorschau wird generiert...</span>
+                          </div>
+                       ) : previewImage ? (
+                          <ReactCrop 
+                              crop={crop} 
+                              onChange={(c) => setCrop(c)} 
+                              aspect={1} 
+                              className="max-w-full z-[100]"
+                              style={{ zIndex: 100 }}
+                          >
+                              <img
+                                  ref={packshotImgRef}
+                                  src={previewImage}
+                                  alt="Preview"
+                                  className="max-h-[550px] w-auto object-contain pointer-events-auto"
+                                  style={{ pointerEvents: 'all' }}
+                              />
+                          </ReactCrop>
+                       ) : (
                           <div className="flex h-full items-center justify-center text-[#6B7176]">
                              Keine Vorschau verfügbar.
                           </div>
-                       </object>
+                       )}
                     </div>
                  </Card>
               )}
@@ -3667,13 +3683,13 @@ export function InventoryManager() {
                       
                       <div className="rounded-md border bg-background w-full max-w-full overflow-hidden flex flex-col items-center min-h-[400px]">
                         {previewImage ? (
-                            <ReactCrop crop={crop} onChange={(c) => setCrop(c)} aspect={1} className="max-w-full">
+                            <ReactCrop crop={crop} onChange={(c) => setCrop(c)} aspect={1} className="max-w-full z-[100]" style={{ zIndex: 100 }}>
                                 <img
                                     ref={packshotImgRef}
                                     src={previewImage}
                                     alt="Preview"
-                                    className="max-h-[600px] w-auto object-contain"
-                                    style={{ maxWidth: '100%' }}
+                                    className="max-h-[600px] w-auto object-contain pointer-events-auto"
+                                    style={{ maxWidth: '100%', pointerEvents: 'all' }}
                                 />
                             </ReactCrop>
                         ) : (
