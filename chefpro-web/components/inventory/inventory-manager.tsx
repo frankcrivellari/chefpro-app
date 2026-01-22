@@ -1136,7 +1136,7 @@ export function InventoryManager() {
     filteredItems[0] ??
     null;
 
-  const sourceDocument = docParsed?.fileUrl || selectedItem?.fileUrl || "";
+
   const packshotPreview = previewImage || packshotUrl || selectedItem?.imageUrl || (docParsed && docParsed.imageUrl) || "";
 
   useEffect(() => {
@@ -3666,31 +3666,7 @@ export function InventoryManager() {
                 </Card>
               </div>
 
-              {sourceDocument && (
-                 <Card className="h-[600px] shrink-0 overflow-hidden border-none bg-white shadow-sm w-full">
-                    <div className="h-full w-full bg-[#F6F7F5] overflow-hidden flex items-center justify-center relative" style={{ width: '100%', overflow: 'hidden' }}>
-                       {sourceDocument.toLowerCase().endsWith('.pdf') ? (
-                           <object
-                              data={sourceDocument}
-                              type="application/pdf"
-                              className="!w-full !h-auto !max-w-full"
-                              style={{ width: '100%', height: '100%' }}
-                           >
-                              <div className="flex h-full items-center justify-center text-[#6B7176]">
-                                 PDF kann nicht angezeigt werden.
-                              </div>
-                           </object>
-                       ) : (
-                           <img
-                              src={sourceDocument}
-                              alt="Source Document"
-                              className="!w-full !h-auto !max-w-full !transform-none"
-                              style={{ width: '100% !important', height: 'auto !important', transform: 'none !important', objectFit: 'contain' }}
-                           />
-                       )}
-                    </div>
-                 </Card>
-              )}
+
             </div>
           ) : (
             <>
@@ -3808,8 +3784,7 @@ export function InventoryManager() {
                             <img
                                 src={previewImage}
                                 alt="Original Source Document"
-                                className="!w-full !h-auto !max-w-full object-contain"
-                                style={{ width: '100%', height: 'auto', maxWidth: '100%' }}
+                                className="w-full h-auto object-contain"
                             />
                         ) : (
                            (() => {
