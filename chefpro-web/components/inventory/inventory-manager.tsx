@@ -3803,15 +3803,11 @@ export function InventoryManager() {
                       
                       <div className="rounded-md border bg-background w-full max-w-full overflow-hidden flex flex-col items-center min-h-[400px]">
                         {previewImage ? (
-                            <ReactCrop crop={crop} onChange={(c) => setCrop(c)} aspect={1} className="max-w-full z-[100]" style={{ zIndex: 100 }}>
-                                <img
-                                    ref={packshotImgRef}
-                                    src={previewImage}
-                                    alt="Preview"
-                                    className="max-h-[600px] w-auto object-contain pointer-events-auto"
-                                    style={{ maxWidth: '100%', pointerEvents: 'all' }}
-                                />
-                            </ReactCrop>
+                            <img
+                                src={previewImage}
+                                alt="Original Source Document"
+                                className="w-full h-auto object-contain"
+                            />
                         ) : (
                            (() => {
                                 const url = (docParsed && docParsed.fileUrl) || (selectedItem && selectedItem.fileUrl) || "";
@@ -3820,7 +3816,7 @@ export function InventoryManager() {
                                     <object
                                         data={url}
                                         type="application/pdf"
-                                        className="h-[600px] !w-full"
+                                        className="h-[600px] w-full"
                                     >
                                         <a href={url} target="_blank" rel="noreferrer" className="block p-2 text-[11px]">
                                             PDF öffnen
@@ -3835,18 +3831,7 @@ export function InventoryManager() {
                         )}
                       </div>
 
-                      <div className="flex justify-end">
-                          <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="text-xs" 
-                              onClick={handleSaveCrop}
-                              disabled={!crop || imageIsUploading || !previewImage}
-                            >
-                              {imageIsUploading ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <ImageIcon className="mr-2 h-3 w-3" />}
-                              Ausschnitt festlegen
-                          </Button>
-                      </div>
+
                     </div>
                   )}
                 </div>
