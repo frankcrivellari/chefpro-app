@@ -3331,16 +3331,16 @@ export function InventoryManager() {
                           try {
                             setIsSaving(true);
                             setError(null);
-                            const isRecipe = activeSection === "rezepte";
+                            const isRecipe = false;
                             const response = await fetch("/api/inventory", {
                               method: "POST",
                               headers: {
                                 "Content-Type": "application/json",
                               },
                               body: JSON.stringify({
-                                name: isRecipe ? "Neues Rezept" : "Neuer Artikel",
-                                type: (isRecipe ? "eigenproduktion" : "zukauf") as InventoryType,
-                                unit: isRecipe ? "Portion" : "Stück",
+                                name: "Neuer Artikel",
+                                type: "zukauf",
+                                unit: "Stück",
                                 purchasePrice: 0,
                                 components: [],
                               }),
