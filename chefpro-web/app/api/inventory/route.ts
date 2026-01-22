@@ -64,6 +64,9 @@ type InventoryItem = {
   isGlutenFree?: boolean;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
+  packshotX?: number | null;
+  packshotY?: number | null;
+  packshotZoom?: number | null;
 };
 
 type SupabaseItemRow = {
@@ -98,6 +101,9 @@ type SupabaseItemRow = {
   is_yeast_free: boolean | null;
   is_lactose_free: boolean | null;
   is_gluten_free: boolean | null;
+  packshot_x: number | null;
+  packshot_y: number | null;
+  packshot_zoom: number | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -201,6 +207,9 @@ export async function GET() {
         isYeastFree: row.is_yeast_free ?? false,
         isLactoseFree: row.is_lactose_free ?? false,
         isGlutenFree: row.is_gluten_free ?? false,
+        packshotX: row.packshot_x,
+        packshotY: row.packshot_y,
+        packshotZoom: row.packshot_zoom,
       });
     }
 
@@ -383,6 +392,9 @@ export async function POST(request: Request) {
       preparationSteps: createdItemRow.preparation_steps,
       fileUrl: createdItemRow.file_url,
       standardPreparation: createdItemRow.standard_preparation,
+      packshotX: createdItemRow.packshot_x,
+      packshotY: createdItemRow.packshot_y,
+      packshotZoom: createdItemRow.packshot_zoom,
       components,
     };
 

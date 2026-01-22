@@ -2772,6 +2772,9 @@ export function InventoryManager() {
           isLactoseFree: isLactoseFreeInput,
           isGlutenFree: isGlutenFreeInput,
           imageUrl: imageUrlValue,
+          packshotX: packshotPan.x,
+          packshotY: packshotPan.y,
+          packshotZoom: packshotZoom,
         }),
       });
       const payload = (await response.json()) as {
@@ -3573,7 +3576,7 @@ export function InventoryManager() {
                                         <Button
                                             size="sm"
                                             className="h-6 bg-[#F28C28] px-2 text-[10px] text-white hover:bg-[#d67b23]"
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 if (selectedItem) {
                                                     setItems((prev) => prev.map((item) => {
                                                         if (item.id === selectedItem.id) {
@@ -3586,6 +3589,14 @@ export function InventoryManager() {
                                                         }
                                                         return item;
                                                     }));
+                                                    try {
+                                                       setIsSaving(true);
+                                                       await handleSaveProfiData();
+                                                    } catch (e) {
+                                                       setError(e instanceof Error ? e.message : "Fehler beim Speichern");
+                                                    } finally {
+                                                       setIsSaving(false);
+                                                    }
                                                 }
                                             }}
                                         >

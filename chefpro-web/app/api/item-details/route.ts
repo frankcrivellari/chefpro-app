@@ -42,6 +42,9 @@ type SupabaseItemRow = {
   is_yeast_free: boolean | null;
   is_lactose_free: boolean | null;
   is_gluten_free: boolean | null;
+  packshot_x: number | null;
+  packshot_y: number | null;
+  packshot_zoom: number | null;
   file_url: string | null;
   image_url: string | null;
 };
@@ -93,6 +96,9 @@ type InventoryItem = {
   isGlutenFree?: boolean;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
+  packshotX?: number | null;
+  packshotY?: number | null;
+  packshotZoom?: number | null;
   imageUrl?: string | null;
   fileUrl?: string | null;
 };
@@ -136,6 +142,9 @@ export async function POST(request: Request) {
     isYeastFree?: boolean;
     isLactoseFree?: boolean;
     isGlutenFree?: boolean;
+    packshotX?: number | null;
+    packshotY?: number | null;
+    packshotZoom?: number | null;
     imageUrl?: string | null;
     fileUrl?: string | null;
   };
@@ -172,6 +181,9 @@ export async function POST(request: Request) {
     is_yeast_free?: boolean;
     is_lactose_free?: boolean;
     is_gluten_free?: boolean;
+    packshot_x?: number | null;
+    packshot_y?: number | null;
+    packshot_zoom?: number | null;
     file_url?: string | null;
     image_url?: string | null;
   } = {};
@@ -431,6 +443,9 @@ export async function POST(request: Request) {
     isYeastFree: row.is_yeast_free ?? false,
     isLactoseFree: row.is_lactose_free ?? false,
     isGlutenFree: row.is_gluten_free ?? false,
+    packshotX: row.packshot_x,
+    packshotY: row.packshot_y,
+    packshotZoom: row.packshot_zoom,
     hasGhostComponents:
       hasGhostComponents || undefined,
     components,
