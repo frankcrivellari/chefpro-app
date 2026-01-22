@@ -3233,54 +3233,7 @@ export function InventoryManager() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              className="bg-[#4F8F4E] text-white hover:bg-[#3d7a3c]"
-              disabled={isSaving}
-              onClick={async () => {
-                try {
-                  setIsSaving(true);
-                  setError(null);
-                  const isRecipe = activeSection === "rezepte";
-                  const response = await fetch("/api/inventory", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                      name: isRecipe ? "Neues Rezept" : "Neuer Artikel",
-                      type: (isRecipe ? "eigenproduktion" : "zukauf") as InventoryType,
-                      unit: isRecipe ? "Portion" : "Stück",
-                      purchasePrice: 0,
-                      components: [],
-                    }),
-                  });
-                  if (!response.ok) {
-                    let message = "Fehler beim Anlegen.";
-                    try {
-                      const payload = (await response.json()) as { error?: unknown };
-                      if (payload && typeof payload.error === "string") {
-                        message = payload.error;
-                      }
-                    } catch {}
-                    throw new Error(message);
-                  }
-                  const created = (await response.json()) as InventoryItem;
-                  setItems((previous) => [...previous, created]);
-                  setSelectedItemId(created.id);
-                  setIsDetailView(true);
-                } catch (error) {
-                  const message =
-                    error instanceof Error ? error.message : "Fehler beim Anlegen.";
-                  setError(message);
-                } finally {
-                  setIsSaving(false);
-                }
-              }}
-            >
-              {isSaving ? "Erstelle..." : "Neuen Artikel anlegen"}
-            </Button>
+            
           </div>
         </header>
         <div className="flex-1 overflow-y-auto p-6">
@@ -3364,10 +3317,60 @@ export function InventoryManager() {
               <div className="grid min-h-[600px] grid-cols-2 gap-4">
                 <Card className="flex flex-col overflow-hidden border-none bg-white shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
-                    <CardTitle className="text-base text-[#1F2326]">Import &amp; Vorschau</CardTitle>
+                    <CardTitle className="text-base text-[#1F2326]">Import</CardTitle>
 
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div className="flex justify-center mb-6">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="w-fit px-6 bg-[#4F8F4E] text-white hover:bg-[#3d7a3c]"
+                        disabled={isSaving}
+                        onClick={async () => {
+                          try {
+                            setIsSaving(true);
+                            setError(null);
+                            const isRecipe = activeSection === "rezepte";
+                            const response = await fetch("/api/inventory", {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({
+                                name: isRecipe ? "Neues Rezept" : "Neuer Artikel",
+                                type: (isRecipe ? "eigenproduktion" : "zukauf") as InventoryType,
+                                unit: isRecipe ? "Portion" : "Stück",
+                                purchasePrice: 0,
+                                components: [],
+                              }),
+                            });
+                            if (!response.ok) {
+                              let message = "Fehler beim Anlegen.";
+                              try {
+                                const payload = (await response.json()) as { error?: unknown };
+                                if (payload && typeof payload.error === "string") {
+                                  message = payload.error;
+                                }
+                              } catch {}
+                              throw new Error(message);
+                            }
+                            const created = (await response.json()) as InventoryItem;
+                            setItems((previous) => [...previous, created]);
+                            setSelectedItemId(created.id);
+                            setIsDetailView(true);
+                          } catch (error) {
+                            const message =
+                              error instanceof Error ? error.message : "Fehler beim Anlegen.";
+                            setError(message);
+                          } finally {
+                            setIsSaving(false);
+                          }
+                        }}
+                      >
+                        {isSaving ? "Erstelle..." : "Neuen Artikel anlegen"}
+                      </Button>
+                    </div>
                     <div className="space-y-2 rounded-md border border-[#E5E7EB] bg-[#F6F7F5]/50 p-3 text-xs">
                        <div className="flex items-center justify-between gap-2">
                         <div className="font-semibold text-[#1F2326]">Dokumenten-Upload</div>
