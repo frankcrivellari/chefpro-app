@@ -20,6 +20,9 @@ import {
   Image as ImageIcon,
   Link2,
   Search,
+  Plus,
+  Minus,
+  ZoomIn,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -136,6 +139,9 @@ type InventoryItem = {
   hasGhostComponents?: boolean;
   imageUrl?: string | null;
   fileUrl?: string | null;
+  packshotX?: number | null;
+  packshotY?: number | null;
+  packshotZoom?: number | null;
 };
 
 type ParsedAiItem = {
@@ -510,6 +516,7 @@ export function InventoryManager() {
 
   // Packshot Focus State
   const [packshotPan, setPackshotPan] = useState({ x: 0, y: 0 });
+  const [packshotZoom, setPackshotZoom] = useState(2.0);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
@@ -530,6 +537,14 @@ export function InventoryManager() {
 
   const handlePanMouseUp = () => {
     setIsPanning(false);
+  };
+  
+  const handleZoomIn = () => {
+    setPackshotZoom((prev) => Math.min(prev + 0.2, 5.0));
+  };
+  
+  const handleZoomOut = () => {
+    setPackshotZoom((prev) => Math.max(prev - 0.2, 0.5));
   };
 
   useEffect(() => {
@@ -1127,8 +1142,21 @@ export function InventoryManager() {
   useEffect(() => {
     if (selectedItem) {
       setImageUrlInput(selectedItem.imageUrl ?? "");
+      if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
+          selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
+          setPackshotPan({ x: selectedItem.packshotX, y: selectedItem.packshotY });
+      } else {
+          setPackshotPan({ x: 0, y: 0 });
+      }
+      if (selectedItem.packshotZoom !== undefined && selectedItem.packshotZoom !== null) {
+          setPackshotZoom(selectedItem.packshotZoom);
+      } else {
+          setPackshotZoom(2.0);
+      }
     } else {
       setImageUrlInput("");
+      setPackshotPan({ x: 0, y: 0 });
+      setPackshotZoom(2.0);
     }
     setImageUploadError(null);
     setIsImageDropActive(false);
@@ -3511,7 +3539,7 @@ export function InventoryManager() {
                                             className="max-w-none absolute origin-top-left pointer-events-none select-none"
                                             style={{ 
                                                 transform: `translate(${packshotPan.x}px, ${packshotPan.y}px)`,
-                                                width: '200%', 
+                                                width: `${packshotZoom * 100}%`, 
                                                 height: 'auto'
                                             }}
                                             draggable={false}
@@ -3519,6 +3547,50 @@ export function InventoryManager() {
                                     </div>
                                     <div className="text-[9px] text-[#6B7176] mt-1">
                                         Ausschnitt verschieben
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                        <div className="flex items-center rounded-md border border-[#E5E7EB] bg-white p-0.5 shadow-sm">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-5 w-5 p-0 text-[#6B7176] hover:bg-[#F6F7F5]"
+                                                onClick={handleZoomOut}
+                                            >
+                                                <Minus className="h-3 w-3" />
+                                            </Button>
+                                            <div className="flex h-5 w-5 items-center justify-center border-l border-r border-[#E5E7EB] text-[#6B7176]">
+                                                <ZoomIn className="h-3 w-3" />
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-5 w-5 p-0 text-[#6B7176] hover:bg-[#F6F7F5]"
+                                                onClick={handleZoomIn}
+                                            >
+                                                <Plus className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            className="h-6 bg-[#F28C28] px-2 text-[10px] text-white hover:bg-[#d67b23]"
+                                            onClick={() => {
+                                                if (selectedItem) {
+                                                    setItems((prev) => prev.map((item) => {
+                                                        if (item.id === selectedItem.id) {
+                                                            return {
+                                                                ...item,
+                                                                packshotX: packshotPan.x,
+                                                                packshotY: packshotPan.y,
+                                                                packshotZoom: packshotZoom,
+                                                            };
+                                                        }
+                                                        return item;
+                                                    }));
+                                                }
+                                            }}
+                                        >
+                                            Fokus fixieren
+                                        </Button>
                                     </div>
                                 </div>
                             )}
