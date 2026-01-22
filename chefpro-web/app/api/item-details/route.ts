@@ -313,6 +313,16 @@ export async function POST(request: Request) {
     updates.is_gluten_free = body.isGlutenFree;
   }
 
+  if (typeof body.packshotX === "number") {
+    updates.packshot_x = body.packshotX;
+  }
+  if (typeof body.packshotY === "number") {
+    updates.packshot_y = body.packshotY;
+  }
+  if (typeof body.packshotZoom === "number") {
+    updates.packshot_zoom = body.packshotZoom;
+  }
+
   if (Object.prototype.hasOwnProperty.call(body, "standardPreparation")) {
     const value = body.standardPreparation;
     if (value === null) {

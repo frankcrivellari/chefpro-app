@@ -3576,7 +3576,9 @@ export function InventoryManager() {
                                         <Button
                                             size="sm"
                                             className="h-6 bg-[#F28C28] px-2 text-[10px] text-white hover:bg-[#d67b23]"
-                                            onClick={async () => {
+                                            onClick={async (e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
                                                 if (selectedItem) {
                                                     setItems((prev) => prev.map((item) => {
                                                         if (item.id === selectedItem.id) {
