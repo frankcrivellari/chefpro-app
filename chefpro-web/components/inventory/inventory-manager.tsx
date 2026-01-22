@@ -3667,13 +3667,14 @@ export function InventoryManager() {
               </div>
 
               {sourceDocument && (
-                 <Card className="h-[600px] shrink-0 overflow-hidden border-none bg-white shadow-sm w-full max-w-[100vw]">
-                    <div className="h-full w-full bg-[#F6F7F5] overflow-hidden flex items-center justify-center relative">
+                 <Card className="h-[600px] shrink-0 overflow-hidden border-none bg-white shadow-sm w-full">
+                    <div className="h-full w-full bg-[#F6F7F5] overflow-hidden flex items-center justify-center relative" style={{ width: '100%', overflow: 'hidden' }}>
                        {sourceDocument.toLowerCase().endsWith('.pdf') ? (
                            <object
                               data={sourceDocument}
                               type="application/pdf"
-                              className="h-full w-full"
+                              className="!w-full !h-auto !max-w-full"
+                              style={{ width: '100%', height: '100%' }}
                            >
                               <div className="flex h-full items-center justify-center text-[#6B7176]">
                                  PDF kann nicht angezeigt werden.
@@ -3683,7 +3684,8 @@ export function InventoryManager() {
                            <img
                               src={sourceDocument}
                               alt="Source Document"
-                              className="h-full w-full object-contain"
+                              className="!w-full !h-auto !max-w-full !transform-none"
+                              style={{ width: '100% !important', height: 'auto !important', transform: 'none !important', objectFit: 'contain' }}
                            />
                        )}
                     </div>
@@ -5868,7 +5870,21 @@ export function InventoryManager() {
                       )}
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                         <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-xs font-semibold">Zubereitung</h3>
+                          <h3 className="text-xs font-semibold">Standard-Zubereitung</h3>
+                        </div>
+                        <div className="space-y-2">
+                           <textarea
+                             rows={6}
+                             value={standardPreparationText}
+                             onChange={(event) => setStandardPreparationText(event.target.value)}
+                             className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                             placeholder="Zubereitungsschritte hier eingeben..."
+                           />
+                        </div>
+                      </div>
+                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-semibold">Schritte (Erweitert)</h3>
                           <Button
                             type="button"
                             size="sm"
