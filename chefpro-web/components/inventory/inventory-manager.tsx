@@ -508,6 +508,30 @@ export function InventoryManager() {
   const packshotImgRef = useRef<HTMLImageElement>(null);
   const [packshotTranslate, setPackshotTranslate] = useState({ x: 0, y: 0 }); // Kept for build compatibility but unused in crop logic
 
+  // Packshot Focus State
+  const [packshotPan, setPackshotPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+
+  const handlePanMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsPanning(true);
+    setPanStart({ x: e.clientX - packshotPan.x, y: e.clientY - packshotPan.y });
+  };
+
+  const handlePanMouseMove = (e: React.MouseEvent) => {
+    if (!isPanning) return;
+    e.preventDefault();
+    setPackshotPan({
+      x: e.clientX - panStart.x,
+      y: e.clientY - panStart.y
+    });
+  };
+
+  const handlePanMouseUp = () => {
+    setIsPanning(false);
+  };
+
   useEffect(() => {
     if (!pathname) {
       return;
@@ -539,6 +563,7 @@ export function InventoryManager() {
   }, [activeSection]);
 
   const effectiveItems = isLoading ? [] : items;
+
 
   const generateAndUploadPdfPreview = useCallback(async (fileUrl: string, itemId: string) => {
     try {
@@ -1095,6 +1120,9 @@ export function InventoryManager() {
     filteredItems.find((item) => item.id === selectedItemId) ??
     filteredItems[0] ??
     null;
+
+  const sourceDocument = docParsed?.fileUrl || selectedItem?.fileUrl || "";
+  const packshotPreview = previewImage || packshotUrl || selectedItem?.imageUrl || (docParsed && docParsed.imageUrl) || "";
 
   useEffect(() => {
     if (selectedItem) {
@@ -3467,14 +3495,30 @@ export function InventoryManager() {
                    <CardContent className="flex-1 overflow-y-auto p-4">
                       {selectedItem ? (
                          <div className="space-y-4">
-                            {(packshotUrl || selectedItem.imageUrl || (docParsed && docParsed.imageUrl)) && (
-                                <div className="flex justify-center mb-4">
-                                    <div className="relative h-40 w-40 overflow-hidden rounded-md border border-gray-200 bg-white">
+                            {packshotPreview && (
+                                <div className="flex flex-col items-center mb-4">
+                                    <div className="text-[10px] font-medium text-[#6B7176] mb-1 w-full text-left">Packshot-Fokus</div>
+                                    <div 
+                                        className="relative h-40 w-40 overflow-hidden rounded-md border border-gray-200 bg-white cursor-move touch-none"
+                                        onMouseDown={handlePanMouseDown}
+                                        onMouseMove={handlePanMouseMove}
+                                        onMouseUp={handlePanMouseUp}
+                                        onMouseLeave={handlePanMouseUp}
+                                    >
                                         <img 
-                                            src={packshotUrl || selectedItem.imageUrl || (docParsed && docParsed.imageUrl) || ""} 
-                                            alt="Packshot" 
-                                            className="h-full w-full object-contain"
+                                            src={packshotPreview} 
+                                            alt="Packshot Focus" 
+                                            className="max-w-none absolute origin-top-left pointer-events-none select-none"
+                                            style={{ 
+                                                transform: `translate(${packshotPan.x}px, ${packshotPan.y}px)`,
+                                                width: '200%', 
+                                                height: 'auto'
+                                            }}
+                                            draggable={false}
                                         />
+                                    </div>
+                                    <div className="text-[9px] text-[#6B7176] mt-1">
+                                        Ausschnitt verschieben
                                     </div>
                                 </div>
                             )}
@@ -3537,34 +3581,25 @@ export function InventoryManager() {
                 </Card>
               </div>
 
-              {(docParsed?.fileUrl || selectedItem?.fileUrl) && (
+              {sourceDocument && (
                  <Card className="h-[600px] shrink-0 overflow-hidden border-none bg-white shadow-sm w-full max-w-[100vw]">
-                    <div className="relative h-full w-full bg-[#F6F7F5] overflow-auto flex items-center justify-center p-4">
-                       {docPreviewIsGenerating ? (
-                          <div className="flex flex-col items-center gap-2 text-[#6B7176]">
-                             <Loader2 className="h-8 w-8 animate-spin" />
-                             <span className="text-xs">Vorschau wird generiert...</span>
-                          </div>
-                       ) : previewImage ? (
-                          <ReactCrop 
-                              crop={crop} 
-                              onChange={(c) => setCrop(c)} 
-                              aspect={1} 
-                              className="max-w-full z-[100]"
-                              style={{ zIndex: 100 }}
-                          >
-                              <img
-                                  ref={packshotImgRef}
-                                  src={previewImage}
-                                  alt="Preview"
-                                  className="max-h-[550px] w-auto object-contain pointer-events-auto"
-                                  style={{ pointerEvents: 'all' }}
-                              />
-                          </ReactCrop>
+                    <div className="h-full w-full bg-[#F6F7F5] overflow-hidden flex items-center justify-center relative">
+                       {sourceDocument.toLowerCase().endsWith('.pdf') ? (
+                           <object
+                              data={sourceDocument}
+                              type="application/pdf"
+                              className="h-full w-full"
+                           >
+                              <div className="flex h-full items-center justify-center text-[#6B7176]">
+                                 PDF kann nicht angezeigt werden.
+                              </div>
+                           </object>
                        ) : (
-                          <div className="flex h-full items-center justify-center text-[#6B7176]">
-                             Keine Vorschau verfügbar.
-                          </div>
+                           <img
+                              src={sourceDocument}
+                              alt="Source Document"
+                              className="h-full w-full object-contain"
+                           />
                        )}
                     </div>
                  </Card>
