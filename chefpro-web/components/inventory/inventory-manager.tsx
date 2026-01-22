@@ -3806,7 +3806,8 @@ export function InventoryManager() {
                             <img
                                 src={previewImage}
                                 alt="Original Source Document"
-                                className="w-full h-auto object-contain"
+                                className="!w-full !h-auto !max-w-full object-contain"
+                                style={{ width: '100%', height: 'auto', maxWidth: '100%' }}
                             />
                         ) : (
                            (() => {
