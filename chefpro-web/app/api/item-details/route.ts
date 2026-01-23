@@ -42,6 +42,7 @@ type SupabaseItemRow = {
   ingredients: string | null;
   dosage_instructions: string | null;
   yield_info: string | null;
+  yield_volume: string | null;
   preparation_steps: string | null;
   standard_preparation: StandardPreparation | null;
   is_bio: boolean | null;
@@ -94,7 +95,9 @@ type InventoryItem = {
   ingredients?: string | null;
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
+  yieldVolume?: string | null;
   preparationSteps?: string | null;
+  nutritionPerUnit?: NutritionTotals | null;
   standardPreparation?: StandardPreparation | null;
   isBio?: boolean;
   isDeklarationsfrei?: boolean;
@@ -464,8 +467,10 @@ export async function POST(request: Request) {
     ingredients: row.ingredients,
     dosageInstructions: row.dosage_instructions,
     yieldInfo: row.yield_info,
+    yieldVolume: row.yield_volume,
     preparationSteps: row.preparation_steps,
     standardPreparation: row.standard_preparation,
+    nutritionPerUnit: row.nutrition_per_unit,
     isBio: row.is_bio ?? false,
     isDeklarationsfrei: row.is_deklarationsfrei ?? false,
     isAllergenfrei: row.is_allergenfrei ?? false,
