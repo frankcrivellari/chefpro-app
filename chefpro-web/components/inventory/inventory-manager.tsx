@@ -5156,6 +5156,14 @@ export function InventoryManager() {
                     </div>
                   </div>
 
+                  {/* DEBUG OVERLAY */}
+                  <div className="bg-red-100 p-2 border border-red-500 text-xs mb-2 text-red-900">
+                    DEBUG INFO: <br/>
+                    Type: {selectedItem.type} <br/>
+                    Nutrition Present: {selectedItem.nutritionPerUnit ? "Yes" : "No"} <br/>
+                    Nutrition State: kcal={proEnergyKcalInput}
+                  </div>
+
                   {selectedItem.type !== "eigenproduktion" && (
                     <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
                       <div>
@@ -5472,15 +5480,6 @@ export function InventoryManager() {
                         <div className="space-y-1 pt-2">
                           <div className="text-[11px] font-medium text-muted-foreground">
                             Nährwerte (pro 100g/ml)
-                            {/* DEBUG RENDER */}
-                            <span className="hidden">
-                                {console.log("Rendering nutrition inputs:", {
-                                    kcal: proEnergyKcalInput,
-                                    fat: proFatInput,
-                                    carbs: proCarbsInput,
-                                    type: selectedItem.type
-                                })}
-                            </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                             <div className="space-y-0.5">
