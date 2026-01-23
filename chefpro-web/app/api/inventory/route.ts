@@ -244,6 +244,13 @@ export async function GET() {
 
     const result = Array.from(itemsById.values());
 
+    // DEBUG LOG
+    console.log("Returning inventory items count:", result.length);
+    const debugItem = result.find(i => i.nutritionPerUnit);
+    if (debugItem) {
+        console.log("Sample item with nutrition:", debugItem.name, debugItem.nutritionPerUnit);
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     console.error("Unexpected error in /api/inventory GET", error);

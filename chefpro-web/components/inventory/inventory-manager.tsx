@@ -5156,7 +5156,15 @@ export function InventoryManager() {
                     </div>
                   </div>
 
-                  {selectedItem.type !== "eigenproduktion" && (
+                  {/* DEBUG OVERLAY */}
+                  <div className="bg-red-100 p-2 border border-red-500 text-xs mb-2 text-red-900">
+                    DEBUG INFO: <br/>
+                    Type: {selectedItem.type} <br/>
+                    Nutrition Present: {selectedItem.nutritionPerUnit ? "Yes" : "No"} <br/>
+                    Nutrition State: kcal={proEnergyKcalInput}
+                  </div>
+
+                  {(selectedItem.type !== "eigenproduktion" || true) && (
                     <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
                       <div>
                         Dieser Artikel wird als Zukauf geführt. Du kannst ihn
