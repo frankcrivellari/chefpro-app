@@ -28,17 +28,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="flex min-h-screen bg-gradient-to-b from-background to-muted">
+        <div className="flex h-screen w-full overflow-hidden bg-gradient-to-b from-background to-muted">
           <aside className="hidden w-52 flex-col border-r bg-background/90 px-4 py-6 text-sm text-foreground md:flex">
             {/* <div className="mb-6 px-2">
               <img src="/recetui-header-frei.png" alt="Recetui" className="h-8 w-auto object-contain" />
             </div> */}
             <SidebarNav />
           </aside>
-          <main className="flex min-h-screen flex-1 flex-col">
-            <header className="flex h-32 items-center justify-between border-b bg-[#F28C28] px-6">
+          <main className="flex h-full flex-1 flex-col overflow-hidden">
+            <header className="flex h-32 shrink-0 items-center justify-between border-b bg-[#F28C28] px-6">
               <div className="flex items-center gap-4">
-                <img src="/recetui-logo-header-frei.png" alt="Recetui" className="h-96 w-auto object-contain" />
+                <img src="/recetui-logo-header-frei.png" alt="Recetui" className="h-24 w-auto object-contain" />
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-card-foreground shadow-sm">

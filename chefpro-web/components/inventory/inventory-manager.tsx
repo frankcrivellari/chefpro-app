@@ -3301,7 +3301,7 @@ export function InventoryManager() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
+    <div className="flex flex-1 w-full overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
       {activeSection === "zutaten" && (
         <aside className="flex w-[280px] flex-col border-r border-[#6B7176] bg-[#1F2326]">
           <div className="flex flex-col gap-3 border-b border-[#6B7176] p-4">
