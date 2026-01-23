@@ -4302,173 +4302,23 @@ export function InventoryManager() {
                         Keine Artikel für die aktuelle Auswahl gefunden.
                       </div>
                     )}
-                    {activeSection === "rezepte" &&
-                      recipeViewMode === "grid" && (
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          {filteredItems.map((item) => (
-                            <button
-                              key={item.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedItemId(item.id);
-                                setIsDetailView(true);
-                              }}
-                              className={cn(
-                                "group relative overflow-hidden rounded-md border bg-background text-left text-xs shadow-sm transition-colors hover:border-primary",
-                                selectedItem?.id === item.id &&
-                                  "border-primary ring-1 ring-primary"
-                              )}
-                            >
-                              <div className="relative aspect-[4/3] w-full overflow-hidden">
-                                {item.imageUrl ? (
-                                  <Image
-                                    unoptimized
-                                    src={item.imageUrl}
-                                    alt={item.name}
-                                    fill
-                                    className="object-cover transition-transform duration-200 group-hover:scale-[1.03]"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted/60 text-[11px] text-muted-foreground">
-                                    <ImageIcon className="h-5 w-5" />
-                                    <span>Kein Bild hinterlegt</span>
-                                  </div>
-                                )}
-                                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent px-2 pb-2 pt-6">
-                                  <div className="flex items-end justify-between gap-2">
-                                    <div className="space-y-0.5">
-                                      <div className="line-clamp-2 text-xs font-semibold text-white sm:text-sm">
-                                        {item.name}
-                                      </div>
-                                      {item.category && (
-                                        <div className="text-[10px] text-white/80">
-                                          {item.category}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1">
-                                      <TypeBadge type={item.type} />
-                                      {item.isBio && (
-                                        <Badge className="bg-emerald-600 px-2 py-0.5 text-[9px] font-semibold text-emerald-50">
-                                          BIO
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    {!(activeSection === "rezepte" && recipeViewMode === "grid") &&
-                      filteredItems.map((item) => {
-                        const isRecipeDetailed =
-                          activeSection === "rezepte" &&
-                          recipeViewMode === "detailed";
-                        if (isRecipeDetailed && item.type === "eigenproduktion") {
-                          return (
-                            <button
-                              key={item.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedItemId(item.id);
-                                setIsDetailView(true);
-                              }}
-                              className={cn(
-                                "flex w-full items-stretch gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                                selectedItem?.id === item.id &&
-                                  "border-primary bg-primary/5"
-                              )}
-                            >
-                              <div className="flex-1 space-y-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="font-medium">
-                                    {item.name}
-                                  </span>
-                                  <TypeBadge type={item.type} />
-                                  {item.isBio && (
-                                    <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
-                                      BIO
-                                    </Badge>
-                                  )}
-                                  {item.hasGhostComponents && (
-                                    <AlertTriangle className="h-3 w-3 text-red-500" />
-                                  )}
-                                </div>
-                                <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-                                  <div>
-                                    Intern:{" "}
-                                    <span className="font-medium">
-                                      {formatInternalId(item.internalId ?? null)}
-                                    </span>
-                                  </div>
-                                  {item.category && (
-                                    <div>Kategorie: {item.category}</div>
-                                  )}
-                                  <div>Einheit: {item.unit}</div>
-                                  {item.components && (
-                                    <div>
-                                      {item.components.length} Komponenten
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="space-y-0.5 text-[11px] text-muted-foreground">
-                                  {item.type !== "eigenproduktion" && (
-                                    <div>
-                                      Hersteller-Art.-Nr.:{" "}
-                                      {item.manufacturerArticleNumber &&
-                                      item.manufacturerArticleNumber
-                                        .trim()
-                                        .length > 0
-                                        ? item.manufacturerArticleNumber
-                                        : "—"}
-                                    </div>
-                                  )}
-                                  <div>
-                                    EAN:{" "}
-                                    {item.ean && item.ean.trim().length > 0
-                                      ? item.ean
-                                      : "—"}
-                                  </div>
-                                </div>
-                                {item.allergens &&
-                                  item.allergens.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 text-[10px]">
-                                      {item.allergens.map((allergen) => (
-                                        <span
-                                          key={`${item.id}-${allergen}`}
-                                          className="rounded-md bg-amber-100 px-2 py-0.5 text-amber-900"
-                                        >
-                                          {allergen}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                              </div>
-                            </button>
-                          );
-                        }
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedItemId(item.id);
-                              setIsDetailView(true);
-                            }}
-                            className={cn(
-                              "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                              selectedItem?.id === item.id &&
-                                "border-primary bg-primary/5"
-                            )}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span className="font-medium">{item.name}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
+                    {filteredItems.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedItemId(item.id);
+                          setIsDetailView(true);
+                        }}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                          selectedItem?.id === item.id &&
+                            "bg-primary/10 text-primary font-medium"
+                        )}
+                      >
+                        <span className="truncate">{item.name}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               </CardContent>
