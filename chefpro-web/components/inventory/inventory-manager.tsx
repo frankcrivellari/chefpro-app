@@ -3439,7 +3439,7 @@ export function InventoryManager() {
 
           {activeSection === "zutaten" ? (
             <div className="flex h-full flex-col gap-4 overflow-y-auto bg-[#F6F7F5] p-6">
-              <div className="grid min-h-[600px] grid-cols-2 gap-4">
+              <div className="grid min-h-[600px] grid-cols-[1fr_3fr] gap-4">
                 <Card className="flex flex-col overflow-hidden border-none bg-white shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
                     <CardTitle className="text-base text-[#1F2326]">Artikel-Import</CardTitle>
