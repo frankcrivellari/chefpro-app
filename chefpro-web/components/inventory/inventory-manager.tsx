@@ -2758,7 +2758,7 @@ export function InventoryManager() {
       const imageUrlValue = imageUrlInput.trim() || undefined;
       let parsedStandardPreparation: StandardPreparation | null =
         null;
-      if (selectedItem.type === "zukauf") {
+      if (selectedItem.type !== "eigenproduktion") {
         const cleanedComponents = standardPreparationComponents
           .map((component) => ({
             name: String(component.name),
@@ -2863,7 +2863,7 @@ export function InventoryManager() {
           nutritionTags: nutritionTagsValue,
           nutritionPerUnit: nutritionPerUnitValue,
           standardPreparation:
-            selectedItem.type === "zukauf"
+            selectedItem.type !== "eigenproduktion"
               ? parsedStandardPreparation
               : undefined,
           isBio: isBioInput,
@@ -3459,7 +3459,7 @@ export function InventoryManager() {
 
           {activeSection === "zutaten" ? (
             <div className="flex h-full flex-col gap-4 overflow-y-auto bg-[#F6F7F5] p-6">
-              <div className="grid min-h-[600px] grid-cols-[1fr_3fr] gap-4">
+              <div className="grid min-h-[600px] grid-cols-[280px_1fr] gap-4">
                 <Card className="flex flex-col overflow-hidden border-none bg-white shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
                     <CardTitle className="text-base text-[#1F2326]">Artikel-Import</CardTitle>
@@ -5050,7 +5050,7 @@ export function InventoryManager() {
                     </div>
                   </div>
 
-                  {selectedItem.type === "zukauf" && (
+                  {selectedItem.type !== "eigenproduktion" && (
                     <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
                       <div>
                         Dieser Artikel wird als Zukauf geführt. Du kannst ihn
