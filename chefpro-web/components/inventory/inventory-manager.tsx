@@ -3812,7 +3812,7 @@ export function InventoryManager() {
                                </div>
                                <div className="grid grid-cols-2 gap-4">
                                   <div className="grid gap-2">
-                                    <label className="text-xs font-medium text-[#1F2326]">Einheit</label>
+                                    <label className="text-xs font-medium text-[#1F2326]">Gewicht (netto)/Abtropfgewicht</label>
                                     <Input value={selectedItem.unit} 
                                       className="border-[#E5E7EB] bg-white text-[#1F2326]"
                                       onChange={(e) => {
@@ -3821,7 +3821,7 @@ export function InventoryManager() {
                                     }} />
                                   </div>
                                   <div className="grid gap-2">
-                                    <label className="text-xs font-medium text-[#1F2326]">EK-Preis</label>
+                                    <label className="text-xs font-medium text-[#1F2326]">EK-Preis/VE</label>
                                     <Input 
                                       type="number" 
                                       value={selectedItem.purchasePrice} 
@@ -3832,6 +3832,97 @@ export function InventoryManager() {
                                       }} 
                                     />
                                   </div>
+                               </div>
+
+                               <div className="grid gap-2">
+                                 <div className="flex items-center justify-between">
+                                   <label className="text-xs font-medium text-[#1F2326]">Dosierungsangaben</label>
+                                   <Button
+                                     type="button"
+                                     variant="ghost"
+                                     size="sm"
+                                     className="h-6 w-6 p-0"
+                                     onClick={() => {
+                                       const currentPrep = selectedItem.standardPreparation || { components: [], text: "" };
+                                       const newComponents = [...(currentPrep.components || []), { name: "", quantity: 0, unit: "" }];
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                     }}
+                                   >
+                                     <Plus className="h-3 w-3" />
+                                   </Button>
+                                 </div>
+                                 <div className="space-y-2">
+                                   {(selectedItem.standardPreparation?.components || []).map((comp, idx) => (
+                                     <div key={idx} className="flex gap-2">
+                                        <Input
+                                          placeholder="Zutat"
+                                          value={comp.name}
+                                          className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                          onChange={(e) => {
+                                             const val = e.target.value;
+                                             const currentPrep = selectedItem.standardPreparation!;
+                                             const newComponents = [...currentPrep.components];
+                                             newComponents[idx] = { ...newComponents[idx], name: val };
+                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                          }}
+                                        />
+                                        <Input
+                                          type="number"
+                                          placeholder="Menge"
+                                          value={comp.quantity}
+                                          className="h-7 w-16 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                          onChange={(e) => {
+                                             const val = parseFloat(e.target.value) || 0;
+                                             const currentPrep = selectedItem.standardPreparation!;
+                                             const newComponents = [...currentPrep.components];
+                                             newComponents[idx] = { ...newComponents[idx], quantity: val };
+                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                          }}
+                                        />
+                                        <Input
+                                          placeholder="Einheit"
+                                          value={comp.unit}
+                                          className="h-7 w-16 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                          onChange={(e) => {
+                                             const val = e.target.value;
+                                             const currentPrep = selectedItem.standardPreparation!;
+                                             const newComponents = [...currentPrep.components];
+                                             newComponents[idx] = { ...newComponents[idx], unit: val };
+                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                          }}
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                                          onClick={() => {
+                                             const currentPrep = selectedItem.standardPreparation!;
+                                             const newComponents = currentPrep.components.filter((_, i) => i !== idx);
+                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                          }}
+                                        >
+                                          <Minus className="h-3 w-3" />
+                                        </Button>
+                                     </div>
+                                   ))}
+                                   {(!selectedItem.standardPreparation?.components || selectedItem.standardPreparation.components.length === 0) && (
+                                      <div className="text-[10px] text-muted-foreground italic">Keine Dosierung hinterlegt.</div>
+                                   )}
+                                 </div>
+                               </div>
+
+                               <div className="grid gap-2">
+                                 <label className="text-xs font-medium text-[#1F2326]">Zubereitungsempfehlung</label>
+                                 <Textarea
+                                   value={typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps : ''}
+                                   className="min-h-[80px] text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                   placeholder="Zubereitungsschritte hier eingeben..."
+                                   onChange={(e) => {
+                                      const val = e.target.value;
+                                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: val } : i));
+                                   }}
+                                 />
                                </div>
 
                                {(selectedItem.type !== "eigenproduktion" || (activeSection as any) === "zutaten") && (
@@ -4112,96 +4203,7 @@ export function InventoryManager() {
                                  </>
                                )}
 
-                               <div className="grid gap-2">
-                                 <div className="flex items-center justify-between">
-                                   <label className="text-xs font-medium text-[#1F2326]">Dosierungsangaben</label>
-                                   <Button
-                                     type="button"
-                                     variant="ghost"
-                                     size="sm"
-                                     className="h-6 w-6 p-0"
-                                     onClick={() => {
-                                       const currentPrep = selectedItem.standardPreparation || { components: [], text: "" };
-                                       const newComponents = [...(currentPrep.components || []), { name: "", quantity: 0, unit: "" }];
-                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                     }}
-                                   >
-                                     <Plus className="h-3 w-3" />
-                                   </Button>
-                                 </div>
-                                 <div className="space-y-2">
-                                   {(selectedItem.standardPreparation?.components || []).map((comp, idx) => (
-                                     <div key={idx} className="flex gap-2">
-                                        <Input
-                                          placeholder="Zutat"
-                                          value={comp.name}
-                                          className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                          onChange={(e) => {
-                                             const val = e.target.value;
-                                             const currentPrep = selectedItem.standardPreparation!;
-                                             const newComponents = [...currentPrep.components];
-                                             newComponents[idx] = { ...newComponents[idx], name: val };
-                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                          }}
-                                        />
-                                        <Input
-                                          type="number"
-                                          placeholder="Menge"
-                                          value={comp.quantity}
-                                          className="h-7 w-16 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                          onChange={(e) => {
-                                             const val = parseFloat(e.target.value) || 0;
-                                             const currentPrep = selectedItem.standardPreparation!;
-                                             const newComponents = [...currentPrep.components];
-                                             newComponents[idx] = { ...newComponents[idx], quantity: val };
-                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                          }}
-                                        />
-                                        <Input
-                                          placeholder="Einheit"
-                                          value={comp.unit}
-                                          className="h-7 w-16 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                          onChange={(e) => {
-                                             const val = e.target.value;
-                                             const currentPrep = selectedItem.standardPreparation!;
-                                             const newComponents = [...currentPrep.components];
-                                             newComponents[idx] = { ...newComponents[idx], unit: val };
-                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                          }}
-                                        />
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                                          onClick={() => {
-                                             const currentPrep = selectedItem.standardPreparation!;
-                                             const newComponents = currentPrep.components.filter((_, i) => i !== idx);
-                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                          }}
-                                        >
-                                          <Minus className="h-3 w-3" />
-                                        </Button>
-                                     </div>
-                                   ))}
-                                   {(!selectedItem.standardPreparation?.components || selectedItem.standardPreparation.components.length === 0) && (
-                                      <div className="text-[10px] text-muted-foreground italic">Keine Dosierung hinterlegt.</div>
-                                   )}
-                                 </div>
-                               </div>
 
-                               <div className="grid gap-2">
-                                 <label className="text-xs font-medium text-[#1F2326]">Zubereitungsempfehlung</label>
-                                 <Textarea
-                                   value={typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps : ''}
-                                   className="min-h-[80px] text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                   placeholder="Zubereitungsschritte hier eingeben..."
-                                   onChange={(e) => {
-                                      const val = e.target.value;
-                                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: val } : i));
-                                   }}
-                                 />
-                               </div>
 
                                <div className="flex justify-between items-center">
                                   {/* Buttons moved to header */}
