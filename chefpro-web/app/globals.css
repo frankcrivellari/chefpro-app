@@ -1,7 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
+@layer base {
+  body {
+    @apply overflow-x-hidden;
+  }
+}
+
 
 :root {
   /* Recetui Custom Palette */

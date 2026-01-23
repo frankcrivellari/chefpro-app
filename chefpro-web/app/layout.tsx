@@ -28,7 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="flex h-screen w-full overflow-hidden bg-gradient-to-b from-background to-muted">
+        <div className="flex h-screen w-full max-w-[100vw] overflow-hidden bg-gradient-to-b from-background to-muted">
           <aside className="hidden w-52 flex-col border-r bg-background/90 px-4 py-6 text-sm text-foreground md:flex">
             {/* <div className="mb-6 px-2">
               <img src="/recetui-header-frei.png" alt="Recetui" className="h-8 w-auto object-contain" />
