@@ -940,12 +940,33 @@ export function InventoryManager() {
         }
         const data =
           (payload as InventoryItem[] | null) ?? [];
+
+        // Ensure STAPLE_ITEMS are present (virtual import)
+        const existingNames = new Set(data.map((i) => i.name.toLowerCase()));
+        const missingStaples = STAPLE_ITEMS.filter(
+          (s) => !existingNames.has(s.name.toLowerCase())
+        ).map((s, index) => ({
+          id: `staple-${index}`,
+          name: s.name,
+          type: s.item_type as InventoryType,
+          unit: s.unit,
+          purchasePrice: s.purchase_price,
+          nutritionPerUnit: {
+            energyKcal: s.nutrition_per_unit.kcal,
+            fat: s.nutrition_per_unit.fat,
+            saturatedFat: 0,
+            carbs: s.nutrition_per_unit.carbs,
+            sugar: 0,
+            protein: s.nutrition_per_unit.protein,
+            salt: 0,
+          },
+          isBio: false,
+        } as InventoryItem));
+
+        const finalData = [...data, ...missingStaples];
+
         if (!cancelled) {
-          if (data.length > 0) {
-            setItems(data);
-          } else {
-             setItems([]);
-          }
+          setItems(finalData);
         }
       } catch (error) {
         if (!cancelled) {
@@ -983,18 +1004,16 @@ export function InventoryManager() {
   const filteredItems = useMemo(() => {
     return effectiveItems.filter((item) => {
       if (activeSection === "zutaten") {
-        if (item.type !== "zukauf") {
-          return false;
-        }
-        if (
-          ingredientCategoryFilter &&
-          (item.category ?? "").toLowerCase() !==
-            ingredientCategoryFilter.toLowerCase()
-        ) {
-          return false;
-        }
+         // Show all items in Artikelstamm, regardless of type (Zukauf or Eigenproduktion)
+         // to ensure Basis-Zutaten and new items are visible.
+         // If we only want Zukauf, we would filter, but user requested "gesamten Artikelstamm".
+         // However, usually "Eigenproduktion" are recipes. 
+         // Let's stick to showing everything but maybe filtering out recipes if they are strictly separate?
+         // User said: "Das Suchfeld muss den gesamten Artikelstamm (Basis-Zutaten + neue Artikel) durchsuchen."
+         // Basis-Zutaten are typically Zukauf. 
+         // We will remove the strict type check to be safe and rely on the search.
       }
-      if (filterType !== "all" && item.type !== filterType) {
+      if (filterType !== "all" && item.type !== filterType && activeSection !== "zutaten") {
         return false;
       }
       const query = search.trim().toLowerCase();
@@ -3376,11 +3395,11 @@ export function InventoryManager() {
               <div className="grid min-h-[600px] grid-cols-2 gap-4">
                 <Card className="flex flex-col overflow-hidden border-none bg-white shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
-                    <CardTitle className="text-base text-[#1F2326]">Import</CardTitle>
+                    <CardTitle className="text-base text-[#1F2326]">Artikelstamm</CardTitle>
 
                   </CardHeader>
-                  <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-                    <div className="flex justify-center mb-6">
+                  <CardContent className="flex-1 overflow-y-auto p-0">
+                    <div className="flex justify-center p-4 border-b border-[#E5E7EB]">
                       <Button
                         type="button"
                         size="sm"
@@ -4286,64 +4305,21 @@ export function InventoryManager() {
                               setIsDetailView(true);
                             }}
                             className={cn(
-                              "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                              "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
                               selectedItem?.id === item.id &&
                                 "border-primary bg-primary/5"
                             )}
                           >
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{item.name}</span>
-                                <TypeBadge type={item.type} />
-                                {item.type === "eigenproduktion" &&
-                                  item.hasGhostComponents && (
-                                    <AlertTriangle className="h-3 w-3 text-red-500" />
-                                  )}
-                              </div>
-                              <div className="space-y-0.5 text-[11px] text-muted-foreground">
-                                <div>
-                                  Intern:{" "}
-                                  {formatInternalId(item.internalId ?? null)}
-                                </div>
-                                {item.type !== "eigenproduktion" && (
-                                  <div>
-                                    Hersteller-Art.-Nr.:{" "}
-                                    {item.manufacturerArticleNumber &&
-                                    item.manufacturerArticleNumber
-                                      .trim()
-                                      .length > 0
-                                      ? item.manufacturerArticleNumber
-                                      : "—"}
-                                  </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{item.name}</span>
+                              {item.type === "eigenproduktion" &&
+                                item.hasGhostComponents && (
+                                  <AlertTriangle className="h-3 w-3 text-red-500" />
                                 )}
-                                <div>
-                                  EAN:{" "}
-                                  {item.ean && item.ean.trim().length > 0
-                                    ? item.ean
-                                    : "—"}
-                                </div>
-                              </div>
-                              {item.allergens && item.allergens.length > 0 && (
-                                <div className="flex flex-wrap gap-1 text-[10px]">
-                                  {item.allergens.map((allergen) => (
-                                    <span
-                                      key={`${item.id}-${allergen}`}
-                                      className="rounded-md bg-amber-100 px-2 py-0.5 text-amber-900"
-                                    >
-                                      {allergen}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                              <div className="text-xs text-muted-foreground">
-                                Einheit: {item.unit}
-                              </div>
                             </div>
-                            {item.components && (
-                              <div className="text-xs text-muted-foreground">
-                                {item.components.length} Komponenten
-                              </div>
-                            )}
+                            <div className="text-xs text-muted-foreground">
+                              {item.unit}
+                            </div>
                           </button>
                         );
                       })}
@@ -6983,11 +6959,7 @@ type TypeBadgeProps = {
 
 function TypeBadge({ type }: TypeBadgeProps) {
   if (type === "zukauf") {
-    return (
-      <Badge variant="outline" className="border-emerald-500/40 text-emerald-600">
-        Zukauf
-      </Badge>
-    );
+    return null;
   }
   return (
     <Badge variant="outline" className="border-sky-500/40 text-sky-600">
