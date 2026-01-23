@@ -3351,18 +3351,12 @@ export function InventoryManager() {
                     setIsDetailView(true);
                   }}
                   className={cn(
-                    "flex w-full flex-col gap-1 border-b border-[#6B7176]/20 px-4 py-3 text-left text-xs transition-colors hover:bg-white/5",
-                    selectedItem?.id === item.id && "bg-white/10"
+                    "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-xs transition-colors hover:bg-white/5",
+                    selectedItem?.id === item.id && "bg-white/10 text-white font-medium",
+                    selectedItem?.id !== item.id && "text-[#9CA3AF]"
                   )}
                 >
-                  <div className="flex w-full items-center justify-between gap-2">
-                    <span className="truncate font-medium text-white">{item.name}</span>
-                    <TypeBadge type={item.type} />
-                  </div>
-                  <div className="flex w-full justify-between text-[10px] text-[#6B7176]">
-                    <span>{item.unit}</span>
-                    <span>{formatInternalId(item.internalId ?? null)}</span>
-                  </div>
+                  <span className="truncate">{item.name}</span>
                 </button>
               ))}
             </div>
@@ -3415,30 +3409,12 @@ export function InventoryManager() {
                             setIsDetailView(true);
                           }}
                           className={cn(
-                            "flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground",
+                            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground",
                             selectedItem?.id === item.id &&
-                              "border-primary bg-primary/5"
+                              "bg-primary/10 text-primary font-medium"
                           )}
                         >
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">
-                                {item.name}
-                              </span>
-                              <TypeBadge type={item.type} />
-                            </div>
-                            <div className="text-[11px] text-muted-foreground">
-                              Einheit: {item.unit}
-                            </div>
-                          </div>
-                          <div className="text-right text-[11px] text-muted-foreground">
-                            <div>
-                              Intern: {formatInternalId(item.internalId ?? null)}
-                            </div>
-                            <div>
-                              EK: {item.purchasePrice.toFixed(2)} €
-                            </div>
-                          </div>
+                          <span className="truncate">{item.name}</span>
                         </button>
                       ))}
                     </div>
