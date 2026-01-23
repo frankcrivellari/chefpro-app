@@ -1004,14 +1004,11 @@ export function InventoryManager() {
   const filteredItems = useMemo(() => {
     return effectiveItems.filter((item) => {
       if (activeSection === "zutaten") {
-         // Show all items in Artikelstamm, regardless of type (Zukauf or Eigenproduktion)
-         // to ensure Basis-Zutaten and new items are visible.
-         // If we only want Zukauf, we would filter, but user requested "gesamten Artikelstamm".
-         // However, usually "Eigenproduktion" are recipes. 
-         // Let's stick to showing everything but maybe filtering out recipes if they are strictly separate?
-         // User said: "Das Suchfeld muss den gesamten Artikelstamm (Basis-Zutaten + neue Artikel) durchsuchen."
-         // Basis-Zutaten are typically Zukauf. 
-         // We will remove the strict type check to be safe and rely on the search.
+         // Strict filter for Zutaten section: NO Recipes (Eigenproduktion)
+         // Only "zukauf" (which includes Staple Items)
+         if (item.type === "eigenproduktion") {
+           return false;
+         }
       }
       if (filterType !== "all" && item.type !== filterType && activeSection !== "zutaten") {
         return false;
@@ -4310,15 +4307,27 @@ export function InventoryManager() {
                                 "border-primary bg-primary/5"
                             )}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
+                              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border bg-muted/50">
+                                {item.imageUrl ? (
+                                  <Image
+                                    unoptimized
+                                    src={item.imageUrl}
+                                    alt={item.name}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                    <ImageIcon className="h-4 w-4" />
+                                  </div>
+                                )}
+                              </div>
                               <span className="font-medium">{item.name}</span>
                               {item.type === "eigenproduktion" &&
                                 item.hasGhostComponents && (
                                   <AlertTriangle className="h-3 w-3 text-red-500" />
                                 )}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {item.unit}
                             </div>
                           </button>
                         );
