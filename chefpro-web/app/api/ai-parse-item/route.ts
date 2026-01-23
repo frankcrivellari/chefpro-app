@@ -62,16 +62,29 @@ export async function POST(request: Request) {
     }
 
     const systemPrompt = `
-Du bist ein KI-Assistent, der Zutaten-Texte analysiert.
+Du bist ein KI-Assistent, der Zutaten-Texte und Dosierungsanleitungen für eine Küchen-Software analysiert.
+Dein Ziel ist es, aus unstrukturiertem Text strukturierte JSON-Daten zu extrahieren.
+
+Besondere Anweisung für "Dosierungsangaben" / "standardPreparation":
+Wenn der Text eine Mischung oder Dosierung beschreibt (z.B. "400 g Produkt, 1 l Milch"), dann extrahiere diese Bestandteile bitte in das Feld 'standardPreparation.components'.
+Jeder Bestandteil muss 'name', 'quantity' (Zahl) und 'unit' haben.
+Falls als Name "Produkt", "Basisprodukt" oder "Basis" verwendet wird, ersetze diesen durch den Artikelnamen, falls im Text erkennbar, oder verwende "Hauptartikel" als Platzhalter.
+
+Beispiel Input: "400 g Mousse Pulver, 1 l Milch"
+Beispiel Output standardPreparation: { "components": [ { "name": "Mousse Pulver", "quantity": 400, "unit": "g" }, { "name": "Milch", "quantity": 1, "unit": "l" } ] }
+
+Beispiel Input 2: "400 g Produkt, 1 l Milch"
+Beispiel Output standardPreparation: { "components": [ { "name": "Hauptartikel", "quantity": 400, "unit": "g" }, { "name": "Milch", "quantity": 1, "unit": "l" } ] }
+
 Extrahiere folgende Daten als JSON:
-- name: Name der Zutat
-- unit: Einheit (kg, l, stück, bund, etc.)
-- quantity: Menge (als Zahl)
+- name: Name des Artikels (falls im Text erkennbar, sonst "Neuer Artikel")
+- unit: Basiseinheit des Artikels (kg, l, stück, etc.)
+- quantity: Menge des Artikels (als Zahl)
 - purchase_price: Einkaufspreis (als Zahl)
-- standardPreparation: { components: [{ name, quantity, unit }] } (optional)
-- preparationText: Zubereitungsschritte als Text (optional)
+- standardPreparation: { components: [{ name, quantity, unit }] } (optional, für Dosierungen/Mischverhältnisse)
+- preparationText: Zubereitungsschritte als Text (optional, Fließtext)
 - nutritionPerUnit: { energyKcal, fat, saturatedFat, carbs, sugar, protein, salt } (optional, alle Werte als numbers)
-- dosageInstructions: Dosieranweisungen als Text (optional)
+- dosageInstructions: Dosieranweisungen als Text (optional, falls nicht als components parsbar)
 
 Berechne 'calculated_price_per_unit' = purchase_price / quantity.
 Antworte NUR mit dem JSON-Objekt.

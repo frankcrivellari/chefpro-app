@@ -5039,7 +5039,7 @@ export function InventoryManager() {
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
-                            Dosierung / Mischverhältnis
+                            Dosierung / Mischverhältnis (Text)
                           </div>
                           <textarea
                             rows={2}
@@ -5051,6 +5051,102 @@ export function InventoryManager() {
                             style={{ backgroundColor: "#F6F7F5" }}
                             placeholder="Mischverhältnisse und Basismengen (z.B. 100g auf 1l)"
                           />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="text-[11px] text-muted-foreground">
+                              Dosierung (Strukturiert)
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 px-2 text-[10px]"
+                              onClick={() => {
+                                setStandardPreparationComponents([
+                                  ...standardPreparationComponents,
+                                  { name: "", quantity: 0, unit: "" },
+                                ]);
+                              }}
+                            >
+                              <Plus className="mr-1 h-3 w-3" />
+                              Zeile
+                            </Button>
+                          </div>
+                          <div className="space-y-1 rounded-md border border-dashed p-2">
+                            {standardPreparationComponents.map((comp, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2"
+                              >
+                                <Input
+                                  type="number"
+                                  className="h-7 w-20 px-2 py-1 text-[11px]"
+                                  placeholder="Menge"
+                                  value={comp.quantity || ""}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    const newComps = [
+                                      ...standardPreparationComponents,
+                                    ];
+                                    newComps[idx] = {
+                                      ...newComps[idx],
+                                      quantity: isNaN(val) ? 0 : val,
+                                    };
+                                    setStandardPreparationComponents(newComps);
+                                  }}
+                                />
+                                <Input
+                                  className="h-7 w-20 px-2 py-1 text-[11px]"
+                                  placeholder="Einheit"
+                                  value={comp.unit}
+                                  onChange={(e) => {
+                                    const newComps = [
+                                      ...standardPreparationComponents,
+                                    ];
+                                    newComps[idx] = {
+                                      ...newComps[idx],
+                                      unit: e.target.value,
+                                    };
+                                    setStandardPreparationComponents(newComps);
+                                  }}
+                                />
+                                <Input
+                                  className="h-7 flex-1 px-2 py-1 text-[11px]"
+                                  placeholder="Komponente"
+                                  value={comp.name}
+                                  onChange={(e) => {
+                                    const newComps = [
+                                      ...standardPreparationComponents,
+                                    ];
+                                    newComps[idx] = {
+                                      ...newComps[idx],
+                                      name: e.target.value,
+                                    };
+                                    setStandardPreparationComponents(newComps);
+                                  }}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  onClick={() => {
+                                    const newComps =
+                                      standardPreparationComponents.filter(
+                                        (_, i) => i !== idx
+                                      );
+                                    setStandardPreparationComponents(newComps);
+                                  }}
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ))}
+                            {standardPreparationComponents.length === 0 && (
+                              <div className="text-[10px] italic text-muted-foreground">
+                                Keine strukturierten Daten.
+                              </div>
+                            )}
+                          </div>
                         </div>
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
