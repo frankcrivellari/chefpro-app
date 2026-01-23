@@ -2447,6 +2447,13 @@ export function InventoryManager() {
           allergens: string[];
           ingredients?: string | null;
           dosage_instructions?: string | null;
+          standard_preparation?: {
+            components: {
+              name: string;
+              quantity: number;
+              unit: string;
+            }[];
+          } | null;
           yield_info?: string | null;
           yield_volume?: string | null;
           preparation_steps?: string | null;
@@ -2511,6 +2518,11 @@ export function InventoryManager() {
                 .preparation_steps === "string"
               ? payload.extracted.preparation_steps
               : created.preparationSteps) ?? null,
+          standardPreparation:
+            (payload.extracted &&
+            payload.extracted.standard_preparation
+              ? payload.extracted.standard_preparation
+              : created.standardPreparation) ?? null,
         };
         setItems((previous) => [
           ...previous,
@@ -2541,6 +2553,14 @@ export function InventoryManager() {
             ? payload.extracted.dosage_instructions
             : ""
         );
+        if (
+          payload.extracted.standard_preparation &&
+          Array.isArray(payload.extracted.standard_preparation.components)
+        ) {
+          setStandardPreparationComponents(
+            payload.extracted.standard_preparation.components
+          );
+        }
         let yieldWeight = "";
         let yieldVolume = "";
         const extractedYieldInfo =
