@@ -1674,6 +1674,7 @@ export function InventoryManager() {
         : "keine rezeptorisch enthaltenen Allergene"
     );
     if (selectedItem.nutritionPerUnit) {
+      console.log("Syncing nutrition to state:", selectedItem.nutritionPerUnit);
       setProEnergyKcalInput(
         String(selectedItem.nutritionPerUnit.energyKcal ?? "")
       );
