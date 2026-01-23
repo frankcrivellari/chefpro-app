@@ -941,8 +941,22 @@ export function InventoryManager() {
         const data =
           (payload as InventoryItem[] | null) ?? [];
 
+        // Create a map of staples for quick lookup
+        const stapleMap = new Map(STAPLE_ITEMS.map(s => [s.name.toLowerCase(), s]));
+
+        // Patch loaded items with staple images if they are missing
+        const patchedData = data.map(item => {
+          const staple = stapleMap.get(item.name.toLowerCase());
+          // @ts-ignore
+          if (staple && staple.imageUrl && !item.imageUrl) {
+             // @ts-ignore
+             return { ...item, imageUrl: staple.imageUrl };
+          }
+          return item;
+        });
+
         // Ensure STAPLE_ITEMS are present (virtual import)
-        const existingNames = new Set(data.map((i) => i.name.toLowerCase()));
+        const existingNames = new Set(patchedData.map((i) => i.name.toLowerCase()));
         const missingStaples = STAPLE_ITEMS.filter(
           (s) => !existingNames.has(s.name.toLowerCase())
         ).map((s, index) => ({
@@ -965,7 +979,7 @@ export function InventoryManager() {
           isBio: false,
         } as InventoryItem));
 
-        const finalData = [...data, ...missingStaples];
+        const finalData = [...patchedData, ...missingStaples];
 
         if (!cancelled) {
           setItems(finalData);
@@ -4312,12 +4326,10 @@ export function InventoryManager() {
                             <div className="flex items-center gap-3">
                               <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border bg-muted/50">
                                 {item.imageUrl ? (
-                                  <Image
-                                    unoptimized
+                                  <img
                                     src={item.imageUrl}
                                     alt={item.name}
-                                    fill
-                                    className="object-cover"
+                                    className="w-8 h-8 object-contain"
                                   />
                                 ) : (
                                   <div className="flex h-full w-full items-center justify-center text-muted-foreground">
