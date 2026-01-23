@@ -3466,7 +3466,7 @@ export function InventoryManager() {
               <div className="grid min-h-[600px] grid-cols-2 gap-4">
                 <Card className="flex flex-col overflow-hidden border-none bg-white shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
-                    <CardTitle className="text-base text-[#1F2326]">Artikelstamm</CardTitle>
+                    <CardTitle className="text-base text-[#1F2326]">Artikel-Import</CardTitle>
 
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto p-0">
@@ -3731,6 +3731,97 @@ export function InventoryManager() {
                                       }} 
                                     />
                                   </div>
+                               </div>
+
+                               <div className="grid gap-2">
+                                 <div className="flex items-center justify-between">
+                                   <label className="text-xs font-medium text-[#1F2326]">Dosierungsangaben</label>
+                                   <Button
+                                     type="button"
+                                     variant="ghost"
+                                     size="sm"
+                                     className="h-6 w-6 p-0"
+                                     onClick={() => {
+                                       const currentPrep = selectedItem.standardPreparation || { components: [], text: "" };
+                                       const newComponents = [...(currentPrep.components || []), { name: "", quantity: 0, unit: "" }];
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                     }}
+                                   >
+                                     <Plus className="h-3 w-3" />
+                                   </Button>
+                                 </div>
+                                 <div className="space-y-2">
+                                   {(selectedItem.standardPreparation?.components || []).map((comp, idx) => (
+                                     <div key={idx} className="flex gap-2">
+                                        <Input
+                                          placeholder="Zutat"
+                                          value={comp.name}
+                                          className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                          onChange={(e) => {
+                                             const val = e.target.value;
+                                             const currentPrep = selectedItem.standardPreparation!;
+                                             const newComponents = [...currentPrep.components];
+                                             newComponents[idx] = { ...newComponents[idx], name: val };
+                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                          }}
+                                        />
+                                        <Input
+                                          type="number"
+                                          placeholder="Menge"
+                                          value={comp.quantity}
+                                          className="h-7 w-16 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                          onChange={(e) => {
+                                             const val = parseFloat(e.target.value) || 0;
+                                             const currentPrep = selectedItem.standardPreparation!;
+                                             const newComponents = [...currentPrep.components];
+                                             newComponents[idx] = { ...newComponents[idx], quantity: val };
+                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                          }}
+                                        />
+                                        <Input
+                                          placeholder="Einheit"
+                                          value={comp.unit}
+                                          className="h-7 w-16 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                          onChange={(e) => {
+                                             const val = e.target.value;
+                                             const currentPrep = selectedItem.standardPreparation!;
+                                             const newComponents = [...currentPrep.components];
+                                             newComponents[idx] = { ...newComponents[idx], unit: val };
+                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                          }}
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                                          onClick={() => {
+                                             const currentPrep = selectedItem.standardPreparation!;
+                                             const newComponents = currentPrep.components.filter((_, i) => i !== idx);
+                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                          }}
+                                        >
+                                          <Minus className="h-3 w-3" />
+                                        </Button>
+                                     </div>
+                                   ))}
+                                   {(!selectedItem.standardPreparation?.components || selectedItem.standardPreparation.components.length === 0) && (
+                                      <div className="text-[10px] text-muted-foreground italic">Keine Dosierung hinterlegt.</div>
+                                   )}
+                                 </div>
+                               </div>
+
+                               <div className="grid gap-2">
+                                 <label className="text-xs font-medium text-[#1F2326]">Zubereitungsempfehlung</label>
+                                 <Textarea
+                                   value={typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps : ''}
+                                   className="min-h-[80px] text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                   placeholder="Zubereitungsschritte hier eingeben..."
+                                   onChange={(e) => {
+                                      const val = e.target.value;
+                                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: val } : i));
+                                   }}
+                                 />
                                </div>
 
                                <div className="flex justify-between items-center">
@@ -4373,24 +4464,7 @@ export function InventoryManager() {
                             )}
                           >
                             <div className="flex items-center gap-3">
-                              <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md border bg-muted/50">
-                                {item.imageUrl ? (
-                                  <img
-                                    src={item.imageUrl}
-                                    alt={item.name}
-                                    className="w-8 h-8 object-contain"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                    <ImageIcon className="h-4 w-4" />
-                                  </div>
-                                )}
-                              </div>
                               <span className="font-medium">{item.name}</span>
-                              {item.type === "eigenproduktion" &&
-                                item.hasGhostComponents && (
-                                  <AlertTriangle className="h-3 w-3 text-red-500" />
-                                )}
                             </div>
                           </button>
                         );
