@@ -2798,6 +2798,25 @@ export function InventoryManager() {
         preparationStepsValue = proPreparationInput.trim();
       }
 
+      const nutritionPerUnitValue: NutritionTotals | null =
+        proEnergyKcalInput ||
+        proFatInput ||
+        proSaturatedFatInput ||
+        proCarbsInput ||
+        proSugarInput ||
+        proProteinInput ||
+        proSaltInput
+          ? {
+              energyKcal: Number(proEnergyKcalInput.replace(",", ".")) || 0,
+              fat: Number(proFatInput.replace(",", ".")) || 0,
+              saturatedFat: Number(proSaturatedFatInput.replace(",", ".")) || 0,
+              carbs: Number(proCarbsInput.replace(",", ".")) || 0,
+              sugar: Number(proSugarInput.replace(",", ".")) || 0,
+              protein: Number(proProteinInput.replace(",", ".")) || 0,
+              salt: Number(proSaltInput.replace(",", ".")) || 0,
+            }
+          : null;
+
       const response = await fetch("/api/item-details", {
         method: "POST",
         headers: {
