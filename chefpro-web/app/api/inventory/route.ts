@@ -271,6 +271,8 @@ export async function POST(request: Request) {
       components?: InventoryComponent[];
       standardPreparation?: StandardPreparation | null;
       preparationSteps?: string | null;
+      nutritionPerUnit?: NutritionTotals | null;
+      dosageInstructions?: string | null;
     };
 
     const client = getSupabaseServerClient();
@@ -305,6 +307,15 @@ export async function POST(request: Request) {
           typeof body.preparationSteps === "string" &&
           body.preparationSteps.trim().length > 0
             ? body.preparationSteps.trim()
+            : null,
+        nutrition_per_unit:
+          body.nutritionPerUnit && typeof body.nutritionPerUnit === "object"
+            ? body.nutritionPerUnit
+            : null,
+        dosage_instructions:
+          typeof body.dosageInstructions === "string" &&
+          body.dosageInstructions.trim().length > 0
+            ? body.dosageInstructions.trim()
             : null,
         standard_preparation:
           body.standardPreparation && typeof body.standardPreparation === "object"
