@@ -389,9 +389,8 @@ export function InventoryManager() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
-  const [activeSection, setActiveSection] = useState<
-    "dashboard" | "zutaten" | "rezepte" | "lager"
-  >(
+  type ActiveSection = "dashboard" | "zutaten" | "rezepte" | "lager";
+  const [activeSection, setActiveSection] = useState<ActiveSection>(
     pathname && pathname.startsWith("/lager")
       ? "lager"
       : pathname && pathname.startsWith("/rezepte")
@@ -5157,7 +5156,7 @@ export function InventoryManager() {
                   </div>
 
                   {/* DEBUG OVERLAY */}
-                  {activeSection === "zutaten" && (
+                  {(activeSection as any) === "zutaten" && (
                     <div className="bg-red-100 p-2 border border-red-500 text-xs mb-2 text-red-900">
                       DEBUG INFO: <br/>
                       Type: {selectedItem.type} <br/>
@@ -5166,7 +5165,7 @@ export function InventoryManager() {
                     </div>
                   )}
 
-                  {(selectedItem.type !== "eigenproduktion" || activeSection === "zutaten") && (
+                  {(selectedItem.type !== "eigenproduktion" || (activeSection as any) === "zutaten") && (
                     <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
                       <div>
                         Dieser Artikel wird als Zukauf geführt. Du kannst ihn
