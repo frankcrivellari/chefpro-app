@@ -36,6 +36,8 @@ type InventoryItem = {
   name: string;
   type: InventoryType;
   unit: string;
+  brand?: string | null;
+  currency?: string;
   purchasePrice: number;
   targetPortions?: number | null;
   targetSalesPrice?: number | null;
@@ -74,6 +76,8 @@ type SupabaseItemRow = {
   name: string;
   item_type: InventoryType;
   unit: string;
+  brand: string | null;
+  currency: string | null;
   purchase_price: number;
   target_portions: number | null;
   target_sales_price: number | null;
@@ -181,6 +185,8 @@ export async function GET() {
         name: row.name,
         type: row.item_type,
         unit: row.unit,
+        brand: row.brand,
+        currency: row.currency ?? "EUR",
         purchasePrice: row.purchase_price,
         targetPortions: row.target_portions,
         targetSalesPrice: row.target_sales_price,
@@ -271,6 +277,8 @@ export async function POST(request: Request) {
       name: string;
       type: InventoryType;
       unit: string;
+      brand?: string | null;
+      currency?: string;
       purchasePrice: number;
       category?: string | null;
       portionUnit?: string | null;
@@ -303,6 +311,8 @@ export async function POST(request: Request) {
         name: body.name,
         item_type: body.type,
         unit: body.unit,
+        brand: body.brand,
+        currency: body.currency ?? "EUR",
         purchase_price: body.purchasePrice,
         category: body.category ?? null,
         portion_unit: body.portionUnit ?? null,
@@ -396,6 +406,8 @@ export async function POST(request: Request) {
       name: createdItemRow.name,
       type: createdItemRow.item_type,
       unit: createdItemRow.unit,
+      brand: createdItemRow.brand,
+      currency: createdItemRow.currency ?? "EUR",
       purchasePrice: createdItemRow.purchase_price,
       targetPortions: createdItemRow.target_portions,
       targetSalesPrice: createdItemRow.target_sales_price,

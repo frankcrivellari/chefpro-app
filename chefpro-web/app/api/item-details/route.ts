@@ -28,6 +28,8 @@ type SupabaseItemRow = {
   name: string;
   item_type: InventoryType;
   unit: string;
+  brand: string | null;
+  currency: string | null;
   purchase_price: number;
   target_portions: number | null;
   target_sales_price: number | null;
@@ -83,6 +85,8 @@ type InventoryItem = {
   name: string;
   type: InventoryType;
   unit: string;
+  brand?: string | null;
+  currency?: string;
   purchasePrice: number;
   targetPortions?: number | null;
   targetSalesPrice?: number | null;
@@ -133,6 +137,8 @@ export async function POST(request: Request) {
   const body = (await request.json()) as {
     id: string;
     name?: string;
+    brand?: string;
+    currency?: string;
     manufacturerArticleNumber?: string;
     allergens?: string[];
     ingredients?: string;
@@ -173,6 +179,8 @@ export async function POST(request: Request) {
 
   const updates: {
     name?: string;
+    brand?: string | null;
+    currency?: string;
     manufacturer_article_number?: string | null;
     allergens?: string[] | null;
     ingredients?: string | null;
@@ -208,6 +216,18 @@ export async function POST(request: Request) {
     const trimmed = body.name.trim();
     if (trimmed.length > 0) {
       updates.name = trimmed;
+    }
+  }
+
+  if (typeof body.brand === "string") {
+    const trimmed = body.brand.trim();
+    updates.brand = trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (typeof body.currency === "string") {
+    const trimmed = body.currency.trim();
+    if (trimmed.length > 0) {
+      updates.currency = trimmed;
     }
   }
 
@@ -455,6 +475,8 @@ export async function POST(request: Request) {
     name: row.name,
     type: row.item_type,
     unit: row.unit,
+    brand: row.brand,
+    currency: row.currency ?? "EUR",
     purchasePrice: row.purchase_price,
     targetPortions: row.target_portions,
     targetSalesPrice: row.target_sales_price,

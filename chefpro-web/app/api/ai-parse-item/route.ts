@@ -22,6 +22,7 @@ type NutritionTotals = {
 
 type ParsedItem = {
   name: string;
+  brand?: string;
   unit: string;
   quantity: number;
   purchase_price: number;
@@ -78,8 +79,9 @@ Beispiel Output standardPreparation: { "components": [ { "name": "Hauptartikel",
 
 Extrahiere folgende Daten als JSON:
 - name: Name des Artikels (falls im Text erkennbar, sonst "Neuer Artikel")
-- unit: Basiseinheit des Artikels (kg, l, stück, etc.)
-- quantity: Menge des Artikels (als Zahl)
+- brand: Marke/Hersteller des Artikels (falls erkennbar)
+- unit: Gewicht/Menge des Inhalts (z.B. "1kg", "500g", "400g Abtropfgewicht"). WICHTIG: Das Feld soll den Wert UND die Einheit enthalten (z.B. "500g"), nicht nur die Einheit. Priorisiere Netto- oder Abtropfgewicht.
+- quantity: Menge des Artikels (als Zahl, z.B. 1 für 1 Stück/Packung, oder das Gewicht als Zahl wenn 'unit' nur 'kg' ist. Wenn 'unit' z.B. '500g' ist, setze quantity auf 1).
 - purchase_price: Einkaufspreis (als Zahl)
 - standardPreparation: { components: [{ name, quantity, unit }] } (optional, für Dosierungen/Mischverhältnisse)
 - preparationText: Zubereitungsschritte als Text (optional, Fließtext)

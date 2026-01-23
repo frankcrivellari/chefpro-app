@@ -111,6 +111,8 @@ type InventoryItem = {
   name: string;
   type: InventoryType;
   unit: string;
+  brand?: string | null;
+  currency?: string;
   purchasePrice: number;
   targetPortions?: number | null;
   targetSalesPrice?: number | null;
@@ -148,6 +150,7 @@ type InventoryItem = {
 type ParsedAiItem = {
   name: string;
   unit: string;
+  brand?: string;
   quantity: number;
   purchasePrice: number;
   calculatedPricePerUnit: number;
@@ -2847,7 +2850,7 @@ export function InventoryManager() {
       const nameValue =
         selectedItem.type === "eigenproduktion"
           ? nameInput.trim()
-          : undefined;
+          : selectedItem.name;
       const categoryValue =
         selectedItem.type === "eigenproduktion"
           ? categoryInput.trim()
@@ -2922,7 +2925,7 @@ export function InventoryManager() {
         preparationStepsValue =
           cleanedSteps.length > 0 ? JSON.stringify(cleanedSteps) : "";
       } else {
-        preparationStepsValue = proPreparationInput.trim();
+        preparationStepsValue = typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps.trim() : "";
       }
 
       const nutritionPerUnitValue: NutritionTotals | null =
@@ -2952,6 +2955,10 @@ export function InventoryManager() {
         body: JSON.stringify({
           id: selectedItem.id,
           name: nameValue,
+          unit: selectedItem.unit,
+          purchasePrice: selectedItem.purchasePrice,
+          brand: selectedItem.brand,
+          currency: selectedItem.currency,
           manufacturerArticleNumber: manufacturerInput.trim(),
           allergens: allergensArray,
           ingredients: proIngredientsInput.trim(),
@@ -2969,7 +2976,10 @@ export function InventoryManager() {
           nutritionPerUnit: nutritionPerUnitValue,
           standardPreparation:
             selectedItem.type !== "eigenproduktion"
-              ? parsedStandardPreparation
+              ? (selectedItem.standardPreparation ? {
+                  ...selectedItem.standardPreparation,
+                  components: selectedItem.standardPreparation.components.filter(c => c.name && c.name.trim().length > 0)
+                } : null)
               : undefined,
           isBio: isBioInput,
           isDeklarationsfrei: isDeklarationsfreiInput,
@@ -3810,6 +3820,17 @@ export function InventoryManager() {
                                     }}
                                   />
                                </div>
+                               <div className="grid gap-2">
+                                  <label className="text-xs font-medium text-[#1F2326]">Marke (Brand)</label>
+                                  <Input 
+                                    value={selectedItem.brand || ""} 
+                                    className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                    onChange={(e) => {
+                                       const val = e.target.value;
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, brand: val } : i));
+                                    }}
+                                  />
+                               </div>
                                <div className="grid grid-cols-2 gap-4">
                                   <div className="grid gap-2">
                                     <label className="text-xs font-medium text-[#1F2326]">Gewicht (netto)/Abtropfgewicht</label>
@@ -3822,15 +3843,26 @@ export function InventoryManager() {
                                   </div>
                                   <div className="grid gap-2">
                                     <label className="text-xs font-medium text-[#1F2326]">EK-Preis/VE</label>
-                                    <Input 
-                                      type="number" 
-                                      value={selectedItem.purchasePrice} 
-                                      className="border-[#E5E7EB] bg-white text-[#1F2326]"
-                                      onChange={(e) => {
-                                         const val = parseFloat(e.target.value);
-                                         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, purchasePrice: val } : i));
-                                      }} 
-                                    />
+                                    <div className="flex gap-2">
+                                      <Input 
+                                        type="number" 
+                                        value={selectedItem.purchasePrice} 
+                                        className="border-[#E5E7EB] bg-white text-[#1F2326] flex-1"
+                                        onChange={(e) => {
+                                           const val = parseFloat(e.target.value);
+                                           setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, purchasePrice: val } : i));
+                                        }} 
+                                      />
+                                      <Input
+                                        value={selectedItem.currency || "EUR"}
+                                        className="w-16 border-[#E5E7EB] bg-white text-[#1F2326] text-center"
+                                        placeholder="EUR"
+                                        onChange={(e) => {
+                                           const val = e.target.value;
+                                           setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, currency: val } : i));
+                                        }}
+                                      />
+                                    </div>
                                   </div>
                                </div>
 
@@ -3855,22 +3887,10 @@ export function InventoryManager() {
                                    {(selectedItem.standardPreparation?.components || []).map((comp, idx) => (
                                      <div key={idx} className="flex gap-2">
                                         <Input
-                                          placeholder="Zutat"
-                                          value={comp.name}
-                                          className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                          onChange={(e) => {
-                                             const val = e.target.value;
-                                             const currentPrep = selectedItem.standardPreparation!;
-                                             const newComponents = [...currentPrep.components];
-                                             newComponents[idx] = { ...newComponents[idx], name: val };
-                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                          }}
-                                        />
-                                        <Input
                                           type="number"
                                           placeholder="Menge"
                                           value={comp.quantity}
-                                          className="h-7 w-16 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                          className="h-7 w-20 text-xs border-[#E5E7EB] bg-white text-[#1F2326] shrink-0"
                                           onChange={(e) => {
                                              const val = parseFloat(e.target.value) || 0;
                                              const currentPrep = selectedItem.standardPreparation!;
@@ -3882,12 +3902,24 @@ export function InventoryManager() {
                                         <Input
                                           placeholder="Einheit"
                                           value={comp.unit}
-                                          className="h-7 w-16 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                          className="h-7 w-20 text-xs border-[#E5E7EB] bg-white text-[#1F2326] shrink-0"
                                           onChange={(e) => {
                                              const val = e.target.value;
                                              const currentPrep = selectedItem.standardPreparation!;
                                              const newComponents = [...currentPrep.components];
                                              newComponents[idx] = { ...newComponents[idx], unit: val };
+                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                                          }}
+                                        />
+                                        <Input
+                                          placeholder="Zutat"
+                                          value={comp.name}
+                                          className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                          onChange={(e) => {
+                                             const val = e.target.value;
+                                             const currentPrep = selectedItem.standardPreparation!;
+                                             const newComponents = [...currentPrep.components];
+                                             newComponents[idx] = { ...newComponents[idx], name: val };
                                              setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
                                           }}
                                         />
@@ -3934,10 +3966,18 @@ export function InventoryManager() {
                           <textarea
                             rows={3}
                             value={proIngredientsInput}
-                            onChange={(event) =>
-                              setProIngredientsInput(event.target.value)
-                            }
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            onChange={(event) => {
+                              setProIngredientsInput(event.target.value);
+                              event.target.style.height = "auto";
+                              event.target.style.height = event.target.scrollHeight + "px";
+                            }}
+                            ref={(el) => {
+                                if (el) {
+                                    el.style.height = "auto";
+                                    el.style.height = el.scrollHeight + "px";
+                                }
+                            }}
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background overflow-hidden"
                           />
                         </div>
 
