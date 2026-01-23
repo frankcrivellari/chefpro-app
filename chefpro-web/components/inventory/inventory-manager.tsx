@@ -152,6 +152,8 @@ type ParsedAiItem = {
   calculatedPricePerUnit: number;
   standardPreparation?: StandardPreparation | null;
   preparationText?: string | null;
+  nutritionPerUnit?: NutritionTotals | null;
+  dosageInstructions?: string | null;
 };
 
 type ParsedDocumentItem = {
@@ -3132,6 +3134,8 @@ export function InventoryManager() {
         calculated_price_per_unit: number;
         standardPreparation?: StandardPreparation | null;
         preparationText?: string | null;
+        nutritionPerUnit?: NutritionTotals | null;
+        dosageInstructions?: string | null;
       };
       setAiParsed({
         name: data.name,
@@ -3141,6 +3145,8 @@ export function InventoryManager() {
         calculatedPricePerUnit: data.calculated_price_per_unit,
         standardPreparation: data.standardPreparation ?? null,
         preparationText: data.preparationText ?? null,
+        nutritionPerUnit: data.nutritionPerUnit ?? null,
+        dosageInstructions: data.dosageInstructions ?? null,
       });
     } catch (error) {
       const message =
@@ -3173,6 +3179,8 @@ export function InventoryManager() {
           components: [],
           standardPreparation: aiParsed.standardPreparation ?? null,
           preparationSteps: aiParsed.preparationText ?? null,
+          nutritionPerUnit: aiParsed.nutritionPerUnit ?? null,
+          dosageInstructions: aiParsed.dosageInstructions ?? null,
         }),
       });
       if (!response.ok) {

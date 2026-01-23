@@ -403,6 +403,7 @@ export async function POST(request: Request) {
       preparationSteps: createdItemRow.preparation_steps,
       fileUrl: createdItemRow.file_url,
       standardPreparation: createdItemRow.standard_preparation,
+      nutritionPerUnit: createdItemRow.nutrition_per_unit,
       packshotX: createdItemRow.packshot_x,
       packshotY: createdItemRow.packshot_y,
       packshotZoom: createdItemRow.packshot_zoom,

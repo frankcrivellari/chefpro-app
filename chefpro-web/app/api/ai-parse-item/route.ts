@@ -10,6 +10,16 @@ type StandardPreparation = {
   components: StandardPreparationComponent[];
 };
 
+type NutritionTotals = {
+  energyKcal: number;
+  fat: number;
+  saturatedFat: number;
+  carbs: number;
+  sugar: number;
+  protein: number;
+  salt: number;
+};
+
 type ParsedItem = {
   name: string;
   unit: string;
@@ -18,6 +28,8 @@ type ParsedItem = {
   calculated_price_per_unit: number;
   standardPreparation?: StandardPreparation | null;
   preparationText?: string | null;
+  nutritionPerUnit?: NutritionTotals | null;
+  dosageInstructions?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -49,6 +61,22 @@ export async function POST(request: Request) {
       );
     }
 
+    const systemPrompt = `
+Du bist ein KI-Assistent, der Zutaten-Texte analysiert.
+Extrahiere folgende Daten als JSON:
+- name: Name der Zutat
+- unit: Einheit (kg, l, stück, bund, etc.)
+- quantity: Menge (als Zahl)
+- purchase_price: Einkaufspreis (als Zahl)
+- standardPreparation: { components: [{ name, quantity, unit }] } (optional)
+- preparationText: Zubereitungsschritte als Text (optional)
+- nutritionPerUnit: { energyKcal, fat, saturatedFat, carbs, sugar, protein, salt } (optional, alle Werte als numbers)
+- dosageInstructions: Dosieranweisungen als Text (optional)
+
+Berechne 'calculated_price_per_unit' = purchase_price / quantity.
+Antworte NUR mit dem JSON-Objekt.
+    `;
+
     const completionResponse = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -63,8 +91,7 @@ export async function POST(request: Request) {
           messages: [
             {
               role: "system",
-              content:
-                "Du extrahierst strukturierte Einkaufsdaten für eine Küchen-Software. Antworte immer als JSON-Objekt mit den Feldern: name (string), unit (string), quantity (number), purchase_price (number), calculated_price_per_unit (number). Die Währung ist immer EUR und muss nicht angegeben werden. quantity ist die Menge in unit, für die der Gesamtpreis gilt. purchase_price ist der Gesamtpreis. calculated_price_per_unit ist purchase_price / quantity, auf zwei Nachkommastellen gerundet.",
+              content: systemPrompt,
             },
             {
               role: "user",
@@ -189,6 +216,22 @@ export async function POST(request: Request) {
       preparationText:
         typeof parsedRaw.preparationText === "string"
           ? parsedRaw.preparationText
+          : null,
+      nutritionPerUnit:
+        parsedRaw.nutritionPerUnit && typeof parsedRaw.nutritionPerUnit === "object"
+          ? {
+              energyKcal: Number(parsedRaw.nutritionPerUnit.energyKcal) || 0,
+              fat: Number(parsedRaw.nutritionPerUnit.fat) || 0,
+              saturatedFat: Number(parsedRaw.nutritionPerUnit.saturatedFat) || 0,
+              carbs: Number(parsedRaw.nutritionPerUnit.carbs) || 0,
+              sugar: Number(parsedRaw.nutritionPerUnit.sugar) || 0,
+              protein: Number(parsedRaw.nutritionPerUnit.protein) || 0,
+              salt: Number(parsedRaw.nutritionPerUnit.salt) || 0,
+            }
+          : null,
+      dosageInstructions:
+        typeof parsedRaw.dosageInstructions === "string"
+          ? parsedRaw.dosageInstructions
           : null,
     };
 
