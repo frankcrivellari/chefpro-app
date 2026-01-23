@@ -13,6 +13,16 @@ type StandardPreparation = {
   components: StandardPreparationComponent[];
 };
 
+type NutritionTotals = {
+  energyKcal: number;
+  fat: number;
+  saturatedFat: number;
+  carbs: number;
+  sugar: number;
+  protein: number;
+  salt: number;
+};
+
 type SupabaseItemRow = {
   id: string;
   name: string;
@@ -24,6 +34,7 @@ type SupabaseItemRow = {
   category: string | null;
   portion_unit: string | null;
   nutrition_tags: string[] | null;
+  nutrition_per_unit: NutritionTotals | null;
   internal_id: number | null;
   manufacturer_article_number: string | null;
   ean: string | null;
@@ -132,6 +143,7 @@ export async function POST(request: Request) {
     purchasePrice?: number;
     unit?: string;
     nutritionTags?: string[];
+    nutritionPerUnit?: NutritionTotals | null;
     standardPreparation?: StandardPreparation | null;
     isBio?: boolean;
     isDeklarationsfrei?: boolean;
@@ -283,6 +295,15 @@ export async function POST(request: Request) {
   if (body.nutritionTags) {
     updates.nutrition_tags =
       body.nutritionTags.length > 0 ? body.nutritionTags : [];
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, "nutritionPerUnit")) {
+    const value = body.nutritionPerUnit;
+    if (value === null) {
+      updates.nutrition_per_unit = null;
+    } else if (value && typeof value === "object") {
+      updates.nutrition_per_unit = value as NutritionTotals;
+    }
   }
 
   if (typeof body.isBio === "boolean") {

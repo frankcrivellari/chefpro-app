@@ -457,6 +457,13 @@ export function InventoryManager() {
   const [isYeastFreeInput, setIsYeastFreeInput] = useState(false);
   const [isLactoseFreeInput, setIsLactoseFreeInput] = useState(false);
   const [isGlutenFreeInput, setIsGlutenFreeInput] = useState(false);
+  const [proEnergyKcalInput, setProEnergyKcalInput] = useState("");
+  const [proFatInput, setProFatInput] = useState("");
+  const [proSaturatedFatInput, setProSaturatedFatInput] = useState("");
+  const [proCarbsInput, setProCarbsInput] = useState("");
+  const [proSugarInput, setProSugarInput] = useState("");
+  const [proProteinInput, setProProteinInput] = useState("");
+  const [proSaltInput, setProSaltInput] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSwapMode, setIsSwapMode] = useState(false);
   const [swapGhostName, setSwapGhostName] = useState<string>("");
@@ -1663,6 +1670,29 @@ export function InventoryManager() {
         ? allergensText
         : "keine rezeptorisch enthaltenen Allergene"
     );
+    if (selectedItem.nutritionPerUnit) {
+      setProEnergyKcalInput(
+        String(selectedItem.nutritionPerUnit.energyKcal ?? "")
+      );
+      setProFatInput(String(selectedItem.nutritionPerUnit.fat ?? ""));
+      setProSaturatedFatInput(
+        String(selectedItem.nutritionPerUnit.saturatedFat ?? "")
+      );
+      setProCarbsInput(String(selectedItem.nutritionPerUnit.carbs ?? ""));
+      setProSugarInput(String(selectedItem.nutritionPerUnit.sugar ?? ""));
+      setProProteinInput(
+        String(selectedItem.nutritionPerUnit.protein ?? "")
+      );
+      setProSaltInput(String(selectedItem.nutritionPerUnit.salt ?? ""));
+    } else {
+      setProEnergyKcalInput("");
+      setProFatInput("");
+      setProSaturatedFatInput("");
+      setProCarbsInput("");
+      setProSugarInput("");
+      setProProteinInput("");
+      setProSaltInput("");
+    }
     setProIngredientsInput(selectedItem.ingredients ?? "");
     setProDosageInput(selectedItem.dosageInstructions ?? "");
     const yieldText = selectedItem.yieldInfo ?? "";
@@ -2790,6 +2820,7 @@ export function InventoryManager() {
           category: categoryValue,
           portionUnit: portionUnitValue,
           nutritionTags: nutritionTagsValue,
+          nutritionPerUnit: nutritionPerUnitValue,
           standardPreparation:
             selectedItem.type === "zukauf"
               ? parsedStandardPreparation
@@ -3674,16 +3705,7 @@ export function InventoryManager() {
                                     />
                                   </div>
                                </div>
-                               <div className="space-y-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">Standard-Zubereitung</label>
-                                  <Textarea 
-                                     value={standardPreparationText || ""}
-                                     onChange={(e) => setStandardPreparationText(e.target.value)}
-                                     rows={6}
-                                     className="border-[#E5E7EB] bg-white text-xs text-[#1F2326] placeholder:text-[#6B7176]"
-                                     placeholder="Zubereitungsschritte..."
-                                  />
-                               </div>
+
                                <div className="flex justify-between items-center">
                                   {/* Buttons moved to header */}
                                </div>
@@ -5087,132 +5109,140 @@ export function InventoryManager() {
                         Dieser Artikel wird als Zukauf geführt. Du kannst ihn
                         als Komponente in Eigenproduktionen verwenden.
                       </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>Standard-Zubereitung</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              setStandardPreparationComponents((components) => [
-                                ...components,
-                                { name: "", quantity: 0, unit: "" },
-                              ])
-                            }
-                          >
-                            Zeile hinzufügen
-                          </Button>
-                        </div>
-                        {standardPreparationComponents.length === 0 && !standardPreparationText && (
-                            <div className="rounded-md border border-dashed bg-card px-2 py-2 text-[11px] text-muted-foreground">
-                              Noch keine strukturierte Standard-Zubereitung
-                              hinterlegt.
-                            </div>
-                          )}
-                          <div className="space-y-2">
-                             <div className="text-[11px] font-medium text-muted-foreground">
-                               Zubereitungsanweisung
-                             </div>
-                             <textarea
-                               rows={4}
-                               value={standardPreparationText}
-                               onChange={(event) => setStandardPreparationText(event.target.value)}
-                               className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                               placeholder="Zubereitungsschritte beschreiben..."
-                             />
+                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Dosierung / Mischverhältnis
                           </div>
-                        {standardPreparationComponents.map(
-                          (component, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2 rounded-md border bg-card px-2 py-2"
-                            >
+                          <textarea
+                            rows={2}
+                            value={proDosageInput}
+                            onChange={(event) =>
+                              setProDosageInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            style={{ backgroundColor: "#F6F7F5" }}
+                            placeholder="Mischverhältnisse und Basismengen (z.B. 100g auf 1l)"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Zubereitungsanweisung
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={proPreparationInput}
+                            onChange={(event) =>
+                              setProPreparationInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Allergene (kommagetrennt)
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={proAllergensInput}
+                            onChange={(event) =>
+                              setProAllergensInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
+                        </div>
+                        <div className="space-y-1 pt-2">
+                          <div className="text-[11px] font-medium text-muted-foreground">
+                            Nährwerte (pro 100g/ml)
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Energie (kcal)
+                              </label>
                               <Input
                                 type="number"
-                                placeholder="Menge"
-                                value={
-                                  component.quantity === 0
-                                    ? ""
-                                    : String(component.quantity)
+                                value={proEnergyKcalInput}
+                                onChange={(e) =>
+                                  setProEnergyKcalInput(e.target.value)
                                 }
-                                onChange={(event) => {
-                                  const value = Number(
-                                    event.target.value.replace(",", ".")
-                                  );
-                                  setStandardPreparationComponents(
-                                    (components) =>
-                                      components.map(
-                                        (currentComponent, current) =>
-                                          current === index
-                                            ? {
-                                                ...currentComponent,
-                                                quantity: Number.isNaN(value)
-                                                  ? 0
-                                                  : value,
-                                              }
-                                            : currentComponent
-                                      )
-                                  );
-                                }}
-                                className="h-8 w-20 text-[11px]"
+                                className="h-7 px-2 py-1 text-[11px]"
                               />
-                              <Input
-                                placeholder="Einheit"
-                                value={component.unit}
-                                onChange={(event) =>
-                                  setStandardPreparationComponents(
-                                    (components) =>
-                                      components.map(
-                                        (currentComponent, current) =>
-                                          current === index
-                                            ? {
-                                                ...currentComponent,
-                                                unit: event.target.value,
-                                              }
-                                            : currentComponent
-                                      )
-                                  )
-                                }
-                                className="h-8 w-24 text-[11px]"
-                              />
-                              <Input
-                                placeholder="Zutat Name"
-                                value={component.name}
-                                onChange={(event) =>
-                                  setStandardPreparationComponents(
-                                    (components) =>
-                                      components.map(
-                                        (currentComponent, current) =>
-                                          current === index
-                                            ? {
-                                                ...currentComponent,
-                                                name: event.target.value,
-                                              }
-                                            : currentComponent
-                                      )
-                                  )
-                                }
-                                className="h-8 flex-1 text-[11px]"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  setStandardPreparationComponents(
-                                    (components) =>
-                                      components.filter(
-                                        (_, current) => current !== index
-                                      )
-                                  )
-                                }
-                              >
-                                Entfernen
-                              </Button>
                             </div>
-                          )
-                        )}
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Fett
+                              </label>
+                              <Input
+                                type="number"
+                                value={proFatInput}
+                                onChange={(e) => setProFatInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                ges. Fettsäuren
+                              </label>
+                              <Input
+                                type="number"
+                                value={proSaturatedFatInput}
+                                onChange={(e) =>
+                                  setProSaturatedFatInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Kohlenhydrate
+                              </label>
+                              <Input
+                                type="number"
+                                value={proCarbsInput}
+                                onChange={(e) =>
+                                  setProCarbsInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Zucker
+                              </label>
+                              <Input
+                                type="number"
+                                value={proSugarInput}
+                                onChange={(e) => setProSugarInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Eiweiß
+                              </label>
+                              <Input
+                                type="number"
+                                value={proProteinInput}
+                                onChange={(e) =>
+                                  setProProteinInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Salz
+                              </label>
+                              <Input
+                                type="number"
+                                value={proSaltInput}
+                                onChange={(e) => setProSaltInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -5843,17 +5873,46 @@ export function InventoryManager() {
                         </div>
                       )}
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-xs font-semibold">Standard-Zubereitung</h3>
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Dosierung / Mischverhältnis
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={proDosageInput}
+                            onChange={(event) =>
+                              setProDosageInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            style={{ backgroundColor: "#F6F7F5" }}
+                            placeholder="Mischverhältnisse und Basismengen (z.B. 100g auf 1l)"
+                          />
                         </div>
-                        <div className="space-y-2">
-                           <textarea
-                             rows={6}
-                             value={standardPreparationText}
-                             onChange={(event) => setStandardPreparationText(event.target.value)}
-                             className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                             placeholder="Zubereitungsschritte hier eingeben..."
-                           />
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Zubereitungsanweisung
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={proPreparationInput}
+                            onChange={(event) =>
+                              setProPreparationInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Allergene (kommagetrennt)
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={proAllergensInput}
+                            onChange={(event) =>
+                              setProAllergensInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
                         </div>
                       </div>
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
@@ -6216,7 +6275,7 @@ export function InventoryManager() {
                           </div>
                         )}
                       </div>
-                      {nutritionSummary && (
+                      {selectedItem.type === "eigenproduktion" && nutritionSummary && (
                         <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                           <div className="flex items-center justify-between gap-2">
                             <h3 className="text-xs font-semibold">
