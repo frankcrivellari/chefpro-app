@@ -3303,7 +3303,7 @@ export function InventoryManager() {
   return (
     <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
       {activeSection === "zutaten" && (
-        <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#6B7176] bg-[#1F2326]">
+        <aside className="flex w-[140px] shrink-0 flex-col border-r border-[#6B7176] bg-[#1F2326]">
           <div className="flex flex-col gap-3 border-b border-[#6B7176] p-4">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-[#6B7176]" />
