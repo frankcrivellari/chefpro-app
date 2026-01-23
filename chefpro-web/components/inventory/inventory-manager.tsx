@@ -3303,7 +3303,7 @@ export function InventoryManager() {
   return (
     <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
       {activeSection === "zutaten" && (
-        <aside className="flex w-[140px] shrink-0 flex-col border-r border-[#6B7176] bg-[#1F2326]">
+        <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#6B7176] bg-[#1F2326]">
           <div className="flex flex-col gap-3 border-b border-[#6B7176] p-4">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-[#6B7176]" />
@@ -5553,7 +5553,11 @@ export function InventoryManager() {
                                       <button
                                         key={item.id}
                                         type="button"
-                                        className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-2 py-1 text-left hover:bg-accent hover:text-accent-foreground"
+                                        className={cn(
+                                          "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-xs transition-colors hover:bg-accent hover:text-accent-foreground",
+                                          adHocSelectedItemId === item.id &&
+                                            "bg-primary/10 text-primary font-medium"
+                                        )}
                                         onClick={() => {
                                           setAdHocSelectedItemId(item.id);
                                           setAdHocName(item.name);
@@ -5563,25 +5567,7 @@ export function InventoryManager() {
                                           );
                                         }}
                                       >
-                                        <div className="flex flex-1 flex-col">
-                                          <div className="flex items-center gap-1">
-                                            <span className="truncate text-[11px] font-medium">
-                                              {item.name}
-                                            </span>
-                                            <TypeBadge type={item.type} />
-                                          </div>
-                                          <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                                            <span>
-                                              EK: {item.purchasePrice.toFixed(2)}{" "}
-                                              € / {item.unit}
-                                            </span>
-                                            {item.internalId != null && (
-                                              <span>
-                                                Intern: INT-{item.internalId}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
+                                        <span className="truncate">{item.name}</span>
                                       </button>
                                     ))}
                                   </div>
