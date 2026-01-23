@@ -1775,10 +1775,12 @@ export function InventoryManager() {
         setEditingStepId(null);
       }
     } else {
+      // Logic for Zukauf: preparationSteps is usually a string
       const raw = selectedItem.preparationSteps;
       if (typeof raw === "string" && raw.trim().length > 0) {
         setProPreparationInput(raw);
       } else if (Array.isArray(raw) && raw.length > 0) {
+        // Fallback if it somehow got saved as array
         const combined = raw
           .map((step) => step.text)
           .filter(
