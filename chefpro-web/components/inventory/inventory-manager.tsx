@@ -1689,6 +1689,7 @@ export function InventoryManager() {
       );
       setProSaltInput(String(selectedItem.nutritionPerUnit.salt ?? ""));
     } else {
+      console.log("Clearing nutrition state because nutritionPerUnit is missing");
       setProEnergyKcalInput("");
       setProFatInput("");
       setProSaturatedFatInput("");
@@ -5471,6 +5472,15 @@ export function InventoryManager() {
                         <div className="space-y-1 pt-2">
                           <div className="text-[11px] font-medium text-muted-foreground">
                             Nährwerte (pro 100g/ml)
+                            {/* DEBUG RENDER */}
+                            <span className="hidden">
+                                {console.log("Rendering nutrition inputs:", {
+                                    kcal: proEnergyKcalInput,
+                                    fat: proFatInput,
+                                    carbs: proCarbsInput,
+                                    type: selectedItem.type
+                                })}
+                            </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                             <div className="space-y-0.5">
