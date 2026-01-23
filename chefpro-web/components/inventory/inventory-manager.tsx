@@ -123,6 +123,7 @@ type InventoryItem = {
   ingredients?: string | null;
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
+  yieldVolume?: string | null;
   preparationSteps?: string | PreparationStep[] | null;
   nutritionPerUnit?: NutritionTotals | null;
   standardPreparation?: StandardPreparation | null;
@@ -2437,15 +2438,26 @@ export function InventoryManager() {
           name: string;
           unit: string;
           purchase_price: number;
+          nutrition_per_100?: {
+            energy_kcal?: number;
+            fat?: number;
+            saturated_fat?: number;
+            carbohydrates?: number;
+            carbs?: number;
+            sugar?: number;
+            protein?: number;
+            salt?: number;
+          } | null;
           nutrition_per_100g?: {
             energy_kcal?: number;
             fat?: number;
             saturated_fat?: number;
             carbohydrates?: number;
+            carbs?: number;
             sugar?: number;
             protein?: number;
             salt?: number;
-          };
+          } | null;
           allergens: string[];
           ingredients?: string | null;
           dosage_instructions?: string | null;
@@ -2485,7 +2497,46 @@ export function InventoryManager() {
         throw new Error(message);
       }
       if (payload.item) {
-        const created = payload.item as InventoryItem;
+        // payload.item comes from DB (snake_case) but we treated it as InventoryItem (camelCase).
+        // We must map it properly.
+        const rawItem = payload.item as any;
+        const created: InventoryItem = {
+          id: rawItem.id,
+          internalId: rawItem.internal_id,
+          name: rawItem.name,
+          type: rawItem.item_type,
+          unit: rawItem.unit,
+          purchasePrice: rawItem.purchase_price,
+          targetPortions: rawItem.target_portions,
+          targetSalesPrice: rawItem.target_sales_price,
+          category: rawItem.category,
+          portionUnit: rawItem.portion_unit,
+          nutritionTags: rawItem.nutrition_tags,
+          manufacturerArticleNumber: rawItem.manufacturer_article_number,
+          ean: rawItem.ean,
+          allergens: rawItem.allergens,
+          ingredients: rawItem.ingredients,
+          dosageInstructions: rawItem.dosage_instructions,
+          yieldInfo: rawItem.yield_info,
+          preparationSteps: rawItem.preparation_steps,
+          fileUrl: rawItem.file_url,
+          imageUrl: rawItem.image_url,
+          nutritionPerUnit: rawItem.nutrition_per_unit,
+          standardPreparation: rawItem.standard_preparation,
+          isBio: rawItem.is_bio,
+          isDeklarationsfrei: rawItem.is_deklarationsfrei,
+          isAllergenfrei: rawItem.is_allergenfrei,
+          isCookChill: rawItem.is_cook_chill,
+          isFreezeThawStable: rawItem.is_freeze_thaw_stable,
+          isPalmOilFree: rawItem.is_palm_oil_free,
+          isYeastFree: rawItem.is_yeast_free,
+          isLactoseFree: rawItem.is_lactose_free,
+          isGlutenFree: rawItem.is_gluten_free,
+          packshotX: rawItem.packshot_x,
+          packshotY: rawItem.packshot_y,
+          packshotZoom: rawItem.packshot_zoom,
+        };
+        const nutritionRaw = payload.extracted?.nutrition_per_100 || payload.extracted?.nutrition_per_100g;
         const enriched: InventoryItem = {
           ...created,
           allergens:
@@ -2525,6 +2576,39 @@ export function InventoryManager() {
             payload.extracted.standard_preparation
               ? payload.extracted.standard_preparation
               : created.standardPreparation) ?? null,
+          nutritionPerUnit: nutritionRaw ? {
+            energyKcal: nutritionRaw.energy_kcal || 0,
+            fat: nutritionRaw.fat || 0,
+            saturatedFat: nutritionRaw.saturated_fat || 0,
+            carbs: nutritionRaw.carbohydrates || nutritionRaw.carbs || 0,
+            sugar: nutritionRaw.sugar || 0,
+            protein: nutritionRaw.protein || 0,
+            salt: nutritionRaw.salt || 0,
+          } : created.nutritionPerUnit,
+          manufacturerArticleNumber:
+            (payload.extracted &&
+            typeof payload.extracted.manufacturer_article_number === "string"
+              ? payload.extracted.manufacturer_article_number
+              : created.manufacturerArticleNumber) ?? null,
+          yieldVolume:
+            (payload.extracted &&
+            typeof payload.extracted.yield_volume === "string"
+              ? payload.extracted.yield_volume
+              : created.yieldInfo) ?? null, // Note: yieldInfo fallback might be wrong type, but created usually has it
+          imageUrl:
+            (payload.extracted &&
+            typeof payload.extracted.image_url === "string"
+              ? payload.extracted.image_url
+              : created.imageUrl) ?? null,
+          isBio: payload.extracted?.is_bio ?? created.isBio ?? false,
+          isDeklarationsfrei: payload.extracted?.is_deklarationsfrei ?? created.isDeklarationsfrei ?? false,
+          isAllergenfrei: payload.extracted?.is_allergenfrei ?? created.isAllergenfrei ?? false,
+          isCookChill: payload.extracted?.is_cook_chill ?? created.isCookChill ?? false,
+          isFreezeThawStable: payload.extracted?.is_freeze_thaw_stable ?? created.isFreezeThawStable ?? false,
+          isPalmOilFree: payload.extracted?.is_palm_oil_free ?? created.isPalmOilFree ?? false,
+          isYeastFree: payload.extracted?.is_yeast_free ?? created.isYeastFree ?? false,
+          isLactoseFree: payload.extracted?.is_lactose_free ?? created.isLactoseFree ?? false,
+          isGlutenFree: payload.extracted?.is_gluten_free ?? created.isGlutenFree ?? false,
         };
         setItems((previous) => [
           ...previous,
@@ -2555,6 +2639,24 @@ export function InventoryManager() {
             ? payload.extracted.dosage_instructions
             : ""
         );
+
+        // Nutrition state updates
+        const nutritionRaw = payload.extracted.nutrition_per_100 || payload.extracted.nutrition_per_100g;
+        if (nutritionRaw) {
+          setProEnergyKcalInput(String(nutritionRaw.energy_kcal || ""));
+          setProFatInput(String(nutritionRaw.fat || ""));
+          setProSaturatedFatInput(String(nutritionRaw.saturated_fat || ""));
+          setProCarbsInput(String(nutritionRaw.carbohydrates || nutritionRaw.carbs || ""));
+          setProSugarInput(String(nutritionRaw.sugar || ""));
+          setProProteinInput(String(nutritionRaw.protein || ""));
+          setProSaltInput(String(nutritionRaw.salt || ""));
+        } else {
+          // Keep existing values if not extracted, or clear?
+          // Usually better to leave empty if we are confident extraction ran but found nothing.
+          // But to be safe, let's not clear if we didn't find any.
+          // Actually, if it's a new upload, we probably want to show what was found.
+        }
+
         if (
           payload.extracted.standard_preparation &&
           Array.isArray(payload.extracted.standard_preparation.components)

@@ -62,6 +62,20 @@ type SupabaseItemRow = {
   is_gluten_free: boolean | null;
   file_url: string | null;
   image_url: string | null;
+  nutrition_per_unit: {
+    energyKcal: number;
+    fat: number;
+    saturatedFat: number;
+    carbs: number;
+    sugar: number;
+    protein: number;
+    salt: number;
+  } | null;
+  allergens: string[] | null;
+  ingredients: string | null;
+  dosage_instructions: string | null;
+  yield_info: string | null;
+  preparation_steps: string | null;
   standard_preparation: {
     components: {
       name: string;
@@ -454,11 +468,13 @@ export async function POST(request: Request) {
         isGlutenFree: createdItemRow.is_gluten_free ?? false,
         fileUrl: createdItemRow.file_url,
         imageUrl: createdItemRow.image_url,
+        nutritionPerUnit: createdItemRow.nutrition_per_unit,
       },
       extracted: {
         name: parsed.name,
         unit: parsed.unit,
         purchase_price: parsed.purchase_price,
+        nutrition_per_100: parsed.nutrition_per_100,
         allergens,
         ingredients,
         dosage_instructions: dosageInstructions,
