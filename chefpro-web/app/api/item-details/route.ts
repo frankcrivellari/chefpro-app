@@ -198,6 +198,7 @@ export async function POST(request: Request) {
     packshot_zoom?: number | null;
     file_url?: string | null;
     image_url?: string | null;
+    nutrition_per_unit?: NutritionTotals | null;
   } = {};
 
   if (typeof body.name === "string") {
