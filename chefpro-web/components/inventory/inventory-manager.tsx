@@ -3834,6 +3834,284 @@ export function InventoryManager() {
                                   </div>
                                </div>
 
+                               {(selectedItem.type !== "eigenproduktion" || (activeSection as any) === "zutaten") && (
+                                 <>
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Zutatenliste (Deklaration)
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={proIngredientsInput}
+                            onChange={(event) =>
+                              setProIngredientsInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <div className="text-[11px] text-muted-foreground">
+                              Fertig-Gewicht (g/kg)
+                            </div>
+                            <Input
+                              type="text"
+                              value={proYieldWeightInput}
+                              onChange={(event) =>
+                                setProYieldWeightInput(event.target.value)
+                              }
+                              className="h-7 w-full px-2 py-1 text-[11px]"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-[11px] text-muted-foreground">
+                              End-Volumen (ml/l)
+                            </div>
+                            <Input
+                              type="text"
+                              value={proYieldVolumeInput}
+                              onChange={(event) =>
+                                setProYieldVolumeInput(event.target.value)
+                              }
+                              className="h-7 w-full px-2 py-1 text-[11px]"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Hersteller-Artikelnummer
+                          </div>
+                          <Input
+                            type="text"
+                            value={manufacturerInput}
+                            onChange={(event) =>
+                              setManufacturerInput(event.target.value)
+                            }
+                            className="h-7 w-full px-2 py-1 text-[11px]"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 rounded-md border p-2 text-[10px] md:grid-cols-3">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isBioInput}
+                              onChange={(e) => setIsBioInput(e.target.checked)}
+                              id="check-bio"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-bio">Bio</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isDeklarationsfreiInput}
+                              onChange={(e) =>
+                                setIsDeklarationsfreiInput(e.target.checked)
+                              }
+                              id="check-dekla"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-dekla">
+                              Deklarationsfrei
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isAllergenfreiInput}
+                              onChange={(e) =>
+                                setIsAllergenfreiInput(e.target.checked)
+                              }
+                              id="check-allergen"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-allergen">Allergenfrei</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isCookChillInput}
+                              onChange={(e) =>
+                                setIsCookChillInput(e.target.checked)
+                              }
+                              id="check-cookchill"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-cookchill">Cook & Chill</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isFreezeThawStableInput}
+                              onChange={(e) =>
+                                setIsFreezeThawStableInput(e.target.checked)
+                              }
+                              id="check-freeze"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-freeze">TK-stabil</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isPalmOilFreeInput}
+                              onChange={(e) =>
+                                setIsPalmOilFreeInput(e.target.checked)
+                              }
+                              id="check-palm"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-palm">Palmölfrei</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isYeastFreeInput}
+                              onChange={(e) =>
+                                setIsYeastFreeInput(e.target.checked)
+                              }
+                              id="check-yeast"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-yeast">Hefefrei</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isLactoseFreeInput}
+                              onChange={(e) =>
+                                setIsLactoseFreeInput(e.target.checked)
+                              }
+                              id="check-lactose"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-lactose">Laktosefrei</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isGlutenFreeInput}
+                              onChange={(e) =>
+                                setIsGlutenFreeInput(e.target.checked)
+                              }
+                              id="check-gluten"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-gluten">Glutenfrei</label>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Allergene (kommagetrennt)
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={proAllergensInput}
+                            onChange={(event) =>
+                              setProAllergensInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
+                        </div>
+                        <div className="space-y-1 pt-2">
+                          <div className="text-[11px] font-medium text-muted-foreground">
+                            Nährwerte (pro 100g/ml)
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Energie (kcal)
+                              </label>
+                              <Input
+                                type="number"
+                                value={proEnergyKcalInput}
+                                onChange={(e) =>
+                                  setProEnergyKcalInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Fett
+                              </label>
+                              <Input
+                                type="number"
+                                value={proFatInput}
+                                onChange={(e) => setProFatInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                ges. Fettsäuren
+                              </label>
+                              <Input
+                                type="number"
+                                value={proSaturatedFatInput}
+                                onChange={(e) =>
+                                  setProSaturatedFatInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Kohlenhydrate
+                              </label>
+                              <Input
+                                type="number"
+                                value={proCarbsInput}
+                                onChange={(e) =>
+                                  setProCarbsInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Zucker
+                              </label>
+                              <Input
+                                type="number"
+                                value={proSugarInput}
+                                onChange={(e) => setProSugarInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Eiweiß
+                              </label>
+                              <Input
+                                type="number"
+                                value={proProteinInput}
+                                onChange={(e) =>
+                                  setProProteinInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Salz
+                              </label>
+                              <Input
+                                type="number"
+                                value={proSaltInput}
+                                onChange={(e) => setProSaltInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                                 </>
+                               )}
+
                                <div className="grid gap-2">
                                  <div className="flex items-center justify-between">
                                    <label className="text-xs font-medium text-[#1F2326]">Dosierungsangaben</label>
