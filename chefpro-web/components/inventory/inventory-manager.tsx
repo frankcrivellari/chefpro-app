@@ -6503,7 +6503,9 @@ export function InventoryManager() {
                             onChange={(event) =>
                               setProDosageInput(event.target.value)
                             }
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            className="w-full rounded-md border border-input px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            style={{ backgroundColor: "#F6F7F5" }}
+                            placeholder="Mischverhältnisse und Basismengen (z.B. 100g auf 1l)"
                           />
                         </div>
                         <div className="space-y-1">
