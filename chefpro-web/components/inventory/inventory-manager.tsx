@@ -2579,11 +2579,15 @@ export function InventoryManager() {
           is_vegan?: boolean;
           is_vegetarian?: boolean;
           image_url?: string | null;
+          debug_reasoning?: string;
         };
         fileUrl?: string;
       };
 
       console.log("Vision Payload received:", payload);
+      if (payload.extracted?.debug_reasoning) {
+        console.log("AI Reasoning (Gedankengänge):", payload.extracted.debug_reasoning);
+      }
 
       if (!response.ok) {
         let message =
