@@ -10,6 +10,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import * as pdfjsLib from "pdfjs-dist";
 import ReactCrop, { Crop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { usePathname } from "next/navigation";
@@ -36,6 +37,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+
+if (typeof window !== "undefined") {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
+
+async function convertPdfToImage(file: File): Promise<Blob | null> {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    await page.render({ canvasContext: context, viewport }).promise;
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.95);
+    });
+  } catch (error) {
+    console.error("PDF to Image conversion failed", error);
+    return null;
+  }
+}
 
 type InventoryType = "zukauf" | "eigenproduktion";
 
@@ -2473,6 +2499,17 @@ export function InventoryManager() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("filename", file.name);
+
+      if (file.type === "application/pdf") {
+        try {
+          const imageBlob = await convertPdfToImage(file);
+          if (imageBlob) {
+            formData.append("vision_file", imageBlob, "preview.jpg");
+          }
+        } catch (err) {
+          console.error("Failed to generate vision preview for PDF", err);
+        }
+      }
       const response = await fetch(
         "/api/document-vision-upload",
         {
@@ -2557,45 +2594,47 @@ export function InventoryManager() {
         throw new Error(message);
       }
       if (payload.item) {
-        // payload.item comes from DB (snake_case) but we treated it as InventoryItem (camelCase).
+        // payload.item comes from the API response which maps DB columns (snake_case) to camelCase.
         // We must map it properly.
         const rawItem = payload.item as any;
         const created: InventoryItem = {
           id: rawItem.id,
-          internalId: rawItem.internal_id,
+          internalId: rawItem.internalId ?? rawItem.internal_id,
           name: rawItem.name,
-          type: rawItem.item_type,
+          type: rawItem.type ?? rawItem.item_type,
           unit: rawItem.unit,
           brand: rawItem.brand,
-          purchasePrice: rawItem.purchase_price,
-          targetPortions: rawItem.target_portions,
-          targetSalesPrice: rawItem.target_sales_price,
+          purchasePrice: rawItem.purchasePrice ?? rawItem.purchase_price,
+          targetPortions: rawItem.targetPortions ?? rawItem.target_portions,
+          targetSalesPrice: rawItem.targetSalesPrice ?? rawItem.target_sales_price,
           category: rawItem.category,
-          portionUnit: rawItem.portion_unit,
-          nutritionTags: rawItem.nutrition_tags,
-          manufacturerArticleNumber: rawItem.manufacturer_article_number,
+          portionUnit: rawItem.portionUnit ?? rawItem.portion_unit,
+          nutritionTags: rawItem.nutritionTags ?? rawItem.nutrition_tags,
+          manufacturerArticleNumber: rawItem.manufacturerArticleNumber ?? rawItem.manufacturer_article_number,
           ean: rawItem.ean,
           allergens: rawItem.allergens,
           ingredients: rawItem.ingredients,
-          dosageInstructions: rawItem.dosage_instructions,
-          yieldInfo: rawItem.yield_info,
-          preparationSteps: rawItem.preparation_steps,
-          fileUrl: rawItem.file_url,
-          imageUrl: rawItem.image_url,
-          nutritionPerUnit: rawItem.nutrition_per_unit,
-          standardPreparation: rawItem.standard_preparation,
-          isBio: rawItem.is_bio,
-          isDeklarationsfrei: rawItem.is_deklarationsfrei,
-          isAllergenfrei: rawItem.is_allergenfrei,
-          isCookChill: rawItem.is_cook_chill,
-          isFreezeThawStable: rawItem.is_freeze_thaw_stable,
-          isPalmOilFree: rawItem.is_palm_oil_free,
-          isYeastFree: rawItem.is_yeast_free,
-          isLactoseFree: rawItem.is_lactose_free,
-          isGlutenFree: rawItem.is_gluten_free,
-          packshotX: rawItem.packshot_x,
-          packshotY: rawItem.packshot_y,
-          packshotZoom: rawItem.packshot_zoom,
+          dosageInstructions: rawItem.dosageInstructions ?? rawItem.dosage_instructions,
+          yieldInfo: rawItem.yieldInfo ?? rawItem.yield_info,
+          preparationSteps: rawItem.preparationSteps ?? rawItem.preparation_steps,
+          fileUrl: rawItem.fileUrl ?? rawItem.file_url,
+          imageUrl: rawItem.imageUrl ?? rawItem.image_url,
+          nutritionPerUnit: rawItem.nutritionPerUnit ?? rawItem.nutrition_per_unit,
+          standardPreparation: rawItem.standardPreparation ?? rawItem.standard_preparation,
+          isBio: rawItem.isBio ?? rawItem.is_bio,
+          isDeklarationsfrei: rawItem.isDeklarationsfrei ?? rawItem.is_deklarationsfrei,
+          isAllergenfrei: rawItem.isAllergenfrei ?? rawItem.is_allergenfrei,
+          isCookChill: rawItem.isCookChill ?? rawItem.is_cook_chill,
+          isFreezeThawStable: rawItem.isFreezeThawStable ?? rawItem.is_freeze_thaw_stable,
+          isPalmOilFree: rawItem.isPalmOilFree ?? rawItem.is_palm_oil_free,
+          isYeastFree: rawItem.isYeastFree ?? rawItem.is_yeast_free,
+          isLactoseFree: rawItem.isLactoseFree ?? rawItem.is_lactose_free,
+          isGlutenFree: rawItem.isGlutenFree ?? rawItem.is_gluten_free,
+          isVegan: rawItem.isVegan ?? rawItem.is_vegan,
+          isVegetarian: rawItem.isVegetarian ?? rawItem.is_vegetarian,
+          packshotX: rawItem.packshotX ?? rawItem.packshot_x,
+          packshotY: rawItem.packshotY ?? rawItem.packshot_y,
+          packshotZoom: rawItem.packshotZoom ?? rawItem.packshot_zoom,
         };
         const nutritionRaw = (payload.extracted?.nutrition_per_100 || payload.extracted?.nutrition_per_100g) as any;
         const enriched: InventoryItem = {
@@ -2674,6 +2713,8 @@ export function InventoryManager() {
           isYeastFree: payload.extracted?.is_yeast_free ?? created.isYeastFree ?? false,
           isLactoseFree: payload.extracted?.is_lactose_free ?? created.isLactoseFree ?? false,
           isGlutenFree: payload.extracted?.is_gluten_free ?? created.isGlutenFree ?? false,
+          isVegan: payload.extracted?.is_vegan ?? created.isVegan ?? false,
+          isVegetarian: payload.extracted?.is_vegetarian ?? created.isVegetarian ?? false,
         };
         setItems((previous) => [
           ...previous,
@@ -2704,6 +2745,19 @@ export function InventoryManager() {
             ? payload.extracted.dosage_instructions
             : ""
         );
+
+        // Explicitly set boolean flags from extracted data
+        setIsBioInput(payload.extracted.is_bio ?? false);
+        setIsDeklarationsfreiInput(payload.extracted.is_deklarationsfrei ?? false);
+        setIsAllergenfreiInput(payload.extracted.is_allergenfrei ?? false);
+        setIsCookChillInput(payload.extracted.is_cook_chill ?? false);
+        setIsFreezeThawStableInput(payload.extracted.is_freeze_thaw_stable ?? false);
+        setIsPalmOilFreeInput(payload.extracted.is_palm_oil_free ?? false);
+        setIsYeastFreeInput(payload.extracted.is_yeast_free ?? false);
+        setIsLactoseFreeInput(payload.extracted.is_lactose_free ?? false);
+        setIsGlutenFreeInput(payload.extracted.is_gluten_free ?? false);
+        setIsVeganInput(payload.extracted.is_vegan ?? false);
+        setIsVegetarianInput(payload.extracted.is_vegetarian ?? false);
 
         // Nutrition state updates
         const nutritionRaw = (payload.extracted.nutrition_per_100 || payload.extracted.nutrition_per_100g) as any;

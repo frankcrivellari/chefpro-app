@@ -190,13 +190,29 @@ export async function POST(request: Request) {
 
     let promptInputText: string | null = null;
     let useImage: boolean = false;
+    let visionImageUrl: string | null = null;
 
-    if (isImage) {
+    const visionFile = formData.get("vision_file");
+    if (visionFile && visionFile instanceof Blob) {
+      const arrayBuffer = await visionFile.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const base64 = buffer.toString("base64");
+      const mimeType = visionFile.type || "image/jpeg";
+      visionImageUrl = `data:${mimeType};base64,${base64}`;
       useImage = true;
-    } else if (isPdf) {
-      const pdfData = await pdfParse(fileBuffer);
-      promptInputText = pdfData.text.slice(0, 15000);
-    } else {
+    } else if (isImage) {
+      visionImageUrl = publicUrl;
+      useImage = true;
+    }
+
+    if (isPdf) {
+      try {
+        const pdfData = await pdfParse(fileBuffer);
+        promptInputText = pdfData.text.slice(0, 15000);
+      } catch (error) {
+        console.error("Fehler beim Parsen der PDF-Datei:", error);
+      }
+    } else if (!isImage && !useImage) {
       return NextResponse.json(
         {
           error:
@@ -230,7 +246,7 @@ export async function POST(request: Request) {
               {
                 type: "image_url" as const,
                 image_url: {
-                  url: publicUrl,
+                  url: visionImageUrl ?? publicUrl,
                 },
               },
             ]
