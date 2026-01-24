@@ -28,6 +28,11 @@ import {
   Check,
   Clipboard,
 } from "lucide-react";
+import { Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -184,6 +189,7 @@ type InventoryItem = {
   packshotX?: number | null;
   packshotY?: number | null;
   packshotZoom?: number | null;
+  storageArea?: string | null;
 };
 
 type ParsedAiItem = {
@@ -474,6 +480,7 @@ export function InventoryManager() {
   const [brandInput, setBrandInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [categoryInput, setCategoryInput] = useState("");
+  const [storageAreaInput, setStorageAreaInput] = useState("");
   const [portionUnitInput, setPortionUnitInput] = useState("");
   const [nutritionTagsInput, setNutritionTagsInput] = useState<string[]>([]);
   const [targetPortionsInput, setTargetPortionsInput] = useState("");
@@ -3141,6 +3148,7 @@ export function InventoryManager() {
           preparationSteps: preparationStepsValue,
           targetPortions,
           targetSalesPrice,
+          storageArea: storageAreaInput,
           category: categoryValue,
           portionUnit: portionUnitValue,
           nutritionTags: nutritionTagsValue,
@@ -3692,23 +3700,62 @@ export function InventoryManager() {
                   Keine Artikel gefunden.
                 </div>
               )}
-              {filteredItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedItemId(item.id);
-                    setIsDetailView(true);
-                  }}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-xs transition-colors hover:bg-white/5",
-                    selectedItem?.id === item.id && "bg-white/10 text-white font-medium",
-                    selectedItem?.id !== item.id && "text-[#9CA3AF]"
-                  )}
-                >
-                  <span className="truncate">{item.name}</span>
-                </button>
-              ))}
+              <Accordion className="w-full">
+                {["Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren", "Non Food", "Unkategorisiert"].map((area) => {
+                  const areaItems = filteredItems.filter((item) =>
+                    area === "Unkategorisiert"
+                      ? !item.storageArea ||
+                        !["Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren", "Non Food"].includes(
+                          item.storageArea
+                        )
+                      : item.storageArea === area
+                  );
+
+                  if (areaItems.length === 0) return null;
+
+                  const isOpen = openSections.includes(area);
+                  const toggle = () => setOpenSections(prev => prev.includes(area) ? prev.filter(a => a !== area) : [...prev, area]);
+
+                  return (
+                    <AccordionItem
+                      key={area}
+                      value={area}
+                      className="border-b border-[#6B7176]/50"
+                    >
+                      <AccordionTrigger 
+                        isOpen={isOpen} 
+                        onToggle={toggle}
+                        className="px-3 py-2 text-xs font-semibold text-white hover:no-underline hover:bg-white/5"
+                      >
+                        {area}
+                        <span className="ml-2 text-[10px] text-[#9CA3AF]">
+                          ({areaItems.length})
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent isOpen={isOpen} className="pt-0 pb-0">
+                        {areaItems.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedItemId(item.id);
+                              setIsDetailView(true);
+                            }}
+                            className={cn(
+                              "flex w-full items-center gap-3 px-3 py-2 text-left text-xs transition-colors hover:bg-white/5 pl-6",
+                              selectedItem?.id === item.id &&
+                                "bg-white/10 text-white font-medium",
+                              selectedItem?.id !== item.id && "text-[#9CA3AF]"
+                            )}
+                          >
+                            <span className="truncate">{item.name}</span>
+                          </button>
+                        ))}
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             </div>
           </div>
         </aside>
@@ -4132,6 +4179,27 @@ export function InventoryManager() {
                                   />
                                 </div>
                               </div>
+                               
+                               <div className="grid gap-2">
+                                 <label className="text-xs font-medium text-[#1F2326]">Lagerbereich</label>
+                                 <select
+                                   value={selectedItem.storageArea || ""}
+                                   onChange={(e) => {
+                                     const val = e.target.value;
+                                     setStorageAreaInput(val);
+                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, storageArea: val } : i));
+                                   }}
+                                   className="flex h-9 w-full rounded-md border border-[#E5E7EB] bg-white px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-[#1F2326]"
+                                 >
+                                   <option value="">Bitte wählen...</option>
+                                   <option value="Frischwaren">Frischwaren</option>
+                                   <option value="Kühlwaren">Kühlwaren</option>
+                                   <option value="Tiefkühlwaren">Tiefkühlwaren</option>
+                                   <option value="Trockenwaren">Trockenwaren</option>
+                                   <option value="Non Food">Non Food</option>
+                                 </select>
+                               </div>
+
                                <div className="grid grid-cols-2 gap-4">
                                   <div className="grid gap-2">
                                     <label className="text-xs font-medium text-[#1F2326]">Gewicht (netto)/Abtropfgewicht</label>

@@ -124,6 +124,7 @@ type SupabaseItemRow = {
   packshot_x: number | null;
   packshot_y: number | null;
   packshot_zoom: number | null;
+  storage_area: string | null;
 };
 
 type SupabaseRecipeStructureRow = {

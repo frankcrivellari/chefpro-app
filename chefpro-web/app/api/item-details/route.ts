@@ -70,6 +70,7 @@ type SupabaseItemRow = {
   packshot_x: number | null;
   packshot_y: number | null;
   packshot_zoom: number | null;
+  storage_area: string | null;
   file_url: string | null;
   image_url: string | null;
 };
@@ -188,6 +189,7 @@ export async function POST(request: Request) {
       packshotX?: number | null;
       packshotY?: number | null;
       packshotZoom?: number | null;
+      storageArea?: string | null;
       imageUrl?: string | null;
       fileUrl?: string | null;
     };
@@ -240,6 +242,7 @@ export async function POST(request: Request) {
     packshot_x?: number | null;
     packshot_y?: number | null;
     packshot_zoom?: number | null;
+    storage_area?: string | null;
     file_url?: string | null;
     image_url?: string | null;
     nutrition_per_unit?: NutritionTotals | null;
@@ -442,6 +445,11 @@ export async function POST(request: Request) {
   }
   if (typeof body.packshotZoom === "number") {
     updates.packshot_zoom = body.packshotZoom;
+  }
+
+  if (typeof body.storageArea === "string") {
+    const trimmed = body.storageArea.trim();
+    updates.storage_area = trimmed.length > 0 ? trimmed : null;
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "standardPreparation")) {
