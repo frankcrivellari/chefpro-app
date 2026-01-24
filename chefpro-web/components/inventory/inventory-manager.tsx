@@ -4295,7 +4295,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Fett
+                                Fett (g)
                               </label>
                               <Input
                                 type="text"
@@ -4306,7 +4306,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                ges. Fettsäuren
+                                ges. Fettsäuren (g)
                               </label>
                               <Input
                                 type="text"
@@ -4319,7 +4319,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Kohlenhydrate
+                                Kohlenhydrate (g)
                               </label>
                               <Input
                                 type="text"
@@ -4332,7 +4332,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Zucker
+                                Zucker (g)
                               </label>
                               <Input
                                 type="text"
@@ -4343,7 +4343,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Eiweiß
+                                Eiweiß (g)
                               </label>
                               <Input
                                 type="text"
@@ -4356,7 +4356,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Salz
+                                Salz (g)
                               </label>
                               <Input
                                 type="text"
@@ -4367,7 +4367,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Ballaststoffe
+                                Ballaststoffe (g)
                               </label>
                               <Input
                                 type="text"
@@ -4378,7 +4378,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Natrium
+                                Natrium (mg)
                               </label>
                               <Input
                                 type="text"
@@ -4400,7 +4400,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Cholesterin
+                                Cholesterin (mg)
                               </label>
                               <Input
                                 type="text"
@@ -5989,7 +5989,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Fett
+                                Fett (g)
                               </label>
                               <Input
                                 type="text"
@@ -6000,7 +6000,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                ges. Fettsäuren
+                                ges. Fettsäuren (g)
                               </label>
                               <Input
                                 type="text"
@@ -6013,7 +6013,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Kohlenhydrate
+                                Kohlenhydrate (g)
                               </label>
                               <Input
                                 type="text"
@@ -6026,7 +6026,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Zucker
+                                Zucker (g)
                               </label>
                               <Input
                                 type="text"
@@ -6037,7 +6037,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Eiweiß
+                                Eiweiß (g)
                               </label>
                               <Input
                                 type="text"
@@ -6050,7 +6050,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-0.5">
                               <label className="text-[10px] text-muted-foreground">
-                                Salz
+                                Salz (g)
                               </label>
                               <Input
                                 type="text"
