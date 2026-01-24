@@ -24,6 +24,8 @@ import {
   Plus,
   Minus,
   ZoomIn,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -576,6 +578,7 @@ export function InventoryManager() {
   // Packshot Focus State
   const [packshotPan, setPackshotPan] = useState({ x: 0, y: 0 });
   const [packshotZoom, setPackshotZoom] = useState(2.0);
+  const [isCopied, setIsCopied] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
@@ -1271,6 +1274,17 @@ export function InventoryManager() {
 
 
   const packshotPreview = previewImage || packshotUrl || selectedItem?.imageUrl || (docParsed && docParsed.imageUrl) || "";
+
+  const handleCopyPackshot = useCallback(async () => {
+    if (!packshotPreview) return;
+    try {
+      await navigator.clipboard.writeText(packshotPreview);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy packshot URL:", err);
+    }
+  }, [packshotPreview]);
 
   useEffect(() => {
     if (selectedItem) {
@@ -3991,27 +4005,38 @@ export function InventoryManager() {
 
                                 <div className="flex items-center gap-2 mt-2 flex-wrap justify-center w-full">
                                     {packshotPreview && (
-                                        <div className="flex items-center rounded-md border border-[#E5E7EB] bg-white p-0.5 shadow-sm">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-5 w-5 p-0 text-[#6B7176] hover:bg-[#F6F7F5]"
-                                                onClick={handleZoomOut}
-                                            >
-                                                <Minus className="h-3 w-3" />
-                                            </Button>
-                                            <div className="flex h-5 w-5 items-center justify-center border-l border-r border-[#E5E7EB] text-[#6B7176]">
-                                                <ZoomIn className="h-3 w-3" />
+                                        <>
+                                            <div className="flex items-center rounded-md border border-[#E5E7EB] bg-white p-0.5 shadow-sm">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-5 w-5 p-0 text-[#6B7176] hover:bg-[#F6F7F5]"
+                                                    onClick={handleZoomOut}
+                                                >
+                                                    <Minus className="h-3 w-3" />
+                                                </Button>
+                                                <div className="flex h-5 w-5 items-center justify-center border-l border-r border-[#E5E7EB] text-[#6B7176]">
+                                                    <ZoomIn className="h-3 w-3" />
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-5 w-5 p-0 text-[#6B7176] hover:bg-[#F6F7F5]"
+                                                    onClick={handleZoomIn}
+                                                >
+                                                    <Plus className="h-3 w-3" />
+                                                </Button>
                                             </div>
                                             <Button
-                                                variant="ghost"
+                                                variant="outline"
                                                 size="sm"
-                                                className="h-5 w-5 p-0 text-[#6B7176] hover:bg-[#F6F7F5]"
-                                                onClick={handleZoomIn}
+                                                className="h-6 w-6 p-0 bg-white hover:bg-gray-50 border-[#E5E7EB]"
+                                                onClick={handleCopyPackshot}
+                                                title="Bild-URL kopieren"
                                             >
-                                                <Plus className="h-3 w-3" />
+                                                {isCopied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-[#6B7176]" />}
                                             </Button>
-                                        </div>
+                                        </>
                                     )}
                                     
                                     <input 
