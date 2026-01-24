@@ -469,7 +469,7 @@ export async function POST(request: Request) {
   } else {
     updateResponse = await client
       .from("items")
-      .update(safeUpdates)
+      .update(updates)
       .eq("id", body.id)
       .select("*");
   }
