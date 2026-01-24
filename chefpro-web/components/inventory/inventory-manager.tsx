@@ -3908,7 +3908,8 @@ export function InventoryManager() {
                                     }}
                                   />
                                </div>
-                               <div className="grid gap-2">
+                               <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
                                   <label className="text-xs font-medium text-[#1F2326]">Marke (Brand)</label>
                                   <Input 
                                     value={selectedItem.brand || ""} 
@@ -3916,9 +3917,23 @@ export function InventoryManager() {
                                     onChange={(e) => {
                                        const val = e.target.value;
                                        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, brand: val } : i));
+                                       setBrandInput(val);
                                     }}
                                   />
-                               </div>
+                                </div>
+                                <div className="grid gap-2">
+                                  <label className="text-xs font-medium text-[#1F2326]">Hersteller-Artikelnummer</label>
+                                  <Input 
+                                    value={selectedItem.manufacturerArticleNumber || ""} 
+                                    className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                    onChange={(e) => {
+                                       const val = e.target.value;
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, manufacturerArticleNumber: val } : i));
+                                       setManufacturerInput(val);
+                                    }}
+                                  />
+                                </div>
+                              </div>
                                <div className="grid grid-cols-2 gap-4">
                                   <div className="grid gap-2">
                                     <label className="text-xs font-medium text-[#1F2326]">Gewicht (netto)/Abtropfgewicht</label>
@@ -4098,34 +4113,7 @@ export function InventoryManager() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <div className="text-[11px] text-muted-foreground">
-                              Marke
-                            </div>
-                            <Input
-                              type="text"
-                              value={brandInput}
-                              onChange={(event) =>
-                                setBrandInput(event.target.value)
-                              }
-                              className="h-7 w-full px-2 py-1 text-[11px]"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="text-[11px] text-muted-foreground">
-                              Hersteller-Artikelnummer
-                            </div>
-                            <Input
-                              type="text"
-                              value={manufacturerInput}
-                              onChange={(event) =>
-                                setManufacturerInput(event.target.value)
-                              }
-                              className="h-7 w-full px-2 py-1 text-[11px]"
-                            />
-                          </div>
-                        </div>
+
 
                         <div className="grid grid-cols-2 gap-2 rounded-md border p-2 text-[10px] md:grid-cols-3">
                           <div className="flex items-center gap-1.5">
