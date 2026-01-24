@@ -475,6 +475,20 @@ export async function POST(request: Request) {
     delete safeUpdates.brand;
     delete safeUpdates.currency;
     delete safeUpdates.file_url;
+    delete safeUpdates.image_url;
+    
+    // Remove all boolean flags
+    delete safeUpdates.is_bio;
+    delete safeUpdates.is_deklarationsfrei;
+    delete safeUpdates.is_allergenfrei;
+    delete safeUpdates.is_cook_chill;
+    delete safeUpdates.is_freeze_thaw_stable;
+    delete safeUpdates.is_palm_oil_free;
+    delete safeUpdates.is_yeast_free;
+    delete safeUpdates.is_lactose_free;
+    delete safeUpdates.is_gluten_free;
+    delete safeUpdates.is_vegan;
+    delete safeUpdates.is_vegetarian;
 
     updateResponse = await client
       .from("items")
