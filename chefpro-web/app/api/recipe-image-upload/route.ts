@@ -97,6 +97,19 @@ export async function POST(request: Request) {
     const publicUrl = publicUrlResult.data.publicUrl;
 
     if (itemId && itemId.trim().length > 0) {
+      // First check if the item exists
+      const { data: existingItem, error: fetchError } = await client
+        .from("items")
+        .select("id")
+        .eq("id", itemId)
+        .single();
+
+      if (fetchError || !existingItem) {
+        // If item not found (e.g. temporary ID for new item), we just return the URL
+        // The frontend will attach it when creating the item
+        return NextResponse.json({ imageUrl: publicUrl });
+      }
+
       const updateResponse = await client
         .from("items")
         .update({ image_url: publicUrl })
