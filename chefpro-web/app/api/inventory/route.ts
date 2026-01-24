@@ -70,6 +70,10 @@ type InventoryItem = {
   isGlutenFree?: boolean;
   isVegan?: boolean;
   isVegetarian?: boolean;
+  isPowder?: boolean;
+  isGranulate?: boolean;
+  isPaste?: boolean;
+  isLiquid?: boolean;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
   packshotX?: number | null;
@@ -113,6 +117,10 @@ type SupabaseItemRow = {
   is_gluten_free: boolean | null;
   is_vegan: boolean | null;
   is_vegetarian: boolean | null;
+  is_powder: boolean | null;
+  is_granulate: boolean | null;
+  is_paste: boolean | null;
+  is_liquid: boolean | null;
   packshot_x: number | null;
   packshot_y: number | null;
   packshot_zoom: number | null;
@@ -223,6 +231,10 @@ export async function GET() {
         isGlutenFree: row.is_gluten_free ?? false,
         isVegan: row.is_vegan ?? false,
         isVegetarian: row.is_vegetarian ?? false,
+        isPowder: row.is_powder ?? false,
+        isGranulate: row.is_granulate ?? false,
+        isPaste: row.is_paste ?? false,
+        isLiquid: row.is_liquid ?? false,
         packshotX: row.packshot_x,
         packshotY: row.packshot_y,
         packshotZoom: row.packshot_zoom,
@@ -300,6 +312,10 @@ export async function POST(request: Request) {
       dosageInstructions?: string | null;
       isVegan?: boolean;
       isVegetarian?: boolean;
+      isPowder?: boolean;
+      isGranulate?: boolean;
+      isPaste?: boolean;
+      isLiquid?: boolean;
     };
 
     const client = getSupabaseServerClient();
@@ -352,6 +368,10 @@ export async function POST(request: Request) {
             : null,
         is_vegan: body.isVegan ?? false,
         is_vegetarian: body.isVegetarian ?? false,
+        is_powder: body.isPowder ?? false,
+        is_granulate: body.isGranulate ?? false,
+        is_paste: body.isPaste ?? false,
+        is_liquid: body.isLiquid ?? false,
       })
       .select("*")
       .single();

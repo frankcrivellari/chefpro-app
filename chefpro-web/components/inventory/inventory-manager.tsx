@@ -171,6 +171,10 @@ type InventoryItem = {
   isGlutenFree?: boolean;
   isVegan?: boolean;
   isVegetarian?: boolean;
+  isPowder?: boolean;
+  isGranulate?: boolean;
+  isPaste?: boolean;
+  isLiquid?: boolean;
   hasGhostComponents?: boolean;
   imageUrl?: string | null;
   fileUrl?: string | null;
@@ -497,6 +501,10 @@ export function InventoryManager() {
   const [isGlutenFreeInput, setIsGlutenFreeInput] = useState(false);
   const [isVeganInput, setIsVeganInput] = useState(false);
   const [isVegetarianInput, setIsVegetarianInput] = useState(false);
+  const [isPowderInput, setIsPowderInput] = useState(false);
+  const [isGranulateInput, setIsGranulateInput] = useState(false);
+  const [isPasteInput, setIsPasteInput] = useState(false);
+  const [isLiquidInput, setIsLiquidInput] = useState(false);
   const [proEnergyKcalInput, setProEnergyKcalInput] = useState("");
   const [proFatInput, setProFatInput] = useState("");
   const [proSaturatedFatInput, setProSaturatedFatInput] = useState("");
@@ -1698,6 +1706,10 @@ export function InventoryManager() {
       setIsYeastFreeInput(false);
       setIsLactoseFreeInput(false);
       setIsGlutenFreeInput(false);
+      setIsPowderInput(false);
+      setIsGranulateInput(false);
+      setIsPasteInput(false);
+      setIsLiquidInput(false);
       setPreparationStepsInput([]);
       setDraggedPreparationStepId(null);
       setActiveTagStepId(null);
@@ -1735,6 +1747,10 @@ export function InventoryManager() {
     setIsGlutenFreeInput(selectedItem.isGlutenFree ?? false);
     setIsVeganInput(selectedItem.isVegan ?? false);
     setIsVegetarianInput(selectedItem.isVegetarian ?? false);
+    setIsPowderInput(selectedItem.isPowder ?? false);
+    setIsGranulateInput(selectedItem.isGranulate ?? false);
+    setIsPasteInput(selectedItem.isPaste ?? false);
+    setIsLiquidInput(selectedItem.isLiquid ?? false);
     const allergensText = (selectedItem.allergens ?? []).join(", ");
     setProAllergensInput(
       allergensText.length > 0
@@ -2578,6 +2594,10 @@ export function InventoryManager() {
           is_gluten_free?: boolean;
           is_vegan?: boolean;
           is_vegetarian?: boolean;
+          is_powder?: boolean;
+          is_granulate?: boolean;
+          is_paste?: boolean;
+          is_liquid?: boolean;
           image_url?: string | null;
           debug_reasoning?: string;
         };
@@ -2639,6 +2659,10 @@ export function InventoryManager() {
           isGlutenFree: rawItem.isGlutenFree ?? rawItem.is_gluten_free,
           isVegan: rawItem.isVegan ?? rawItem.is_vegan,
           isVegetarian: rawItem.isVegetarian ?? rawItem.is_vegetarian,
+          isPowder: rawItem.isPowder ?? rawItem.is_powder,
+          isGranulate: rawItem.isGranulate ?? rawItem.is_granulate,
+          isPaste: rawItem.isPaste ?? rawItem.is_paste,
+          isLiquid: rawItem.isLiquid ?? rawItem.is_liquid,
           packshotX: rawItem.packshotX ?? rawItem.packshot_x,
           packshotY: rawItem.packshotY ?? rawItem.packshot_y,
           packshotZoom: rawItem.packshotZoom ?? rawItem.packshot_zoom,
@@ -2722,6 +2746,10 @@ export function InventoryManager() {
           isGlutenFree: payload.extracted?.is_gluten_free ?? created.isGlutenFree ?? false,
           isVegan: payload.extracted?.is_vegan ?? created.isVegan ?? false,
           isVegetarian: payload.extracted?.is_vegetarian ?? created.isVegetarian ?? false,
+          isPowder: payload.extracted?.is_powder ?? created.isPowder ?? false,
+          isGranulate: payload.extracted?.is_granulate ?? created.isGranulate ?? false,
+          isPaste: payload.extracted?.is_paste ?? created.isPaste ?? false,
+          isLiquid: payload.extracted?.is_liquid ?? created.isLiquid ?? false,
         };
         setItems((previous) => [
           ...previous,
@@ -2765,6 +2793,10 @@ export function InventoryManager() {
         setIsGlutenFreeInput(payload.extracted.is_gluten_free ?? false);
         setIsVeganInput(payload.extracted.is_vegan ?? false);
         setIsVegetarianInput(payload.extracted.is_vegetarian ?? false);
+        setIsPowderInput(payload.extracted.is_powder ?? false);
+        setIsGranulateInput(payload.extracted.is_granulate ?? false);
+        setIsPasteInput(payload.extracted.is_paste ?? false);
+        setIsLiquidInput(payload.extracted.is_liquid ?? false);
 
         // Nutrition state updates
         const nutritionRaw = (payload.extracted.nutrition_per_100 || payload.extracted.nutrition_per_100g) as any;
@@ -3109,6 +3141,10 @@ export function InventoryManager() {
           isGlutenFree: isGlutenFreeInput,
           isVegan: isVeganInput,
           isVegetarian: isVegetarianInput,
+          isPowder: isPowderInput,
+          isGranulate: isGranulateInput,
+          isPaste: isPasteInput,
+          isLiquid: isLiquidInput,
           imageUrl: imageUrlValue,
           packshotX: packshotPan.x,
           packshotY: packshotPan.y,
@@ -4278,6 +4314,54 @@ export function InventoryManager() {
                               className="h-3 w-3 rounded border-gray-300"
                             />
                             <label htmlFor="check-vegetarian">Vegetarisch</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isPowderInput}
+                              onChange={(e) =>
+                                setIsPowderInput(e.target.checked)
+                              }
+                              id="check-powder"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-powder">Pulver</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isGranulateInput}
+                              onChange={(e) =>
+                                setIsGranulateInput(e.target.checked)
+                              }
+                              id="check-granulate"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-granulate">Granulat</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isPasteInput}
+                              onChange={(e) =>
+                                setIsPasteInput(e.target.checked)
+                              }
+                              id="check-paste"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-paste">Paste</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isLiquidInput}
+                              onChange={(e) =>
+                                setIsLiquidInput(e.target.checked)
+                              }
+                              id="check-liquid"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-liquid">Flüssig</label>
                           </div>
                         </div>
 

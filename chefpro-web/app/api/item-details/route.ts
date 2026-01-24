@@ -62,6 +62,10 @@ type SupabaseItemRow = {
   is_gluten_free: boolean | null;
   is_vegan: boolean | null;
   is_vegetarian: boolean | null;
+  is_powder: boolean | null;
+  is_granulate: boolean | null;
+  is_paste: boolean | null;
+  is_liquid: boolean | null;
   packshot_x: number | null;
   packshot_y: number | null;
   packshot_zoom: number | null;
@@ -173,6 +177,10 @@ export async function POST(request: Request) {
     isGlutenFree?: boolean;
     isVegan?: boolean;
     isVegetarian?: boolean;
+    isPowder?: boolean;
+    isGranulate?: boolean;
+    isPaste?: boolean;
+    isLiquid?: boolean;
     packshotX?: number | null;
     packshotY?: number | null;
     packshotZoom?: number | null;
@@ -216,6 +224,10 @@ export async function POST(request: Request) {
     is_gluten_free?: boolean;
     is_vegan?: boolean;
     is_vegetarian?: boolean;
+    is_powder?: boolean;
+    is_granulate?: boolean;
+    is_paste?: boolean;
+    is_liquid?: boolean;
     packshot_x?: number | null;
     packshot_y?: number | null;
     packshot_zoom?: number | null;
@@ -374,6 +386,18 @@ export async function POST(request: Request) {
   }
   if (typeof body.isVegetarian === "boolean") {
     updates.is_vegetarian = body.isVegetarian;
+  }
+  if (typeof body.isPowder === "boolean") {
+    updates.is_powder = body.isPowder;
+  }
+  if (typeof body.isGranulate === "boolean") {
+    updates.is_granulate = body.isGranulate;
+  }
+  if (typeof body.isPaste === "boolean") {
+    updates.is_paste = body.isPaste;
+  }
+  if (typeof body.isLiquid === "boolean") {
+    updates.is_liquid = body.isLiquid;
   }
 
   if (typeof body.packshotX === "number") {
