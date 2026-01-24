@@ -316,16 +316,20 @@ export async function POST(request: Request) {
     updates.file_url = trimmed.length > 0 ? trimmed : null;
   }
 
-  if (typeof body.targetPortions === "number") {
+  if (body.targetPortions === null || typeof body.targetPortions === "number") {
     updates.target_portions =
-      Number.isFinite(body.targetPortions) && body.targetPortions > 0
+      typeof body.targetPortions === "number" &&
+      Number.isFinite(body.targetPortions) &&
+      body.targetPortions > 0
         ? body.targetPortions
         : null;
   }
 
-  if (typeof body.targetSalesPrice === "number") {
+  if (body.targetSalesPrice === null || typeof body.targetSalesPrice === "number") {
     updates.target_sales_price =
-      Number.isFinite(body.targetSalesPrice) && body.targetSalesPrice > 0
+      typeof body.targetSalesPrice === "number" &&
+      Number.isFinite(body.targetSalesPrice) &&
+      body.targetSalesPrice > 0
         ? body.targetSalesPrice
         : null;
   }
@@ -419,11 +423,44 @@ export async function POST(request: Request) {
     }
   }
 
-  const updateResponse = await client
+  let updateResponse = await client
     .from("items")
     .update(updates)
     .eq("id", body.id)
     .select("*");
+
+  // Retry logic for missing columns (schema mismatch)
+  if (
+    updateResponse.error &&
+    (updateResponse.error.code === "42703" || // undefined_column
+      updateResponse.error.message.includes("column") ||
+      updateResponse.error.message.includes("does not exist"))
+  ) {
+    console.warn(
+      "Update failed with column error, retrying with legacy schema",
+      updateResponse.error
+    );
+
+    const safeUpdates = { ...updates };
+    // Remove potentially missing columns (recently added)
+    delete safeUpdates.is_powder;
+    delete safeUpdates.is_granulate;
+    delete safeUpdates.is_paste;
+    delete safeUpdates.is_liquid;
+    delete safeUpdates.packshot_x;
+    delete safeUpdates.packshot_y;
+    delete safeUpdates.packshot_zoom;
+    delete safeUpdates.nutrition_per_unit;
+    delete safeUpdates.brand;
+    delete safeUpdates.currency;
+    delete safeUpdates.file_url;
+
+    updateResponse = await client
+      .from("items")
+      .update(safeUpdates)
+      .eq("id", body.id)
+      .select("*");
+  }
 
   if (updateResponse.error) {
     const msg = updateResponse.error.message;
