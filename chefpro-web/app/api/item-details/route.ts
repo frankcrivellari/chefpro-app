@@ -155,6 +155,7 @@ export async function POST(request: Request) {
       brand?: string;
       currency?: string;
       manufacturerArticleNumber?: string;
+      ean?: string;
       allergens?: string[];
       ingredients?: string;
       dosageInstructions?: string;
@@ -498,6 +499,7 @@ export async function POST(request: Request) {
     delete safeUpdates.nutrition_per_unit;
     delete safeUpdates.brand;
     delete safeUpdates.currency;
+    delete safeUpdates.ean;
     delete safeUpdates.file_url;
     delete safeUpdates.image_url;
     

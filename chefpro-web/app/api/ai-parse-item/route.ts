@@ -103,6 +103,8 @@ Extrahiere folgende Daten als JSON:
 - nutritionPerUnit: { energyKcal, fat, saturatedFat, carbs, sugar, protein, salt, fiber (Ballaststoffe), sodium (Natrium), breadUnits (BE), cholesterol (Cholesterin) } (optional, Werte als numbers oder null wenn k.A.)
 - dosageInstructions: Dosieranweisungen als Text (optional, falls nicht als components parsbar)
 - Boolean Flags (true/false, default false): isBio, isDeklarationsfrei, isAllergenfrei, isCookChill, isFreezeThawStable, isPalmOilFree, isYeastFree (Hefefrei), isLactoseFree (Laktosefrei), isGlutenFree (Glutenfrei), isVegan, isVegetarian.
+- manufacturerArticleNumber: Hersteller-Artikelnummer (optional, als String)
+- ean: EAN-Nummer / GTIN (optional, als String)
 
 Berechne 'calculated_price_per_unit' = purchase_price / quantity.
 Antworte NUR mit dem JSON-Objekt.

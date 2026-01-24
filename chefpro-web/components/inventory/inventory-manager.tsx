@@ -210,6 +210,7 @@ type ParsedDocumentItem = {
   yieldInfo?: string | null;
   preparationText?: string | null;
   manufacturerArticleNumber?: string | null;
+  ean?: string | null;
   yieldVolume?: string | null;
   imageUrl?: string | null;
   isBio?: boolean;
@@ -484,6 +485,7 @@ export function InventoryManager() {
   const [proYieldVolumeInput, setProYieldVolumeInput] = useState("");
   const [proPreparationInput, setProPreparationInput] = useState("");
   const [manufacturerInput, setManufacturerInput] = useState("");
+  const [eanInput, setEanInput] = useState("");
   const [brandInput, setBrandInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [categoryInput, setCategoryInput] = useState("");
@@ -1791,6 +1793,7 @@ export function InventoryManager() {
     setPortionUnitInput(selectedItem.portionUnit ?? "");
     setNutritionTagsInput(selectedItem.nutritionTags ?? []);
     setManufacturerInput(selectedItem.manufacturerArticleNumber ?? "");
+    setEanInput(selectedItem.ean ?? "");
     setBrandInput(selectedItem.brand ?? "");
     setIsBioInput(selectedItem.isBio ?? false);
     setIsDeklarationsfreiInput(selectedItem.isDeklarationsfrei ?? false);
@@ -2641,6 +2644,7 @@ export function InventoryManager() {
           yield_volume?: string | null;
           preparation_steps?: string | null;
           manufacturer_article_number?: string | null;
+          ean?: string | null;
           is_bio?: boolean;
           is_deklarationsfrei?: boolean;
           is_allergenfrei?: boolean;
@@ -2783,6 +2787,11 @@ export function InventoryManager() {
             typeof payload.extracted.manufacturer_article_number === "string"
               ? payload.extracted.manufacturer_article_number
               : created.manufacturerArticleNumber) ?? null,
+          ean:
+            (payload.extracted &&
+            typeof payload.extracted.ean === "string"
+              ? payload.extracted.ean
+              : created.ean) ?? null,
           yieldVolume:
             (payload.extracted &&
             typeof payload.extracted.yield_volume === "string"
@@ -2963,6 +2972,10 @@ export function InventoryManager() {
             typeof payload.extracted
               .manufacturer_article_number === "string"
               ? payload.extracted.manufacturer_article_number
+              : null,
+          ean:
+            typeof payload.extracted.ean === "string"
+              ? payload.extracted.ean
               : null,
           yieldVolume:
             typeof payload.extracted.yield_volume ===
@@ -3170,6 +3183,7 @@ export function InventoryManager() {
           brand: brandInput.trim(),
           currency: selectedItem.currency,
           manufacturerArticleNumber: manufacturerInput.trim(),
+          ean: eanInput.trim(),
           allergens: allergensArray,
           ingredients: proIngredientsInput.trim(),
           dosageInstructions:
@@ -4162,7 +4176,7 @@ export function InventoryManager() {
                                     }}
                                   />
                                </div>
-                               <div className="grid grid-cols-2 gap-4">
+                               <div className="grid grid-cols-3 gap-4">
                                 <div className="grid gap-2">
                                   <label className="text-xs font-medium text-[#1F2326]">Marke (Brand)</label>
                                   <Input 
@@ -4184,6 +4198,18 @@ export function InventoryManager() {
                                        const val = e.target.value;
                                        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, manufacturerArticleNumber: val } : i));
                                        setManufacturerInput(val);
+                                    }}
+                                  />
+                                </div>
+                                <div className="grid gap-2">
+                                  <label className="text-xs font-medium text-[#1F2326]">EAN (GTIN)</label>
+                                  <Input 
+                                    value={selectedItem.ean || ""} 
+                                    className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                    onChange={(e) => {
+                                       const val = e.target.value;
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, ean: val } : i));
+                                       setEanInput(val);
                                     }}
                                   />
                                 </div>
