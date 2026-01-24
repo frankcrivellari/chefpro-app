@@ -26,6 +26,7 @@ import {
   ZoomIn,
   Copy,
   Check,
+  Clipboard,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -3350,6 +3351,46 @@ export function InventoryManager() {
     }
   }
 
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    if (!selectedItem) return;
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          await handleRecipeImageUpload(file);
+          return;
+        }
+      }
+    }
+  }, [selectedItem]); // handleRecipeImageUpload is stable or we can add it to deps if defined inside component (it is inside)
+
+  const handlePasteClick = useCallback(async () => {
+    if (!selectedItem) return;
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        const imageTypes = item.types.filter(type => type.startsWith('image/'));
+        for (const type of imageTypes) {
+          const blob = await item.getType(type);
+          const file = new File([blob], "pasted-image.png", { type });
+          await handleRecipeImageUpload(file);
+          return;
+        }
+      }
+      // If no image found
+      setImageUploadError("Kein Bild in der Zwischenablage gefunden.");
+      setTimeout(() => setImageUploadError(null), 3000);
+    } catch (err) {
+      console.error("Failed to read clipboard:", err);
+      setImageUploadError("Zugriff auf Zwischenablage nicht möglich.");
+      setTimeout(() => setImageUploadError(null), 3000);
+    }
+  }, [selectedItem]);
+
   // removed unused dosage helpers (merged into handleSaveAll)
 
   async function handleSaveAll() {
@@ -3944,10 +3985,12 @@ export function InventoryManager() {
                                 <div className="text-[10px] font-medium text-[#6B7176] mb-1 w-full text-left">Packshot-Fokus</div>
                                 <div 
                                     className={cn(
-                                        "relative h-40 w-40 overflow-hidden rounded-md border bg-white transition-colors",
+                                        "relative h-40 w-40 overflow-hidden rounded-md border bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#4F8F4E]",
                                         isPackshotDragOver ? "border-blue-500 bg-blue-50" : "border-gray-200",
                                         packshotPreview ? "cursor-move touch-none" : "flex flex-col items-center justify-center cursor-default"
                                     )}
+                                    tabIndex={0}
+                                    onPaste={handlePaste}
                                     onMouseDown={packshotPreview ? handlePanMouseDown : undefined}
                                     onMouseMove={packshotPreview ? handlePanMouseMove : undefined}
                                     onMouseUp={packshotPreview ? handlePanMouseUp : undefined}
@@ -4039,6 +4082,16 @@ export function InventoryManager() {
                                         </>
                                     )}
                                     
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 bg-white hover:bg-gray-50 border-[#E5E7EB]"
+                                        onClick={handlePasteClick}
+                                        title="Bild aus Zwischenablage einfügen"
+                                    >
+                                        <Clipboard className="h-3 w-3 text-[#6B7176]" />
+                                    </Button>
+
                                     <input 
                                         type="file" 
                                         ref={packshotFileInputRef} 
