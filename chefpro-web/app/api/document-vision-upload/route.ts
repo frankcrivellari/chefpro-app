@@ -57,6 +57,7 @@ type SupabaseItemRow = {
   item_type: InventoryType;
   unit: string;
   purchase_price: number;
+  brand: string | null;
   manufacturer_article_number: string | null;
   is_bio: boolean | null;
   is_deklarationsfrei: boolean | null;
@@ -430,10 +431,11 @@ export async function POST(request: Request) {
         is_gluten_free: isGlutenFree,
         is_vegan: isVegan,
         is_vegetarian: isVegetarian,
-        file_url: publicUrl,
-        image_url: imagePublicUrl,
-      })
-      .select("*")
+          file_url: publicUrl,
+          image_url: imagePublicUrl,
+          brand: parsed.brand || null,
+        })
+        .select("*")
       .single();
 
     if (insertItemResponse.error || !insertItemResponse.data) {
@@ -471,6 +473,7 @@ export async function POST(request: Request) {
         type: createdItemRow.item_type,
         unit: createdItemRow.unit,
         purchasePrice: createdItemRow.purchase_price,
+        brand: createdItemRow.brand,
         manufacturerArticleNumber:
           createdItemRow.manufacturer_article_number,
         isBio: createdItemRow.is_bio ?? false,
@@ -488,6 +491,7 @@ export async function POST(request: Request) {
       },
       extracted: {
         name: parsed.name,
+        brand: parsed.brand,
         unit: parsed.unit,
         purchase_price: parsed.purchase_price,
         nutrition_per_100: parsed.nutrition_per_100,
