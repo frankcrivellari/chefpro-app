@@ -2840,37 +2840,7 @@ export function InventoryManager() {
             ? payload.extracted.preparation_steps
             : ""
         );
-        setIsBioInput(!!payload.extracted.is_bio);
-        setIsDeklarationsfreiInput(
-          !!payload.extracted.is_deklarationsfrei
-        );
-        setIsAllergenfreiInput(
-          !!payload.extracted.is_allergenfrei
-        );
-        setIsCookChillInput(
-          !!payload.extracted.is_cook_chill
-        );
-        setIsFreezeThawStableInput(
-          !!payload.extracted.is_freeze_thaw_stable
-        );
-        setIsPalmOilFreeInput(
-          !!payload.extracted.is_palm_oil_free
-        );
-        setIsYeastFreeInput(
-          !!payload.extracted.is_yeast_free
-        );
-        setIsLactoseFreeInput(
-          !!payload.extracted.is_lactose_free
-        );
-        setIsGlutenFreeInput(
-          !!payload.extracted.is_gluten_free
-        );
-        setIsVeganInput(
-          !!payload.extracted.is_vegan
-        );
-        setIsVegetarianInput(
-          !!payload.extracted.is_vegetarian
-        );
+
       }
       if (payload.extracted && payload.fileUrl) {
         if (
