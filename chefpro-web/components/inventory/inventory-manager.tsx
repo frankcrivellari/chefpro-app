@@ -2582,6 +2582,9 @@ export function InventoryManager() {
         };
         fileUrl?: string;
       };
+
+      console.log("Vision Payload received:", payload);
+
       if (!response.ok) {
         let message =
           "Fehler bei der Dokumenten-Auswertung.";
