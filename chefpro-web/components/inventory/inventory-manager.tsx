@@ -2758,10 +2758,10 @@ export function InventoryManager() {
             "string" &&
           payload.extracted.yield_volume.trim().length > 0
         ) {
-          yieldVolume = payload.extracted.yield_volume.trim();
+          // yieldVolume = payload.extracted.yield_volume.trim(); // User wants to fill this manually
         }
         setProYieldWeightInput(yieldWeight);
-        setProYieldVolumeInput(yieldVolume);
+        // setProYieldVolumeInput(yieldVolume); // User wants to fill this manually
         if (
           typeof payload.extracted
             .manufacturer_article_number === "string"
@@ -3898,7 +3898,7 @@ export function InventoryManager() {
                             )}
                             <div className="grid gap-4">
                                <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">Artikelname</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">Artikelbezeichnung</label>
                                   <Input 
                                     value={selectedItem.name} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -4100,7 +4100,7 @@ export function InventoryManager() {
                           </div>
                           <div className="space-y-1">
                             <div className="text-[11px] text-muted-foreground">
-                              End-Volumen (ml/l)
+                              Volumen-Ergiebigkeit
                             </div>
                             <Input
                               type="text"
@@ -5806,7 +5806,7 @@ export function InventoryManager() {
                           </div>
                           <div className="space-y-1">
                             <div className="text-[11px] text-muted-foreground">
-                              End-Volumen (ml/l)
+                              Volumen-Ergiebigkeit
                             </div>
                             <Input
                               type="text"
@@ -6181,8 +6181,8 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-1">
                               <div className="text-[11px] text-muted-foreground">
-                                End-Volumen (ml/l)
-                              </div>
+                              Volumen-Ergiebigkeit
+                            </div>
                               <textarea
                                 rows={2}
                                 value={proYieldVolumeInput}
@@ -7318,8 +7318,8 @@ export function InventoryManager() {
                         </div>
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
-                            End-Volumen (ml/l)
-                          </div>
+                              Volumen-Ergiebigkeit
+                            </div>
                           <textarea
                             rows={2}
                             value={proYieldVolumeInput}
