@@ -10,7 +10,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
+import ReactCrop, { Crop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
@@ -66,13 +66,17 @@ type PreparationStep = {
 };
 
 type NutritionTotals = {
-  energyKcal: number;
-  fat: number;
-  saturatedFat: number;
-  carbs: number;
-  sugar: number;
-  protein: number;
-  salt: number;
+  energyKcal: number | null;
+  fat: number | null;
+  saturatedFat: number | null;
+  carbs: number | null;
+  sugar: number | null;
+  protein: number | null;
+  salt: number | null;
+  fiber: number | null;
+  sodium: number | null;
+  breadUnits: number | null;
+  cholesterol: number | null;
 };
 
 type RecipeCalculation = {
@@ -139,6 +143,8 @@ type InventoryItem = {
   isYeastFree?: boolean;
   isLactoseFree?: boolean;
   isGlutenFree?: boolean;
+  isVegan?: boolean;
+  isVegetarian?: boolean;
   hasGhostComponents?: boolean;
   imageUrl?: string | null;
   fileUrl?: string | null;
@@ -445,6 +451,7 @@ export function InventoryManager() {
   const [proYieldVolumeInput, setProYieldVolumeInput] = useState("");
   const [proPreparationInput, setProPreparationInput] = useState("");
   const [manufacturerInput, setManufacturerInput] = useState("");
+  const [brandInput, setBrandInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [categoryInput, setCategoryInput] = useState("");
   const [portionUnitInput, setPortionUnitInput] = useState("");
@@ -462,6 +469,8 @@ export function InventoryManager() {
   const [isYeastFreeInput, setIsYeastFreeInput] = useState(false);
   const [isLactoseFreeInput, setIsLactoseFreeInput] = useState(false);
   const [isGlutenFreeInput, setIsGlutenFreeInput] = useState(false);
+  const [isVeganInput, setIsVeganInput] = useState(false);
+  const [isVegetarianInput, setIsVegetarianInput] = useState(false);
   const [proEnergyKcalInput, setProEnergyKcalInput] = useState("");
   const [proFatInput, setProFatInput] = useState("");
   const [proSaturatedFatInput, setProSaturatedFatInput] = useState("");
@@ -469,6 +478,10 @@ export function InventoryManager() {
   const [proSugarInput, setProSugarInput] = useState("");
   const [proProteinInput, setProProteinInput] = useState("");
   const [proSaltInput, setProSaltInput] = useState("");
+  const [proFiberInput, setProFiberInput] = useState("");
+  const [proSodiumInput, setProSodiumInput] = useState("");
+  const [proBreadUnitsInput, setProBreadUnitsInput] = useState("");
+  const [proCholesterolInput, setProCholesterolInput] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSwapMode, setIsSwapMode] = useState(false);
   const [swapGhostName, setSwapGhostName] = useState<string>("");
@@ -1474,6 +1487,10 @@ export function InventoryManager() {
           sugar: (base.sugar ?? 0) / 100,
           protein: (base.protein ?? 0) / 100,
           salt: (base.salt ?? 0) / 100,
+          fiber: (base.fiber ?? 0) / 100,
+          sodium: (base.sodium ?? 0) / 100,
+          breadUnits: (base.breadUnits ?? 0) / 100,
+          cholesterol: (base.cholesterol ?? 0) / 100,
         };
         return { perGram, mass: 100, missing: false };
       }
@@ -1487,6 +1504,10 @@ export function InventoryManager() {
         sugar: 0,
         protein: 0,
         salt: 0,
+        fiber: 0,
+        sodium: 0,
+        breadUnits: 0,
+        cholesterol: 0,
       };
       let missing = false;
 
@@ -1525,13 +1546,17 @@ export function InventoryManager() {
           continue;
         }
         totalMass += mass;
-        batchTotals.energyKcal += child.perGram.energyKcal * mass;
-        batchTotals.fat += child.perGram.fat * mass;
-        batchTotals.saturatedFat += child.perGram.saturatedFat * mass;
-        batchTotals.carbs += child.perGram.carbs * mass;
-        batchTotals.sugar += child.perGram.sugar * mass;
-        batchTotals.protein += child.perGram.protein * mass;
-        batchTotals.salt += child.perGram.salt * mass;
+        batchTotals.energyKcal = (batchTotals.energyKcal ?? 0) + (child.perGram.energyKcal ?? 0) * mass;
+        batchTotals.fat = (batchTotals.fat ?? 0) + (child.perGram.fat ?? 0) * mass;
+        batchTotals.saturatedFat = (batchTotals.saturatedFat ?? 0) + (child.perGram.saturatedFat ?? 0) * mass;
+        batchTotals.carbs = (batchTotals.carbs ?? 0) + (child.perGram.carbs ?? 0) * mass;
+        batchTotals.sugar = (batchTotals.sugar ?? 0) + (child.perGram.sugar ?? 0) * mass;
+        batchTotals.protein = (batchTotals.protein ?? 0) + (child.perGram.protein ?? 0) * mass;
+        batchTotals.salt = (batchTotals.salt ?? 0) + (child.perGram.salt ?? 0) * mass;
+        batchTotals.fiber = (batchTotals.fiber ?? 0) + (child.perGram.fiber ?? 0) * mass;
+        batchTotals.sodium = (batchTotals.sodium ?? 0) + (child.perGram.sodium ?? 0) * mass;
+        batchTotals.breadUnits = (batchTotals.breadUnits ?? 0) + (child.perGram.breadUnits ?? 0) * mass;
+        batchTotals.cholesterol = (batchTotals.cholesterol ?? 0) + (child.perGram.cholesterol ?? 0) * mass;
       }
 
       if (!Number.isFinite(totalMass) || totalMass <= 0) {
@@ -1539,13 +1564,17 @@ export function InventoryManager() {
       }
 
       const perGram: NutritionTotals = {
-        energyKcal: batchTotals.energyKcal / totalMass,
-        fat: batchTotals.fat / totalMass,
-        saturatedFat: batchTotals.saturatedFat / totalMass,
-        carbs: batchTotals.carbs / totalMass,
-        sugar: batchTotals.sugar / totalMass,
-        protein: batchTotals.protein / totalMass,
-        salt: batchTotals.salt / totalMass,
+        energyKcal: (batchTotals.energyKcal ?? 0) / totalMass,
+        fat: (batchTotals.fat ?? 0) / totalMass,
+        saturatedFat: (batchTotals.saturatedFat ?? 0) / totalMass,
+        carbs: (batchTotals.carbs ?? 0) / totalMass,
+        sugar: (batchTotals.sugar ?? 0) / totalMass,
+        protein: (batchTotals.protein ?? 0) / totalMass,
+        salt: (batchTotals.salt ?? 0) / totalMass,
+        fiber: (batchTotals.fiber ?? 0) / totalMass,
+        sodium: (batchTotals.sodium ?? 0) / totalMass,
+        breadUnits: (batchTotals.breadUnits ?? 0) / totalMass,
+        cholesterol: (batchTotals.cholesterol ?? 0) / totalMass,
       };
 
       return { perGram, mass: totalMass, missing };
@@ -1566,13 +1595,17 @@ export function InventoryManager() {
       yieldWeightGrams && yieldWeightGrams > 0 ? yieldWeightGrams : mass;
 
     const perRecipe: NutritionTotals = {
-      energyKcal: perGram.energyKcal * recipeMass,
-      fat: perGram.fat * recipeMass,
-      saturatedFat: perGram.saturatedFat * recipeMass,
-      carbs: perGram.carbs * recipeMass,
-      sugar: perGram.sugar * recipeMass,
-      protein: perGram.protein * recipeMass,
-      salt: perGram.salt * recipeMass,
+      energyKcal: (perGram.energyKcal ?? 0) * recipeMass,
+      fat: (perGram.fat ?? 0) * recipeMass,
+      saturatedFat: (perGram.saturatedFat ?? 0) * recipeMass,
+      carbs: (perGram.carbs ?? 0) * recipeMass,
+      sugar: (perGram.sugar ?? 0) * recipeMass,
+      protein: (perGram.protein ?? 0) * recipeMass,
+      salt: (perGram.salt ?? 0) * recipeMass,
+      fiber: (perGram.fiber ?? 0) * recipeMass,
+      sodium: (perGram.sodium ?? 0) * recipeMass,
+      breadUnits: (perGram.breadUnits ?? 0) * recipeMass,
+      cholesterol: (perGram.cholesterol ?? 0) * recipeMass,
     };
 
     const portions = selectedItem.targetPortions ?? null;
@@ -1584,13 +1617,17 @@ export function InventoryManager() {
     const perPortion =
       validPortions != null
         ? {
-            energyKcal: perRecipe.energyKcal / validPortions,
-            fat: perRecipe.fat / validPortions,
-            saturatedFat: perRecipe.saturatedFat / validPortions,
-            carbs: perRecipe.carbs / validPortions,
-            sugar: perRecipe.sugar / validPortions,
-            protein: perRecipe.protein / validPortions,
-            salt: perRecipe.salt / validPortions,
+            energyKcal: (perRecipe.energyKcal ?? 0) / validPortions,
+            fat: (perRecipe.fat ?? 0) / validPortions,
+            saturatedFat: (perRecipe.saturatedFat ?? 0) / validPortions,
+            carbs: (perRecipe.carbs ?? 0) / validPortions,
+            sugar: (perRecipe.sugar ?? 0) / validPortions,
+            protein: (perRecipe.protein ?? 0) / validPortions,
+            salt: (perRecipe.salt ?? 0) / validPortions,
+            fiber: (perRecipe.fiber ?? 0) / validPortions,
+            sodium: (perRecipe.sodium ?? 0) / validPortions,
+            breadUnits: (perRecipe.breadUnits ?? 0) / validPortions,
+            cholesterol: (perRecipe.cholesterol ?? 0) / validPortions,
           }
         : null;
 
@@ -1658,6 +1695,7 @@ export function InventoryManager() {
     setPortionUnitInput(selectedItem.portionUnit ?? "");
     setNutritionTagsInput(selectedItem.nutritionTags ?? []);
     setManufacturerInput(selectedItem.manufacturerArticleNumber ?? "");
+    setBrandInput(selectedItem.brand ?? "");
     setIsBioInput(selectedItem.isBio ?? false);
     setIsDeklarationsfreiInput(selectedItem.isDeklarationsfrei ?? false);
     setIsAllergenfreiInput(selectedItem.isAllergenfrei ?? false);
@@ -1669,6 +1707,8 @@ export function InventoryManager() {
     setIsYeastFreeInput(selectedItem.isYeastFree ?? false);
     setIsLactoseFreeInput(selectedItem.isLactoseFree ?? false);
     setIsGlutenFreeInput(selectedItem.isGlutenFree ?? false);
+    setIsVeganInput(selectedItem.isVegan ?? false);
+    setIsVegetarianInput(selectedItem.isVegetarian ?? false);
     const allergensText = (selectedItem.allergens ?? []).join(", ");
     setProAllergensInput(
       allergensText.length > 0
@@ -1677,28 +1717,33 @@ export function InventoryManager() {
     );
     if (selectedItem.nutritionPerUnit) {
       console.log("Syncing nutrition to state:", selectedItem.nutritionPerUnit);
-      setProEnergyKcalInput(
-        String(selectedItem.nutritionPerUnit.energyKcal ?? "")
-      );
-      setProFatInput(String(selectedItem.nutritionPerUnit.fat ?? ""));
-      setProSaturatedFatInput(
-        String(selectedItem.nutritionPerUnit.saturatedFat ?? "")
-      );
-      setProCarbsInput(String(selectedItem.nutritionPerUnit.carbs ?? ""));
-      setProSugarInput(String(selectedItem.nutritionPerUnit.sugar ?? ""));
-      setProProteinInput(
-        String(selectedItem.nutritionPerUnit.protein ?? "")
-      );
-      setProSaltInput(String(selectedItem.nutritionPerUnit.salt ?? ""));
+      const fmt = (val: number | null | undefined) =>
+        val !== null && val !== undefined ? String(val) : "k.A.";
+      
+      setProEnergyKcalInput(fmt(selectedItem.nutritionPerUnit.energyKcal));
+      setProFatInput(fmt(selectedItem.nutritionPerUnit.fat));
+      setProSaturatedFatInput(fmt(selectedItem.nutritionPerUnit.saturatedFat));
+      setProCarbsInput(fmt(selectedItem.nutritionPerUnit.carbs));
+      setProSugarInput(fmt(selectedItem.nutritionPerUnit.sugar));
+      setProProteinInput(fmt(selectedItem.nutritionPerUnit.protein));
+      setProSaltInput(fmt(selectedItem.nutritionPerUnit.salt));
+      setProFiberInput(fmt(selectedItem.nutritionPerUnit.fiber));
+      setProSodiumInput(fmt(selectedItem.nutritionPerUnit.sodium));
+      setProBreadUnitsInput(fmt(selectedItem.nutritionPerUnit.breadUnits));
+      setProCholesterolInput(fmt(selectedItem.nutritionPerUnit.cholesterol));
     } else {
       console.log("Clearing nutrition state because nutritionPerUnit is missing");
-      setProEnergyKcalInput("");
-      setProFatInput("");
-      setProSaturatedFatInput("");
-      setProCarbsInput("");
-      setProSugarInput("");
-      setProProteinInput("");
-      setProSaltInput("");
+      setProEnergyKcalInput("k.A.");
+      setProFatInput("k.A.");
+      setProSaturatedFatInput("k.A.");
+      setProCarbsInput("k.A.");
+      setProSugarInput("k.A.");
+      setProProteinInput("k.A.");
+      setProSaltInput("k.A.");
+      setProFiberInput("k.A.");
+      setProSodiumInput("k.A.");
+      setProBreadUnitsInput("k.A.");
+      setProCholesterolInput("k.A.");
     }
     setProIngredientsInput(selectedItem.ingredients ?? "");
     setProDosageInput(selectedItem.dosageInstructions ?? "");
@@ -2442,6 +2487,7 @@ export function InventoryManager() {
           name: string;
           unit: string;
           purchase_price: number;
+          brand?: string;
           nutrition_per_100?: {
             energy_kcal?: number;
             fat?: number;
@@ -2451,6 +2497,10 @@ export function InventoryManager() {
             sugar?: number;
             protein?: number;
             salt?: number;
+            fiber?: number;
+            sodium?: number;
+            bread_units?: number;
+            cholesterol?: number;
           } | null;
           nutrition_per_100g?: {
             energy_kcal?: number;
@@ -2461,6 +2511,10 @@ export function InventoryManager() {
             sugar?: number;
             protein?: number;
             salt?: number;
+            fiber?: number;
+            sodium?: number;
+            bread_units?: number;
+            cholesterol?: number;
           } | null;
           allergens: string[];
           ingredients?: string | null;
@@ -2485,6 +2539,8 @@ export function InventoryManager() {
           is_yeast_free?: boolean;
           is_lactose_free?: boolean;
           is_gluten_free?: boolean;
+          is_vegan?: boolean;
+          is_vegetarian?: boolean;
           image_url?: string | null;
         };
         fileUrl?: string;
@@ -2510,6 +2566,7 @@ export function InventoryManager() {
           name: rawItem.name,
           type: rawItem.item_type,
           unit: rawItem.unit,
+          brand: rawItem.brand,
           purchasePrice: rawItem.purchase_price,
           targetPortions: rawItem.target_portions,
           targetSalesPrice: rawItem.target_sales_price,
@@ -2540,7 +2597,7 @@ export function InventoryManager() {
           packshotY: rawItem.packshot_y,
           packshotZoom: rawItem.packshot_zoom,
         };
-        const nutritionRaw = payload.extracted?.nutrition_per_100 || payload.extracted?.nutrition_per_100g;
+        const nutritionRaw = (payload.extracted?.nutrition_per_100 || payload.extracted?.nutrition_per_100g) as any;
         const enriched: InventoryItem = {
           ...created,
           allergens:
@@ -2588,6 +2645,10 @@ export function InventoryManager() {
             sugar: nutritionRaw.sugar || 0,
             protein: nutritionRaw.protein || 0,
             salt: nutritionRaw.salt || 0,
+            fiber: nutritionRaw.fiber || 0,
+            sodium: nutritionRaw.sodium || 0,
+            breadUnits: nutritionRaw.bread_units || 0,
+            cholesterol: nutritionRaw.cholesterol || 0,
           } : created.nutritionPerUnit,
           manufacturerArticleNumber:
             (payload.extracted &&
@@ -2645,7 +2706,7 @@ export function InventoryManager() {
         );
 
         // Nutrition state updates
-        const nutritionRaw = payload.extracted.nutrition_per_100 || payload.extracted.nutrition_per_100g;
+        const nutritionRaw = (payload.extracted.nutrition_per_100 || payload.extracted.nutrition_per_100g) as any;
         if (nutritionRaw) {
           setProEnergyKcalInput(String(nutritionRaw.energy_kcal || ""));
           setProFatInput(String(nutritionRaw.fat || ""));
@@ -2654,6 +2715,10 @@ export function InventoryManager() {
           setProSugarInput(String(nutritionRaw.sugar || ""));
           setProProteinInput(String(nutritionRaw.protein || ""));
           setProSaltInput(String(nutritionRaw.salt || ""));
+          setProFiberInput(String(nutritionRaw.fiber || ""));
+          setProSodiumInput(String(nutritionRaw.sodium || ""));
+          setProBreadUnitsInput(String(nutritionRaw.bread_units || ""));
+          setProCholesterolInput(String(nutritionRaw.cholesterol || ""));
         } else {
           // Keep existing values if not extracted, or clear?
           // Usually better to leave empty if we are confident extraction ran but found nothing.
@@ -2705,6 +2770,9 @@ export function InventoryManager() {
             payload.extracted.manufacturer_article_number
           );
         }
+        if (typeof payload.extracted.brand === "string") {
+          setBrandInput(payload.extracted.brand);
+        }
         setProPreparationInput(
           typeof payload.extracted.preparation_steps ===
             "string"
@@ -2735,6 +2803,12 @@ export function InventoryManager() {
         );
         setIsGlutenFreeInput(
           !!payload.extracted.is_gluten_free
+        );
+        setIsVeganInput(
+          !!payload.extracted.is_vegan
+        );
+        setIsVegetarianInput(
+          !!payload.extracted.is_vegetarian
         );
       }
       if (payload.extracted && payload.fileUrl) {
@@ -2928,6 +3002,13 @@ export function InventoryManager() {
         preparationStepsValue = typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps.trim() : "";
       }
 
+      const parseNutrient = (val: string) => {
+        const trimmed = val.trim();
+        if (trimmed === "" || trimmed === "k.A.") return null;
+        const num = Number(trimmed.replace(",", "."));
+        return Number.isNaN(num) ? null : num;
+      };
+
       const nutritionPerUnitValue: NutritionTotals | null =
         proEnergyKcalInput ||
         proFatInput ||
@@ -2935,15 +3016,23 @@ export function InventoryManager() {
         proCarbsInput ||
         proSugarInput ||
         proProteinInput ||
-        proSaltInput
+        proSaltInput ||
+        proFiberInput ||
+        proSodiumInput ||
+        proBreadUnitsInput ||
+        proCholesterolInput
           ? {
-              energyKcal: Number(proEnergyKcalInput.replace(",", ".")) || 0,
-              fat: Number(proFatInput.replace(",", ".")) || 0,
-              saturatedFat: Number(proSaturatedFatInput.replace(",", ".")) || 0,
-              carbs: Number(proCarbsInput.replace(",", ".")) || 0,
-              sugar: Number(proSugarInput.replace(",", ".")) || 0,
-              protein: Number(proProteinInput.replace(",", ".")) || 0,
-              salt: Number(proSaltInput.replace(",", ".")) || 0,
+              energyKcal: parseNutrient(proEnergyKcalInput),
+              fat: parseNutrient(proFatInput),
+              saturatedFat: parseNutrient(proSaturatedFatInput),
+              carbs: parseNutrient(proCarbsInput),
+              sugar: parseNutrient(proSugarInput),
+              protein: parseNutrient(proProteinInput),
+              salt: parseNutrient(proSaltInput),
+              fiber: parseNutrient(proFiberInput),
+              sodium: parseNutrient(proSodiumInput),
+              breadUnits: parseNutrient(proBreadUnitsInput),
+              cholesterol: parseNutrient(proCholesterolInput),
             }
           : null;
 
@@ -2957,7 +3046,7 @@ export function InventoryManager() {
           name: nameValue,
           unit: selectedItem.unit,
           purchasePrice: selectedItem.purchasePrice,
-          brand: selectedItem.brand,
+          brand: brandInput.trim(),
           currency: selectedItem.currency,
           manufacturerArticleNumber: manufacturerInput.trim(),
           allergens: allergensArray,
@@ -2976,10 +3065,7 @@ export function InventoryManager() {
           nutritionPerUnit: nutritionPerUnitValue,
           standardPreparation:
             selectedItem.type !== "eigenproduktion"
-              ? (selectedItem.standardPreparation ? {
-                  ...selectedItem.standardPreparation,
-                  components: selectedItem.standardPreparation.components.filter(c => c.name && c.name.trim().length > 0)
-                } : null)
+              ? parsedStandardPreparation
               : undefined,
           isBio: isBioInput,
           isDeklarationsfrei: isDeklarationsfreiInput,
@@ -2990,6 +3076,8 @@ export function InventoryManager() {
           isYeastFree: isYeastFreeInput,
           isLactoseFree: isLactoseFreeInput,
           isGlutenFree: isGlutenFreeInput,
+          isVegan: isVeganInput,
+          isVegetarian: isVegetarianInput,
           imageUrl: imageUrlValue,
           packshotX: packshotPan.x,
           packshotY: packshotPan.y,
@@ -4010,18 +4098,33 @@ export function InventoryManager() {
                           </div>
                         </div>
 
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Hersteller-Artikelnummer
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <div className="text-[11px] text-muted-foreground">
+                              Marke
+                            </div>
+                            <Input
+                              type="text"
+                              value={brandInput}
+                              onChange={(event) =>
+                                setBrandInput(event.target.value)
+                              }
+                              className="h-7 w-full px-2 py-1 text-[11px]"
+                            />
                           </div>
-                          <Input
-                            type="text"
-                            value={manufacturerInput}
-                            onChange={(event) =>
-                              setManufacturerInput(event.target.value)
-                            }
-                            className="h-7 w-full px-2 py-1 text-[11px]"
-                          />
+                          <div className="space-y-1">
+                            <div className="text-[11px] text-muted-foreground">
+                              Hersteller-Artikelnummer
+                            </div>
+                            <Input
+                              type="text"
+                              value={manufacturerInput}
+                              onChange={(event) =>
+                                setManufacturerInput(event.target.value)
+                              }
+                              className="h-7 w-full px-2 py-1 text-[11px]"
+                            />
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 rounded-md border p-2 text-[10px] md:grid-cols-3">
@@ -4133,6 +4236,30 @@ export function InventoryManager() {
                             />
                             <label htmlFor="check-gluten">Glutenfrei</label>
                           </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isVeganInput}
+                              onChange={(e) =>
+                                setIsVeganInput(e.target.checked)
+                              }
+                              id="check-vegan"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-vegan">Vegan</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isVegetarianInput}
+                              onChange={(e) =>
+                                setIsVegetarianInput(e.target.checked)
+                              }
+                              id="check-vegetarian"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-vegetarian">Vegetarisch</label>
+                          </div>
                         </div>
 
                         <div className="space-y-1">
@@ -4158,7 +4285,7 @@ export function InventoryManager() {
                                 Energie (kcal)
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proEnergyKcalInput}
                                 onChange={(e) =>
                                   setProEnergyKcalInput(e.target.value)
@@ -4171,7 +4298,7 @@ export function InventoryManager() {
                                 Fett
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proFatInput}
                                 onChange={(e) => setProFatInput(e.target.value)}
                                 className="h-7 px-2 py-1 text-[11px]"
@@ -4182,7 +4309,7 @@ export function InventoryManager() {
                                 ges. Fettsäuren
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proSaturatedFatInput}
                                 onChange={(e) =>
                                   setProSaturatedFatInput(e.target.value)
@@ -4195,7 +4322,7 @@ export function InventoryManager() {
                                 Kohlenhydrate
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proCarbsInput}
                                 onChange={(e) =>
                                   setProCarbsInput(e.target.value)
@@ -4208,7 +4335,7 @@ export function InventoryManager() {
                                 Zucker
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proSugarInput}
                                 onChange={(e) => setProSugarInput(e.target.value)}
                                 className="h-7 px-2 py-1 text-[11px]"
@@ -4219,7 +4346,7 @@ export function InventoryManager() {
                                 Eiweiß
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proProteinInput}
                                 onChange={(e) =>
                                   setProProteinInput(e.target.value)
@@ -4232,9 +4359,53 @@ export function InventoryManager() {
                                 Salz
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proSaltInput}
                                 onChange={(e) => setProSaltInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Ballaststoffe
+                              </label>
+                              <Input
+                                type="text"
+                                value={proFiberInput}
+                                onChange={(e) => setProFiberInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Natrium
+                              </label>
+                              <Input
+                                type="text"
+                                value={proSodiumInput}
+                                onChange={(e) => setProSodiumInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                BE
+                              </label>
+                              <Input
+                                type="text"
+                                value={proBreadUnitsInput}
+                                onChange={(e) => setProBreadUnitsInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Cholesterin
+                              </label>
+                              <Input
+                                type="text"
+                                value={proCholesterolInput}
+                                onChange={(e) => setProCholesterolInput(e.target.value)}
                                 className="h-7 px-2 py-1 text-[11px]"
                               />
                             </div>
@@ -5016,7 +5187,7 @@ export function InventoryManager() {
                                 Energie gesamt (Rezept)
                               </span>
                               <span className="font-medium">
-                                {nutritionSummary.perRecipe.energyKcal.toFixed(
+                                {(nutritionSummary.perRecipe.energyKcal ?? 0).toFixed(
                                   0
                                 )}{" "}
                                 kcal
@@ -5027,7 +5198,7 @@ export function InventoryManager() {
                                 Fett gesamt (Rezept)
                               </span>
                               <span className="font-medium">
-                                {nutritionSummary.perRecipe.fat.toFixed(1)} g
+                                {(nutritionSummary.perRecipe.fat ?? 0).toFixed(1)} g
                               </span>
                             </div>
                             <div className="flex justify-between gap-2">
@@ -5035,7 +5206,7 @@ export function InventoryManager() {
                                 Kohlenhydrate gesamt (Rezept)
                               </span>
                               <span className="font-medium">
-                                {nutritionSummary.perRecipe.carbs.toFixed(1)} g
+                                {(nutritionSummary.perRecipe.carbs ?? 0).toFixed(1)} g
                               </span>
                             </div>
                             <div className="flex justify-between gap-2">
@@ -5043,7 +5214,7 @@ export function InventoryManager() {
                                 Eiweiß gesamt (Rezept)
                               </span>
                               <span className="font-medium">
-                                {nutritionSummary.perRecipe.protein.toFixed(1)}{" "}
+                                {(nutritionSummary.perRecipe.protein ?? 0).toFixed(1)}{" "}
                                 g
                               </span>
                             </div>
@@ -5808,7 +5979,7 @@ export function InventoryManager() {
                                 Energie (kcal)
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proEnergyKcalInput}
                                 onChange={(e) =>
                                   setProEnergyKcalInput(e.target.value)
@@ -5821,7 +5992,7 @@ export function InventoryManager() {
                                 Fett
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proFatInput}
                                 onChange={(e) => setProFatInput(e.target.value)}
                                 className="h-7 px-2 py-1 text-[11px]"
@@ -5832,7 +6003,7 @@ export function InventoryManager() {
                                 ges. Fettsäuren
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proSaturatedFatInput}
                                 onChange={(e) =>
                                   setProSaturatedFatInput(e.target.value)
@@ -5845,7 +6016,7 @@ export function InventoryManager() {
                                 Kohlenhydrate
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proCarbsInput}
                                 onChange={(e) =>
                                   setProCarbsInput(e.target.value)
@@ -5858,7 +6029,7 @@ export function InventoryManager() {
                                 Zucker
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proSugarInput}
                                 onChange={(e) => setProSugarInput(e.target.value)}
                                 className="h-7 px-2 py-1 text-[11px]"
@@ -5869,7 +6040,7 @@ export function InventoryManager() {
                                 Eiweiß
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proProteinInput}
                                 onChange={(e) =>
                                   setProProteinInput(e.target.value)
@@ -5882,7 +6053,7 @@ export function InventoryManager() {
                                 Salz
                               </label>
                               <Input
-                                type="number"
+                                type="text"
                                 value={proSaltInput}
                                 onChange={(e) => setProSaltInput(e.target.value)}
                                 className="h-7 px-2 py-1 text-[11px]"
@@ -6929,7 +7100,7 @@ export function InventoryManager() {
                                     Energie gesamt (Rezept)
                                   </span>
                                   <span className="font-medium">
-                                    {nutritionSummary.perRecipe.energyKcal.toFixed(
+                                    {(nutritionSummary.perRecipe.energyKcal ?? 0).toFixed(
                                       0
                                     )}{" "}
                                     kcal
@@ -6940,7 +7111,7 @@ export function InventoryManager() {
                                     Fett gesamt (Rezept)
                                   </span>
                                   <span className="font-medium">
-                                    {nutritionSummary.perRecipe.fat.toFixed(
+                                    {(nutritionSummary.perRecipe.fat ?? 0).toFixed(
                                       1
                                     )}{" "}
                                     g
@@ -6951,7 +7122,7 @@ export function InventoryManager() {
                                     davon gesättigte Fettsäuren gesamt (Rezept)
                                   </span>
                                   <span className="font-medium">
-                                    {nutritionSummary.perRecipe.saturatedFat.toFixed(
+                                    {(nutritionSummary.perRecipe.saturatedFat ?? 0).toFixed(
                                       1
                                     )}{" "}
                                     g
@@ -6962,7 +7133,7 @@ export function InventoryManager() {
                                     Kohlenhydrate gesamt (Rezept)
                                   </span>
                                   <span className="font-medium">
-                                    {nutritionSummary.perRecipe.carbs.toFixed(
+                                    {(nutritionSummary.perRecipe.carbs ?? 0).toFixed(
                                       1
                                     )}{" "}
                                     g
@@ -6973,7 +7144,7 @@ export function InventoryManager() {
                                     davon Zucker gesamt (Rezept)
                                   </span>
                                   <span className="font-medium">
-                                    {nutritionSummary.perRecipe.sugar.toFixed(
+                                    {(nutritionSummary.perRecipe.sugar ?? 0).toFixed(
                                       1
                                     )}{" "}
                                     g
@@ -6984,7 +7155,7 @@ export function InventoryManager() {
                                     Eiweiß gesamt (Rezept)
                                   </span>
                                   <span className="font-medium">
-                                    {nutritionSummary.perRecipe.protein.toFixed(
+                                    {(nutritionSummary.perRecipe.protein ?? 0).toFixed(
                                       1
                                     )}{" "}
                                     g
@@ -6995,7 +7166,7 @@ export function InventoryManager() {
                                     Salz gesamt (Rezept)
                                   </span>
                                   <span className="font-medium">
-                                    {nutritionSummary.perRecipe.salt.toFixed(
+                                    {(nutritionSummary.perRecipe.salt ?? 0).toFixed(
                                       2
                                     )}{" "}
                                     g
@@ -7013,18 +7184,18 @@ export function InventoryManager() {
                                         Energie
                                       </span>
                                       <span className="font-medium">
-                                        {nutritionSummary.perPortion.energyKcal.toFixed(
-                                          0
-                                        )}{" "}
-                                        kcal
-                                      </span>
+                                {(nutritionSummary.perPortion.energyKcal ?? 0).toFixed(
+                                  0
+                                )}{" "}
+                                kcal
+                              </span>
                                     </div>
                                     <div className="flex justify-between gap-2">
                                       <span className="text-muted-foreground">
                                         Fett
                                       </span>
                                       <span className="font-medium">
-                                        {nutritionSummary.perPortion.fat.toFixed(
+                                        {(nutritionSummary.perPortion.fat ?? 0).toFixed(
                                           1
                                         )}{" "}
                                         g
@@ -7035,18 +7206,18 @@ export function InventoryManager() {
                                         davon gesättigte Fettsäuren
                                       </span>
                                       <span className="font-medium">
-                                        {nutritionSummary.perPortion.saturatedFat.toFixed(
-                                          1
-                                        )}{" "}
-                                        g
-                                      </span>
+                                {(nutritionSummary.perPortion.saturatedFat ?? 0).toFixed(
+                                  1
+                                )}{" "}
+                                g
+                              </span>
                                     </div>
                                     <div className="flex justify-between gap-2">
                                       <span className="text-muted-foreground">
                                         Kohlenhydrate
                                       </span>
                                       <span className="font-medium">
-                                        {nutritionSummary.perPortion.carbs.toFixed(
+                                        {(nutritionSummary.perPortion.carbs ?? 0).toFixed(
                                           1
                                         )}{" "}
                                         g
@@ -7057,7 +7228,7 @@ export function InventoryManager() {
                                         davon Zucker
                                       </span>
                                       <span className="font-medium">
-                                        {nutritionSummary.perPortion.sugar.toFixed(
+                                        {(nutritionSummary.perPortion.sugar ?? 0).toFixed(
                                           1
                                         )}{" "}
                                         g
@@ -7068,18 +7239,18 @@ export function InventoryManager() {
                                         Eiweiß
                                       </span>
                                       <span className="font-medium">
-                                        {nutritionSummary.perPortion.protein.toFixed(
-                                          1
-                                        )}{" "}
-                                        g
-                                      </span>
+                                {(nutritionSummary.perPortion.protein ?? 0).toFixed(
+                                  1
+                                )}{" "}
+                                g
+                              </span>
                                     </div>
                                     <div className="flex justify-between gap-2">
                                       <span className="text-muted-foreground">
                                         Salz
                                       </span>
                                       <span className="font-medium">
-                                        {nutritionSummary.perPortion.salt.toFixed(
+                                        {(nutritionSummary.perPortion.salt ?? 0).toFixed(
                                           2
                                         )}{" "}
                                         g

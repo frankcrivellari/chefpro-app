@@ -21,13 +21,17 @@ type StandardPreparation = {
 };
 
 type NutritionTotals = {
-  energyKcal: number;
-  fat: number;
-  saturatedFat: number;
-  carbs: number;
-  sugar: number;
-  protein: number;
-  salt: number;
+  energyKcal: number | null;
+  fat: number | null;
+  saturatedFat: number | null;
+  carbs: number | null;
+  sugar: number | null;
+  protein: number | null;
+  salt: number | null;
+  fiber: number | null;
+  sodium: number | null;
+  breadUnits: number | null;
+  cholesterol: number | null;
 };
 
 type InventoryItem = {
@@ -64,6 +68,8 @@ type InventoryItem = {
   isYeastFree?: boolean;
   isLactoseFree?: boolean;
   isGlutenFree?: boolean;
+  isVegan?: boolean;
+  isVegetarian?: boolean;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
   packshotX?: number | null;
@@ -105,6 +111,8 @@ type SupabaseItemRow = {
   is_yeast_free: boolean | null;
   is_lactose_free: boolean | null;
   is_gluten_free: boolean | null;
+  is_vegan: boolean | null;
+  is_vegetarian: boolean | null;
   packshot_x: number | null;
   packshot_y: number | null;
   packshot_zoom: number | null;
@@ -213,6 +221,8 @@ export async function GET() {
         isYeastFree: row.is_yeast_free ?? false,
         isLactoseFree: row.is_lactose_free ?? false,
         isGlutenFree: row.is_gluten_free ?? false,
+        isVegan: row.is_vegan ?? false,
+        isVegetarian: row.is_vegetarian ?? false,
         packshotX: row.packshot_x,
         packshotY: row.packshot_y,
         packshotZoom: row.packshot_zoom,
@@ -288,6 +298,8 @@ export async function POST(request: Request) {
       preparationSteps?: string | null;
       nutritionPerUnit?: NutritionTotals | null;
       dosageInstructions?: string | null;
+      isVegan?: boolean;
+      isVegetarian?: boolean;
     };
 
     const client = getSupabaseServerClient();
@@ -338,6 +350,8 @@ export async function POST(request: Request) {
           body.standardPreparation && typeof body.standardPreparation === "object"
             ? body.standardPreparation
             : null,
+        is_vegan: body.isVegan ?? false,
+        is_vegetarian: body.isVegetarian ?? false,
       })
       .select("*")
       .single();
@@ -423,6 +437,17 @@ export async function POST(request: Request) {
       fileUrl: createdItemRow.file_url,
       standardPreparation: createdItemRow.standard_preparation,
       nutritionPerUnit: createdItemRow.nutrition_per_unit,
+      isBio: createdItemRow.is_bio ?? false,
+      isDeklarationsfrei: createdItemRow.is_deklarationsfrei ?? false,
+      isAllergenfrei: createdItemRow.is_allergenfrei ?? false,
+      isCookChill: createdItemRow.is_cook_chill ?? false,
+      isFreezeThawStable: createdItemRow.is_freeze_thaw_stable ?? false,
+      isPalmOilFree: createdItemRow.is_palm_oil_free ?? false,
+      isYeastFree: createdItemRow.is_yeast_free ?? false,
+      isLactoseFree: createdItemRow.is_lactose_free ?? false,
+      isGlutenFree: createdItemRow.is_gluten_free ?? false,
+      isVegan: createdItemRow.is_vegan ?? false,
+      isVegetarian: createdItemRow.is_vegetarian ?? false,
       packshotX: createdItemRow.packshot_x,
       packshotY: createdItemRow.packshot_y,
       packshotZoom: createdItemRow.packshot_zoom,

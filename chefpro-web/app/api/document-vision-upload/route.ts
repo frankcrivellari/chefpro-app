@@ -10,10 +10,15 @@ type VisionNutritionPer100 = {
   sugar: number;
   protein: number;
   salt: number;
+  fiber?: number;
+  sodium?: number;
+  bread_units?: number;
+  cholesterol?: number;
 };
 
 type VisionExtracted = {
   name: string;
+  brand?: string | null;
   unit: string;
   purchase_price: number;
   allergens: string[];
@@ -33,6 +38,8 @@ type VisionExtracted = {
   is_yeast_free?: boolean;
   is_lactose_free?: boolean;
   is_gluten_free?: boolean;
+  is_vegan?: boolean;
+  is_vegetarian?: boolean;
   standard_preparation?: {
     components: {
       name: string;
@@ -70,6 +77,10 @@ type SupabaseItemRow = {
     sugar: number;
     protein: number;
     salt: number;
+    fiber?: number;
+    sodium?: number;
+    breadUnits?: number;
+    cholesterol?: number;
   } | null;
   allergens: string[] | null;
   ingredients: string | null;
@@ -197,11 +208,11 @@ export async function POST(request: Request) {
     }
 
     const systemPrompt =
-      "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt mit den Feldern: name (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), standard_preparation (object), yield_info (string), yield_volume (string), preparation_steps (string), nutrition_per_100 (object), manufacturer_article_number (string), is_bio (boolean), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean). nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml und enthält die Felder: energy_kcal (number), fat (number), saturated_fat (number), carbs (number), sugar (number), protein (number), salt (number). Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge. ingredients sind die Zutaten in der Reihenfolge der Deklaration. dosage_instructions beschreibt ausschließlich Mischverhältnisse, Basismengen und Dosierungen als Text (z.B. '100g auf 1l' oder '10%'). standard_preparation enthält strukturierte Dosierungsdaten in 'components' (Array). Jeder Eintrag in components hat: name (string), quantity (number), unit (string). Falls im Text 'Produkt', 'Basisprodukt' oder 'Basis' steht, ersetze dies durch den Artikelnamen oder 'Hauptartikel'. preparation_steps beschreibt die eigentliche Zubereitung und Kochanleitung, jedoch OHNE die reinen Mengenangaben. yield_info beschreibt Ausbeute oder Fertig-Gewicht, yield_volume beschreibt explizit das End-Volumen (z.B. ml, l). manufacturer_article_number ist die Hersteller-Artikelnummer des Herstellers (nicht die EAN/GTIN) und kann z.B. als „Art.-Nr.“ oder „Bestellnummer“ bezeichnet sein. Setze is_bio nur dann auf true, wenn das Produkt als BIO gekennzeichnet ist (z.B. EU-Bio-Siegel, „Bio“ im Namen oder Text). Setze die übrigen boolean-Felder nur dann auf true, wenn die entsprechende Eigenschaft explizit im Dokument genannt oder eindeutig erkennbar ist.";
+      "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt mit den Feldern: name (string), brand (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), standard_preparation (object), yield_info (string), yield_volume (string), preparation_steps (string), nutrition_per_100 (object), manufacturer_article_number (string), is_bio (boolean), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean), is_vegan (boolean), is_vegetarian (boolean). nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml und enthält die Felder: energy_kcal (number), fat (number), saturated_fat (number), carbs (number), sugar (number), protein (number), salt (number), fiber (number), sodium (number), bread_units (number), cholesterol (number). Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge. ingredients sind die Zutaten in der Reihenfolge der Deklaration. dosage_instructions beschreibt ausschließlich Mischverhältnisse, Basismengen und Dosierungen als Text (z.B. '100g auf 1l' oder '10%'). standard_preparation enthält strukturierte Dosierungsdaten in 'components' (Array). Jeder Eintrag in components hat: name (string), quantity (number), unit (string). Falls im Text 'Produkt', 'Basisprodukt' oder 'Basis' steht, ersetze dies durch den Artikelnamen oder 'Hauptartikel'. preparation_steps beschreibt die eigentliche Zubereitung und Kochanleitung, jedoch OHNE die reinen Mengenangaben. yield_info beschreibt Ausbeute oder Fertig-Gewicht, yield_volume beschreibt explizit das End-Volumen (z.B. ml, l). manufacturer_article_number ist die Hersteller-Artikelnummer des Herstellers (nicht die EAN/GTIN) und kann z.B. als „Art.-Nr.“ oder „Artikelnummer“ gekennzeichnet sein. brand ist der Markenname des Produkts (z.B. 'Knorr', 'Maggi', 'Lukull'). Falls ein Feld nicht im Dokument zu finden ist, setze es auf null (bei Zahlen) oder einen leeren String (bei Text). Setze boolean-Flags nur auf true, wenn es explizit im Text steht (z.B. 'Bio', 'Vegan', 'Hefefrei').";
 
     const userText =
       promptInputText ??
-      "Analysiere dieses Produktdatenblatt und gib die Felder name, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, yield_volume, preparation_steps, nutrition_per_100, manufacturer_article_number sowie alle boolean-Flags is_bio, is_deklarationsfrei, is_allergenfrei, is_cook_chill, is_freeze_thaw_stable, is_palm_oil_free, is_yeast_free, is_lactose_free, is_gluten_free zurück. nutrition_per_100 sind die Nährwerte pro 100 g bzw. 100 ml mit energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt.";
+      "Analysiere dieses Produktdatenblatt und gib die Felder name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, yield_volume, preparation_steps, nutrition_per_100, manufacturer_article_number sowie alle boolean-Flags is_bio, is_deklarationsfrei, is_allergenfrei, is_cook_chill, is_freeze_thaw_stable, is_palm_oil_free, is_yeast_free, is_lactose_free, is_gluten_free, is_vegan, is_vegetarian zurück. nutrition_per_100 sind die Nährwerte pro 100 g bzw. 100 ml mit energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt, fiber, sodium, bread_units, cholesterol.";
 
     const messages = [
       {
@@ -384,6 +395,9 @@ export async function POST(request: Request) {
       typeof parsed.is_gluten_free === "boolean"
         ? parsed.is_gluten_free
         : false;
+    const isVegan = typeof parsed.is_vegan === "boolean" ? parsed.is_vegan : false;
+    const isVegetarian =
+      typeof parsed.is_vegetarian === "boolean" ? parsed.is_vegetarian : false;
 
     const manufacturerArticleNumber =
       typeof parsed.manufacturer_article_number === "string"
@@ -414,6 +428,8 @@ export async function POST(request: Request) {
         is_yeast_free: isYeastFree,
         is_lactose_free: isLactoseFree,
         is_gluten_free: isGlutenFree,
+        is_vegan: isVegan,
+        is_vegetarian: isVegetarian,
         file_url: publicUrl,
         image_url: imagePublicUrl,
       })

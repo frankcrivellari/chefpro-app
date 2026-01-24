@@ -11,13 +11,17 @@ type StandardPreparation = {
 };
 
 type NutritionTotals = {
-  energyKcal: number;
-  fat: number;
-  saturatedFat: number;
-  carbs: number;
-  sugar: number;
-  protein: number;
-  salt: number;
+  energyKcal: number | null;
+  fat: number | null;
+  saturatedFat: number | null;
+  carbs: number | null;
+  sugar: number | null;
+  protein: number | null;
+  salt: number | null;
+  fiber: number | null;
+  sodium: number | null;
+  breadUnits: number | null;
+  cholesterol: number | null;
 };
 
 type ParsedItem = {
@@ -31,6 +35,17 @@ type ParsedItem = {
   preparationText?: string | null;
   nutritionPerUnit?: NutritionTotals | null;
   dosageInstructions?: string | null;
+  isBio?: boolean;
+  isDeklarationsfrei?: boolean;
+  isAllergenfrei?: boolean;
+  isCookChill?: boolean;
+  isFreezeThawStable?: boolean;
+  isPalmOilFree?: boolean;
+  isYeastFree?: boolean;
+  isLactoseFree?: boolean;
+  isGlutenFree?: boolean;
+  isVegan?: boolean;
+  isVegetarian?: boolean;
 };
 
 export async function POST(request: Request) {
@@ -85,8 +100,9 @@ Extrahiere folgende Daten als JSON:
 - purchase_price: Einkaufspreis (als Zahl)
 - standardPreparation: { components: [{ name, quantity, unit }] } (optional, für Dosierungen/Mischverhältnisse)
 - preparationText: Zubereitungsschritte als Text (optional, Fließtext)
-- nutritionPerUnit: { energyKcal, fat, saturatedFat, carbs, sugar, protein, salt } (optional, alle Werte als numbers)
+- nutritionPerUnit: { energyKcal, fat, saturatedFat, carbs, sugar, protein, salt, fiber (Ballaststoffe), sodium (Natrium), breadUnits (BE), cholesterol (Cholesterin) } (optional, Werte als numbers oder null wenn k.A.)
 - dosageInstructions: Dosieranweisungen als Text (optional, falls nicht als components parsbar)
+- Boolean Flags (true/false, default false): isBio, isDeklarationsfrei, isAllergenfrei, isCookChill, isFreezeThawStable, isPalmOilFree, isYeastFree (Hefefrei), isLactoseFree (Laktosefrei), isGlutenFree (Glutenfrei), isVegan, isVegetarian.
 
 Berechne 'calculated_price_per_unit' = purchase_price / quantity.
 Antworte NUR mit dem JSON-Objekt.
@@ -235,19 +251,35 @@ Antworte NUR mit dem JSON-Objekt.
       nutritionPerUnit:
         parsedRaw.nutritionPerUnit && typeof parsedRaw.nutritionPerUnit === "object"
           ? {
-              energyKcal: Number(parsedRaw.nutritionPerUnit.energyKcal) || 0,
-              fat: Number(parsedRaw.nutritionPerUnit.fat) || 0,
-              saturatedFat: Number(parsedRaw.nutritionPerUnit.saturatedFat) || 0,
-              carbs: Number(parsedRaw.nutritionPerUnit.carbs) || 0,
-              sugar: Number(parsedRaw.nutritionPerUnit.sugar) || 0,
-              protein: Number(parsedRaw.nutritionPerUnit.protein) || 0,
-              salt: Number(parsedRaw.nutritionPerUnit.salt) || 0,
+              energyKcal: typeof parsedRaw.nutritionPerUnit.energyKcal === 'number' ? parsedRaw.nutritionPerUnit.energyKcal : null,
+              fat: typeof parsedRaw.nutritionPerUnit.fat === 'number' ? parsedRaw.nutritionPerUnit.fat : null,
+              saturatedFat: typeof parsedRaw.nutritionPerUnit.saturatedFat === 'number' ? parsedRaw.nutritionPerUnit.saturatedFat : null,
+              carbs: typeof parsedRaw.nutritionPerUnit.carbs === 'number' ? parsedRaw.nutritionPerUnit.carbs : null,
+              sugar: typeof parsedRaw.nutritionPerUnit.sugar === 'number' ? parsedRaw.nutritionPerUnit.sugar : null,
+              protein: typeof parsedRaw.nutritionPerUnit.protein === 'number' ? parsedRaw.nutritionPerUnit.protein : null,
+              salt: typeof parsedRaw.nutritionPerUnit.salt === 'number' ? parsedRaw.nutritionPerUnit.salt : null,
+              fiber: typeof parsedRaw.nutritionPerUnit.fiber === 'number' ? parsedRaw.nutritionPerUnit.fiber : null,
+              sodium: typeof parsedRaw.nutritionPerUnit.sodium === 'number' ? parsedRaw.nutritionPerUnit.sodium : null,
+              breadUnits: typeof parsedRaw.nutritionPerUnit.breadUnits === 'number' ? parsedRaw.nutritionPerUnit.breadUnits : null,
+              cholesterol: typeof parsedRaw.nutritionPerUnit.cholesterol === 'number' ? parsedRaw.nutritionPerUnit.cholesterol : null,
             }
           : null,
       dosageInstructions:
         typeof parsedRaw.dosageInstructions === "string"
           ? parsedRaw.dosageInstructions
           : null,
+      isBio: !!parsedRaw.isBio,
+      isDeklarationsfrei: !!parsedRaw.isDeklarationsfrei,
+      isAllergenfrei: !!parsedRaw.isAllergenfrei,
+      isCookChill: !!parsedRaw.isCookChill,
+      isFreezeThawStable: !!parsedRaw.isFreezeThawStable,
+      isPalmOilFree: !!parsedRaw.isPalmOilFree,
+      isYeastFree: !!parsedRaw.isYeastFree,
+      isLactoseFree: !!parsedRaw.isLactoseFree,
+      isGlutenFree: !!parsedRaw.isGlutenFree,
+      isVegan: !!parsedRaw.isVegan,
+      isVegetarian: !!parsedRaw.isVegetarian,
+      brand: parsedRaw.brand,
     };
 
     return NextResponse.json(normalized);

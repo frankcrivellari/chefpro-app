@@ -14,13 +14,17 @@ type StandardPreparation = {
 };
 
 type NutritionTotals = {
-  energyKcal: number;
-  fat: number;
-  saturatedFat: number;
-  carbs: number;
-  sugar: number;
-  protein: number;
-  salt: number;
+  energyKcal: number | null;
+  fat: number | null;
+  saturatedFat: number | null;
+  carbs: number | null;
+  sugar: number | null;
+  protein: number | null;
+  salt: number | null;
+  fiber: number | null;
+  sodium: number | null;
+  breadUnits: number | null;
+  cholesterol: number | null;
 };
 
 type SupabaseItemRow = {
@@ -56,6 +60,8 @@ type SupabaseItemRow = {
   is_yeast_free: boolean | null;
   is_lactose_free: boolean | null;
   is_gluten_free: boolean | null;
+  is_vegan: boolean | null;
+  is_vegetarian: boolean | null;
   packshot_x: number | null;
   packshot_y: number | null;
   packshot_zoom: number | null;
@@ -112,6 +118,8 @@ type InventoryItem = {
   isYeastFree?: boolean;
   isLactoseFree?: boolean;
   isGlutenFree?: boolean;
+  isVegan?: boolean;
+  isVegetarian?: boolean;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
   packshotX?: number | null;
@@ -163,6 +171,8 @@ export async function POST(request: Request) {
     isYeastFree?: boolean;
     isLactoseFree?: boolean;
     isGlutenFree?: boolean;
+    isVegan?: boolean;
+    isVegetarian?: boolean;
     packshotX?: number | null;
     packshotY?: number | null;
     packshotZoom?: number | null;
@@ -204,6 +214,8 @@ export async function POST(request: Request) {
     is_yeast_free?: boolean;
     is_lactose_free?: boolean;
     is_gluten_free?: boolean;
+    is_vegan?: boolean;
+    is_vegetarian?: boolean;
     packshot_x?: number | null;
     packshot_y?: number | null;
     packshot_zoom?: number | null;
@@ -357,6 +369,12 @@ export async function POST(request: Request) {
   if (typeof body.isGlutenFree === "boolean") {
     updates.is_gluten_free = body.isGlutenFree;
   }
+  if (typeof body.isVegan === "boolean") {
+    updates.is_vegan = body.isVegan;
+  }
+  if (typeof body.isVegetarian === "boolean") {
+    updates.is_vegetarian = body.isVegetarian;
+  }
 
   if (typeof body.packshotX === "number") {
     updates.packshot_x = body.packshotX;
@@ -502,6 +520,8 @@ export async function POST(request: Request) {
     isYeastFree: row.is_yeast_free ?? false,
     isLactoseFree: row.is_lactose_free ?? false,
     isGlutenFree: row.is_gluten_free ?? false,
+    isVegan: row.is_vegan ?? false,
+    isVegetarian: row.is_vegetarian ?? false,
     packshotX: row.packshot_x,
     packshotY: row.packshot_y,
     packshotZoom: row.packshot_zoom,
