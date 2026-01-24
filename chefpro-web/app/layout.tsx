@@ -36,9 +36,9 @@ export default function RootLayout({
             <SidebarNav />
           </aside>
           <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <header className="flex h-32 shrink-0 items-center justify-between border-b bg-[#F28C28] px-6">
+            <header className="flex h-64 shrink-0 items-center justify-between border-b bg-[#F28C28] px-6">
               <div className="flex items-center gap-4">
-                <img src="/recetui-logo-header-frei.png" alt="Recetui" className="h-24 w-auto object-contain" />
+                <img src="/recetui-logo-header-frei.png" alt="Recetui" className="h-48 w-auto object-contain" />
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-card-foreground shadow-sm">
