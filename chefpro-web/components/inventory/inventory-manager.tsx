@@ -985,12 +985,13 @@ export function InventoryManager() {
     }
   }, [packshotTranslate]);
 
+  const activeFileUrl = (docParsed && docParsed.fileUrl) || 
+    (selectedItemId && effectiveItems.find((i) => i.id === selectedItemId)?.fileUrl);
+
   // Automatic PDF preview generation and Image preview setting
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Determine the active file URL
-      const url = (docParsed && docParsed.fileUrl) || 
-                  (selectedItemId && effectiveItems.find((i) => i.id === selectedItemId)?.fileUrl);
+      const url = activeFileUrl;
       
       if (!url) {
           setPreviewImage(null);
@@ -1014,7 +1015,7 @@ export function InventoryManager() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [docParsed?.fileUrl, selectedItemId, effectiveItems, generateAndUploadPdfPreview]);
+  }, [activeFileUrl, selectedItemId, generateAndUploadPdfPreview]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1274,6 +1275,7 @@ export function InventoryManager() {
   useEffect(() => {
     if (selectedItem) {
       setImageUrlInput(selectedItem.imageUrl ?? "");
+      setPackshotUrl(selectedItem.imageUrl ?? "");
       if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
           selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
           setPackshotPan({ x: selectedItem.packshotX, y: selectedItem.packshotY });
@@ -3309,6 +3311,7 @@ export function InventoryManager() {
         throw new Error(message);
       }
       if (payload.imageUrl) {
+        setPreviewImage(null);
         setImageUrlInput(payload.imageUrl);
         setPackshotUrl(payload.imageUrl);
         setItems((previous) =>
