@@ -14,5 +14,9 @@ export function getSupabaseServerClient():
     return null;
   }
 
-  return createClient(supabaseUrl, supabaseServiceRoleKey);
+  // Trim whitespace to avoid connection errors
+  const url = supabaseUrl.trim();
+  const key = supabaseServiceRoleKey.trim();
+
+  return createClient(url, key);
 }

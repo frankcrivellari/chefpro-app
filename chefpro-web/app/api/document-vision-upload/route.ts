@@ -158,6 +158,10 @@ export async function POST(request: Request) {
     const arrayBuffer = await file.arrayBuffer();
     const fileBuffer = Buffer.from(arrayBuffer);
 
+    console.log(
+      `Starting upload to Supabase Storage. Bucket: ${STORAGE_BUCKET}, File: ${originalName}, Size: ${file.size}`
+    );
+
     const uploadResult = await client.storage
       .from(STORAGE_BUCKET)
       .upload(objectPath, fileBuffer, {
@@ -166,9 +170,19 @@ export async function POST(request: Request) {
       });
 
     if (uploadResult.error) {
+      console.error("Supabase Storage Upload Error:", uploadResult.error);
+      const isHtmlError =
+        uploadResult.error.message.includes("<") ||
+        uploadResult.error.message.includes("Unexpected token");
+      
+      let errorMessage = uploadResult.error.message;
+      if (isHtmlError) {
+        errorMessage = "Der Storage-Server hat eine ungültige Antwort (HTML statt JSON) zurückgegeben. Möglicherweise ist die Datei zu groß oder der Service nicht erreichbar.";
+      }
+
       return NextResponse.json(
         {
-          error: `Fehler beim Upload in Supabase Storage: ${uploadResult.error.message}`,
+          error: `Fehler beim Upload in Supabase Storage: ${errorMessage}`,
         },
         { status: 500 }
       );
