@@ -342,20 +342,20 @@ export async function POST(request: Request) {
       );
     }
 
-    if (
-      !parsed.name ||
-      !parsed.unit ||
-      typeof parsed.purchase_price !== "number"
-    ) {
+    if (!parsed.name) {
       return NextResponse.json(
         {
-          error: "Antwort von OpenAI Vision ist unvollständig.",
+          error: "Antwort von OpenAI Vision ist unvollständig (Name fehlt).",
           raw: parsed,
           fileUrl: publicUrl,
         },
         { status: 500 }
       );
     }
+
+    // Defaults for missing fields
+    if (!parsed.unit) parsed.unit = "Stück";
+    if (typeof parsed.purchase_price !== "number") parsed.purchase_price = 0;
 
     const allergens =
       Array.isArray(parsed.allergens) && parsed.allergens.length > 0
@@ -534,6 +534,7 @@ export async function POST(request: Request) {
         is_lactose_free: isLactoseFree,
         is_gluten_free: isGlutenFree,
         image_url: imagePublicUrl,
+        debug_reasoning: parsed.debug_reasoning,
       },
       fileUrl: publicUrl,
     });
