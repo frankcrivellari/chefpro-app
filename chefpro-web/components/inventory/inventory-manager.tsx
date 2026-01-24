@@ -616,7 +616,7 @@ export function InventoryManager() {
     setIsPackshotDragOver(true);
   };
 
-  const handlePackshotDragLeave = (e: React.DragEvent) => {
+  const handlePackshotLeave = (e: React.SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsPackshotDragOver(false);
@@ -634,6 +634,16 @@ export function InventoryManager() {
       if (file.type.startsWith("image/")) {
         await handleRecipeImageUpload(file);
       }
+    }
+  };
+
+  const handlePackshotFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      await handleRecipeImageUpload(file);
+    }
+    if (packshotFileInputRef.current) {
+      packshotFileInputRef.current.value = "";
     }
   };
 
@@ -3926,7 +3936,7 @@ export function InventoryManager() {
                                     onMouseUp={packshotPreview ? handlePanMouseUp : undefined}
                                     onMouseLeave={(e) => {
                                         if (packshotPreview) handlePanMouseUp();
-                                        handlePackshotDragLeave(e);
+                                        handlePackshotLeave(e);
                                     }}
                                     onDragOver={handlePackshotDragOver}
                                     onDrop={handlePackshotDrop}
@@ -3944,11 +3954,26 @@ export function InventoryManager() {
                                             draggable={false}
                                         />
                                     ) : (
-                                        <div className="text-center p-2">
-                                            <ImageIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                                            <span className="text-[10px] text-gray-400 block">Kein Bild</span>
+                                        <div className="flex flex-col items-center justify-center p-4 text-center z-20 relative">
+                                            <ImageIcon className="h-8 w-8 text-gray-300 mb-2" />
+                                            <span className="text-xs text-gray-500 mb-2">Ziehe ein Bild in das Fenster</span>
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                onClick={() => packshotFileInputRef.current?.click()}
+                                                className="bg-white hover:bg-gray-50"
+                                            >
+                                                Bild hochladen
+                                            </Button>
                                         </div>
                                     )}
+                                    <input 
+                                        type="file" 
+                                        ref={packshotFileInputRef} 
+                                        className="hidden" 
+                                        accept="image/*" 
+                                        onChange={handlePackshotFileChange} 
+                                    />
 
                                     {isPackshotDragOver && (
                                         <div className="absolute inset-0 flex items-center justify-center bg-blue-50/90 z-10 border-2 border-blue-500 border-dashed rounded-md">
