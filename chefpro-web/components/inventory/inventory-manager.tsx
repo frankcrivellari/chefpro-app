@@ -4072,7 +4072,7 @@ export function InventoryManager() {
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <div className="text-[11px] text-muted-foreground">
-                              Fertig-Gewicht (g/kg)
+                              Ergiebigkeit / Gebinde
                             </div>
                             <Input
                               type="text"
@@ -5805,7 +5805,7 @@ export function InventoryManager() {
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <div className="text-[11px] text-muted-foreground">
-                              Fertig-Gewicht (g/kg)
+                              Ergiebigkeit / Gebinde
                             </div>
                             <Input
                               type="text"
@@ -6180,7 +6180,7 @@ export function InventoryManager() {
                             </div>
                             <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
-                                Fertig-Gewicht (g/kg)
+                                Ergiebigkeit / Gebinde
                               </div>
                               <textarea
                                 rows={2}
@@ -7317,7 +7317,7 @@ export function InventoryManager() {
                         </div>
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
-                            Fertig-Gewicht (g/kg)
+                            Ergiebigkeit / Gebinde
                           </div>
                           <textarea
                             rows={2}
