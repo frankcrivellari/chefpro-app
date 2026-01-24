@@ -208,6 +208,7 @@ export async function POST(request: Request) {
     brand?: string | null;
     currency?: string;
     manufacturer_article_number?: string | null;
+    ean?: string | null;
     allergens?: string[] | null;
     ingredients?: string | null;
     dosage_instructions?: string | null;
@@ -267,6 +268,13 @@ export async function POST(request: Request) {
     updates.manufacturer_article_number =
       body.manufacturerArticleNumber.trim().length > 0
         ? body.manufacturerArticleNumber.trim()
+        : null;
+  }
+
+  if (typeof body.ean === "string") {
+    updates.ean =
+      body.ean.trim().length > 0
+        ? body.ean.trim()
         : null;
   }
 
