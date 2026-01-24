@@ -444,11 +444,35 @@ export async function POST(request: Request) {
     }
   }
 
-  let updateResponse = await client
-    .from("items")
-    .update(updates)
-    .eq("id", body.id)
-    .select("*");
+  // Check if ID is a valid UUID
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id);
+
+  let updateResponse;
+
+  if (!isUUID) {
+    console.log(`Creating new item for virtual ID: ${body.id}`);
+    // This is a virtual item (e.g. "staple-0"), so we INSERT instead of UPDATE
+    // We must ensure all mandatory fields for INSERT are present
+    const insertData = {
+      ...updates,
+      item_type: 'zukauf', // Staple items are always 'zukauf'
+      // Ensure mandatory fields have defaults if missing in updates
+      name: updates.name ?? 'Unbenannt',
+      unit: updates.unit ?? 'stk',
+      purchase_price: updates.purchase_price ?? 0,
+    };
+
+    updateResponse = await client
+      .from("items")
+      .insert(insertData)
+      .select("*");
+  } else {
+    updateResponse = await client
+      .from("items")
+      .update(safeUpdates)
+      .eq("id", body.id)
+      .select("*");
+  }
 
   // Retry logic for missing columns (schema mismatch)
   if (
@@ -458,7 +482,7 @@ export async function POST(request: Request) {
       updateResponse.error.message.includes("does not exist"))
   ) {
     console.warn(
-      "Update failed with column error, retrying with legacy schema",
+      "Operation failed with column error, retrying with legacy schema",
       updateResponse.error
     );
 
@@ -490,11 +514,25 @@ export async function POST(request: Request) {
     delete safeUpdates.is_vegan;
     delete safeUpdates.is_vegetarian;
 
-    updateResponse = await client
-      .from("items")
-      .update(safeUpdates)
-      .eq("id", body.id)
-      .select("*");
+    if (!isUUID) {
+      const safeInsertData = {
+        ...safeUpdates,
+        item_type: 'zukauf',
+        name: safeUpdates.name ?? 'Unbenannt',
+        unit: safeUpdates.unit ?? 'stk',
+        purchase_price: safeUpdates.purchase_price ?? 0,
+      };
+      updateResponse = await client
+        .from("items")
+        .insert(safeInsertData)
+        .select("*");
+    } else {
+      updateResponse = await client
+        .from("items")
+        .update(updates)
+        .eq("id", body.id)
+        .select("*");
+    }
   }
 
   if (updateResponse.error) {
