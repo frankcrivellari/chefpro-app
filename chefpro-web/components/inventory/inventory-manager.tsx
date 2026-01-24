@@ -228,23 +228,8 @@ const recipeCategories = ["Vorspeise", "Hauptgang", "Dessert"];
 
 const nutritionOptions = ["Vegan", "Vegetarisch", "Halal", "Glutenfrei"];
 
-const STAPLE_ITEMS = [
-  {"name": "Speisesalz (fein)", "item_type": "zukauf", "unit": "kg", "purchase_price": 0.85, "is_staple": true, "imageUrl": "/images/categories/spices.svg", "nutrition_per_unit": {"kcal": 0, "fat": 0, "carbs": 0, "protein": 0}},
-  {"name": "Kristallzucker", "item_type": "zukauf", "unit": "kg", "purchase_price": 1.30, "is_staple": true, "imageUrl": "/images/categories/dry-goods.svg", "nutrition_per_unit": {"kcal": 400, "fat": 0, "carbs": 100, "protein": 0}},
-  {"name": "Pflanzenöl (Raps)", "item_type": "zukauf", "unit": "l", "purchase_price": 1.95, "is_staple": true, "imageUrl": "/images/categories/oil.svg", "nutrition_per_unit": {"kcal": 828, "fat": 92, "carbs": 0, "protein": 0}},
-  {"name": "Butter", "item_type": "zukauf", "unit": "kg", "purchase_price": 7.50, "is_staple": true, "imageUrl": "/images/categories/dairy.svg", "nutrition_per_unit": {"kcal": 717, "fat": 81, "carbs": 0.7, "protein": 0.8}},
-  {"name": "Vollmilch 3,5%", "item_type": "zukauf", "unit": "l", "purchase_price": 1.15, "is_staple": true, "imageUrl": "/images/categories/dairy.svg", "nutrition_per_unit": {"kcal": 64, "fat": 3.5, "carbs": 4.8, "protein": 3.4}},
-  {"name": "Schlagsahne 30%", "item_type": "zukauf", "unit": "l", "purchase_price": 4.20, "is_staple": true, "imageUrl": "/images/categories/dairy.svg", "nutrition_per_unit": {"kcal": 292, "fat": 30, "carbs": 3.2, "protein": 2.4}},
-  {"name": "Weizenmehl 405", "item_type": "zukauf", "unit": "kg", "purchase_price": 0.90, "is_staple": true, "imageUrl": "/images/categories/dry-goods.svg", "nutrition_per_unit": {"kcal": 348, "fat": 1, "carbs": 72, "protein": 10}},
-  {"name": "Zwiebeln gelb", "item_type": "zukauf", "unit": "kg", "purchase_price": 0.95, "is_staple": true, "imageUrl": "/images/categories/produce.svg", "nutrition_per_unit": {"kcal": 40, "fat": 0.1, "carbs": 9, "protein": 1.1}},
-  {"name": "Knoblauch", "item_type": "zukauf", "unit": "kg", "purchase_price": 6.50, "is_staple": true, "imageUrl": "/images/categories/produce.svg", "nutrition_per_unit": {"kcal": 149, "fat": 0.5, "carbs": 33, "protein": 6.4}},
-  {"name": "Eier (M)", "item_type": "zukauf", "unit": "stk", "purchase_price": 0.18, "is_staple": true, "imageUrl": "/images/categories/dairy.svg", "nutrition_per_unit": {"kcal": 80, "fat": 5.5, "carbs": 0.5, "protein": 7}},
-  {"name": "Zitronen", "item_type": "zukauf", "unit": "kg", "purchase_price": 2.50, "is_staple": true, "imageUrl": "/images/categories/produce.svg", "nutrition_per_unit": {"kcal": 29, "fat": 0.3, "carbs": 9, "protein": 1.1}},
-  {"name": "Karotten", "item_type": "zukauf", "unit": "kg", "purchase_price": 1.20, "is_staple": true, "imageUrl": "/images/categories/produce.svg", "nutrition_per_unit": {"kcal": 41, "fat": 0.2, "carbs": 10, "protein": 0.9}},
-  {"name": "Kartoffeln (festkochend)", "item_type": "zukauf", "unit": "kg", "purchase_price": 1.50, "is_staple": true, "imageUrl": "/images/categories/produce.svg", "nutrition_per_unit": {"kcal": 77, "fat": 0.1, "carbs": 17, "protein": 2}},
-  {"name": "Pfeffer schwarz (gemahlen)", "item_type": "zukauf", "unit": "kg", "purchase_price": 25.00, "is_staple": true, "imageUrl": "/images/categories/spices.svg", "nutrition_per_unit": {"kcal": 251, "fat": 3.3, "carbs": 64, "protein": 10}},
-  {"name": "Honig", "item_type": "zukauf", "unit": "kg", "purchase_price": 12.00, "is_staple": true, "imageUrl": "/images/categories/dry-goods.svg", "nutrition_per_unit": {"kcal": 304, "fat": 0, "carbs": 82, "protein": 0.3}}
-];
+  // STAPLE_ITEMS removed to allow full control over inventory
+
 
   // initialItems removed
 
@@ -1048,45 +1033,7 @@ export function InventoryManager() {
         const data =
           (payload as InventoryItem[] | null) ?? [];
 
-        // Create a map of staples for quick lookup
-        const stapleMap = new Map(STAPLE_ITEMS.map(s => [s.name.toLowerCase(), s]));
-
-        // Patch loaded items with staple images if they are missing
-        const patchedData = data.map(item => {
-          const staple = stapleMap.get(item.name.toLowerCase());
-          // @ts-ignore
-          if (staple && staple.imageUrl && !item.imageUrl) {
-             // @ts-ignore
-             return { ...item, imageUrl: staple.imageUrl };
-          }
-          return item;
-        });
-
-        // Ensure STAPLE_ITEMS are present (virtual import)
-        const existingNames = new Set(patchedData.map((i) => i.name.toLowerCase()));
-        const missingStaples = STAPLE_ITEMS.filter(
-          (s) => !existingNames.has(s.name.toLowerCase())
-        ).map((s, index) => ({
-          id: `staple-${index}`,
-          name: s.name,
-          type: s.item_type as InventoryType,
-          unit: s.unit,
-          purchasePrice: s.purchase_price,
-          // @ts-ignore
-          imageUrl: s.imageUrl,
-          nutritionPerUnit: {
-            energyKcal: s.nutrition_per_unit.kcal,
-            fat: s.nutrition_per_unit.fat,
-            saturatedFat: 0,
-            carbs: s.nutrition_per_unit.carbs,
-            sugar: 0,
-            protein: s.nutrition_per_unit.protein,
-            salt: 0,
-          },
-          isBio: false,
-        } as InventoryItem));
-
-        const finalData = [...patchedData, ...missingStaples];
+        const finalData = data;
 
         if (!cancelled) {
           setItems(finalData);
