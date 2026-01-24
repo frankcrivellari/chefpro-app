@@ -3961,11 +3961,7 @@ export function InventoryManager() {
                       <div className="flex items-center gap-2">
                          <CardTitle className="text-base text-[#1F2326]">Stammdaten</CardTitle>
                       </div>
-                      <div className="flex gap-1">
-                         <Badge variant="outline" className="border-[#E5E7EB] text-[10px] font-normal text-[#6B7176] hover:bg-[#F6F7F5]">Trockenlager</Badge>
-                         <Badge variant="outline" className="border-[#E5E7EB] text-[10px] font-normal text-[#6B7176] hover:bg-[#F6F7F5]">Kühlung</Badge>
-                         <Badge variant="outline" className="border-[#E5E7EB] text-[10px] font-normal text-[#6B7176] hover:bg-[#F6F7F5]">Obst/Gemüse</Badge>
-                      </div>
+
                    </CardHeader>
                    <CardContent className="flex-1 overflow-y-auto p-4">
                       {selectedItem ? (
