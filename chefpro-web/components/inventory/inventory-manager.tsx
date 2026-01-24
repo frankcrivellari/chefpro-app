@@ -4718,6 +4718,30 @@ export function InventoryManager() {
                          </div>
                       )}
                    </CardContent>
+                   {selectedItem && (
+                     <div className="flex justify-end gap-2 px-6 pb-6">
+                       <Button
+                         type="button"
+                         size="sm"
+                         className="bg-emerald-600 px-3 py-1 text-[11px] font-medium text-emerald-50 hover:bg-emerald-700"
+                         disabled={isSaving}
+                         onClick={() => {
+                           void handleSaveAll();
+                         }}
+                       >
+                         {isSaving ? "Speichere..." : "Artikel speichern"}
+                       </Button>
+                       <Button
+                         type="button"
+                         size="sm"
+                         className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
+                         onClick={handleDelete}
+                         disabled={isDeleting || isSaving}
+                       >
+                         {isDeleting ? "Lösche..." : "Artikel löschen"}
+                       </Button>
+                     </div>
+                   )}
                 </Card>
               </div>
 
@@ -8029,30 +8053,6 @@ export function InventoryManager() {
                 </>
               )}
             </CardContent>
-            {selectedItem && (
-              <div className="flex justify-end gap-2 px-6 pb-6">
-                <Button
-                  type="button"
-                  size="sm"
-                  className="bg-emerald-600 px-3 py-1 text-[11px] font-medium text-emerald-50 hover:bg-emerald-700"
-                  disabled={isSaving}
-                  onClick={() => {
-                    void handleSaveAll();
-                  }}
-                >
-                  {isSaving ? "Speichere..." : "Artikel speichern"}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
-                  onClick={handleDelete}
-                  disabled={isDeleting || isSaving}
-                >
-                  {isDeleting ? "Lösche..." : "Artikel löschen"}
-                </Button>
-              </div>
-            )}
           </Card>
             </>
           )}
