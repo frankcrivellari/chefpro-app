@@ -606,6 +606,37 @@ export function InventoryManager() {
     setPackshotZoom((prev) => Math.max(prev - 0.2, 0.5));
   };
 
+  // Packshot Drag & Drop
+  const [isPackshotDragOver, setIsPackshotDragOver] = useState(false);
+  const packshotFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePackshotDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsPackshotDragOver(true);
+  };
+
+  const handlePackshotDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsPackshotDragOver(false);
+  };
+
+  const handlePackshotDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsPackshotDragOver(false);
+    
+    if (!selectedItem) return;
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.type.startsWith("image/")) {
+        await handleRecipeImageUpload(file);
+      }
+    }
+  };
+
   useEffect(() => {
     if (!pathname) {
       return;
@@ -3882,16 +3913,25 @@ export function InventoryManager() {
                    <CardContent className="flex-1 overflow-y-auto p-4">
                       {selectedItem ? (
                          <div className="space-y-4">
-                            {packshotPreview && (
-                                <div className="flex flex-col items-center mb-4">
-                                    <div className="text-[10px] font-medium text-[#6B7176] mb-1 w-full text-left">Packshot-Fokus</div>
-                                    <div 
-                                        className="relative h-40 w-40 overflow-hidden rounded-md border border-gray-200 bg-white cursor-move touch-none"
-                                        onMouseDown={handlePanMouseDown}
-                                        onMouseMove={handlePanMouseMove}
-                                        onMouseUp={handlePanMouseUp}
-                                        onMouseLeave={handlePanMouseUp}
-                                    >
+                            <div className="flex flex-col items-center mb-4">
+                                <div className="text-[10px] font-medium text-[#6B7176] mb-1 w-full text-left">Packshot-Fokus</div>
+                                <div 
+                                    className={cn(
+                                        "relative h-40 w-40 overflow-hidden rounded-md border bg-white transition-colors",
+                                        isPackshotDragOver ? "border-blue-500 bg-blue-50" : "border-gray-200",
+                                        packshotPreview ? "cursor-move touch-none" : "flex flex-col items-center justify-center cursor-default"
+                                    )}
+                                    onMouseDown={packshotPreview ? handlePanMouseDown : undefined}
+                                    onMouseMove={packshotPreview ? handlePanMouseMove : undefined}
+                                    onMouseUp={packshotPreview ? handlePanMouseUp : undefined}
+                                    onMouseLeave={(e) => {
+                                        if (packshotPreview) handlePanMouseUp();
+                                        handlePackshotDragLeave(e);
+                                    }}
+                                    onDragOver={handlePackshotDragOver}
+                                    onDrop={handlePackshotDrop}
+                                >
+                                    {packshotPreview ? (
                                         <img 
                                             src={packshotPreview} 
                                             alt="Packshot Focus" 
@@ -3903,11 +3943,26 @@ export function InventoryManager() {
                                             }}
                                             draggable={false}
                                         />
-                                    </div>
-                                    <div className="text-[9px] text-[#6B7176] mt-1">
-                                        Ausschnitt verschieben
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-2">
+                                    ) : (
+                                        <div className="text-center p-2">
+                                            <ImageIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                                            <span className="text-[10px] text-gray-400 block">Kein Bild</span>
+                                        </div>
+                                    )}
+
+                                    {isPackshotDragOver && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-blue-50/90 z-10 border-2 border-blue-500 border-dashed rounded-md">
+                                            <span className="text-xs font-medium text-blue-600">Bild hier ablegen</span>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className="text-[9px] text-[#6B7176] mt-1 text-center w-40">
+                                    {packshotPreview ? "Ausschnitt verschieben oder neues Bild hineinziehen" : "Ziehe ein Bild in das Fenster"}
+                                </div>
+
+                                <div className="flex items-center gap-2 mt-2 flex-wrap justify-center w-full">
+                                    {packshotPreview && (
                                         <div className="flex items-center rounded-md border border-[#E5E7EB] bg-white p-0.5 shadow-sm">
                                             <Button
                                                 variant="ghost"
@@ -3929,6 +3984,32 @@ export function InventoryManager() {
                                                 <Plus className="h-3 w-3" />
                                             </Button>
                                         </div>
+                                    )}
+                                    
+                                    <input 
+                                        type="file" 
+                                        ref={packshotFileInputRef} 
+                                        className="hidden" 
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            if (e.target.files && e.target.files[0]) {
+                                                handleRecipeImageUpload(e.target.files[0]);
+                                            }
+                                            e.target.value = ""; 
+                                        }}
+                                    />
+                                    
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 px-2 text-[10px]"
+                                        onClick={() => packshotFileInputRef.current?.click()}
+                                        disabled={imageIsUploading}
+                                    >
+                                        {imageIsUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Bild hochladen"}
+                                    </Button>
+
+                                    {packshotPreview && (
                                         <Button
                                             size="sm"
                                             className="h-6 bg-[#F28C28] px-2 text-[10px] text-white hover:bg-[#d67b23]"
@@ -3948,21 +4029,21 @@ export function InventoryManager() {
                                                         return item;
                                                     }));
                                                     try {
-                                                       setIsSaving(true);
-                                                       await handleSaveProfiData();
+                                                        setIsSaving(true);
+                                                        await handleSaveProfiData();
                                                     } catch (e) {
-                                                       setError(e instanceof Error ? e.message : "Fehler beim Speichern");
+                                                        setError(e instanceof Error ? e.message : "Fehler beim Speichern");
                                                     } finally {
-                                                       setIsSaving(false);
+                                                        setIsSaving(false);
                                                     }
                                                 }
                                             }}
                                         >
                                             Fokus fixieren
                                         </Button>
-                                    </div>
+                                    )}
                                 </div>
-                            )}
+                            </div>
                             <div className="grid gap-4">
                                <div className="grid gap-2">
                                   <label className="text-xs font-medium text-[#1F2326]">Artikelbezeichnung</label>
