@@ -3288,7 +3288,7 @@ export function InventoryManager() {
     }
 
     try {
-      setIsSaving(true);
+      setIsDeleting(true);
       const response = await fetch("/api/inventory", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -3306,7 +3306,7 @@ export function InventoryManager() {
       console.error(err);
       setError(err instanceof Error ? err.message : "Fehler beim Löschen");
     } finally {
-      setIsSaving(false);
+      setIsDeleting(false);
     }
   }
 
@@ -3960,31 +3960,6 @@ export function InventoryManager() {
                    <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
                       <div className="flex items-center gap-2">
                          <CardTitle className="text-base text-[#1F2326]">Stammdaten</CardTitle>
-                         {selectedItem && (
-                            <Button
-                              size="sm"
-                              className="h-6 border border-destructive/20 bg-destructive/5 px-2 text-destructive hover:bg-destructive/10"
-                              onClick={handleDelete}
-                            >
-                              Artikel löschen
-                            </Button>
-                         )}
-                         <Button 
-                           size="sm" 
-                           className="h-6 bg-[#4F8F4E] px-2 text-white hover:bg-[#3d7a3c]"
-                           onClick={async () => {
-                              try {
-                                 setIsSaving(true);
-                                 await handleSaveProfiData();
-                              } catch (e) {
-                                 setError(e instanceof Error ? e.message : "Fehler beim Speichern");
-                              } finally {
-                                 setIsSaving(false);
-                              }
-                           }}
-                         >
-                           Speichern
-                         </Button>
                       </div>
                       <div className="flex gap-1">
                          <Badge variant="outline" className="border-[#E5E7EB] text-[10px] font-normal text-[#6B7176] hover:bg-[#F6F7F5]">Trockenlager</Badge>
@@ -8067,58 +8042,15 @@ export function InventoryManager() {
                 >
                   {isSaving ? "Speichere..." : "Artikel speichern"}
                 </Button>
-                {selectedItem.type !== "eigenproduktion" && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
-                    onClick={async () => {
-                      const confirmed = window.confirm(
-                        "Möchtest du diesen Artikel wirklich löschen?"
-                      );
-                      if (!confirmed) {
-                        return;
-                      }
-                      try {
-                        setIsDeleting(true);
-                        setError(null);
-                        const response = await fetch("/api/inventory", {
-                          method: "DELETE",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify({ id: selectedItem.id }),
-                        });
-                        const payload = (await response.json()) as {
-                          error?: unknown;
-                          success?: boolean;
-                        };
-                        if (!response.ok || !payload.success) {
-                          let message = "Fehler beim Löschen des Artikels.";
-                          if (payload && typeof payload.error === "string") {
-                            message = payload.error;
-                          }
-                          throw new Error(message);
-                        }
-                        setItems((previous) =>
-                          previous.filter((item) => item.id !== selectedItem.id)
-                        );
-                        setSelectedItemId(null);
-                      } catch (deleteError) {
-                        const message =
-                          deleteError instanceof Error
-                            ? deleteError.message
-                            : "Fehler beim Löschen des Artikels.";
-                        setError(message);
-                      } finally {
-                        setIsDeleting(false);
-                      }
-                    }}
-                    disabled={isDeleting || isSaving}
-                  >
-                    {isDeleting ? "Lösche..." : "Artikel löschen"}
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
+                  onClick={handleDelete}
+                  disabled={isDeleting || isSaving}
+                >
+                  {isDeleting ? "Lösche..." : "Artikel löschen"}
+                </Button>
               </div>
             )}
           </Card>
