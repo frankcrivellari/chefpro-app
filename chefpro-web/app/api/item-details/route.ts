@@ -498,14 +498,16 @@ export async function POST(request: Request) {
   }
 
   if (updateResponse.error) {
+    console.error("Supabase Update Error:", JSON.stringify(updateResponse.error, null, 2));
     const msg = updateResponse.error.message;
-    const isColumnError = msg.includes("column") && msg.includes("does not exist");
+    const details = updateResponse.error.details || "";
+    const hint = updateResponse.error.hint || "";
+    const code = updateResponse.error.code || "";
     
     return NextResponse.json(
       {
-        error: isColumnError 
-          ? `Datenbank-Schema veraltet: ${msg}. Bitte Migrationen ausführen.` 
-          : msg,
+        error: `Datenbank-Fehler (${code}): ${msg}. Details: ${details}. Hint: ${hint}`,
+        originalError: updateResponse.error
       },
       { status: 500 }
     );
