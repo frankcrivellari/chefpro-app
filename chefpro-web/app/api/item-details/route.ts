@@ -423,21 +423,30 @@ export async function POST(request: Request) {
     .from("items")
     .update(updates)
     .eq("id", body.id)
-    .select("*")
-    .single();
+    .select("*");
 
-  if (updateResponse.error || !updateResponse.data) {
+  if (updateResponse.error) {
+    const msg = updateResponse.error.message;
+    const isColumnError = msg.includes("column") && msg.includes("does not exist");
+    
     return NextResponse.json(
       {
-        error:
-          updateResponse.error?.message ??
-          'Fehler beim Aktualisieren des Artikels in Tabelle "items"',
+        error: isColumnError 
+          ? `Datenbank-Schema veraltet: ${msg}. Bitte Migrationen ausführen.` 
+          : msg,
       },
       { status: 500 }
     );
   }
 
-  const row = updateResponse.data as SupabaseItemRow;
+  if (!updateResponse.data || updateResponse.data.length === 0) {
+    return NextResponse.json(
+      { error: "Artikel nicht gefunden (ID existiert nicht)" },
+      { status: 404 }
+    );
+  }
+
+  const row = updateResponse.data[0] as SupabaseItemRow;
 
   let components: InventoryComponent[] | undefined;
   let hasGhostComponents = false;
