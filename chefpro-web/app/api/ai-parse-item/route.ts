@@ -93,7 +93,7 @@ Beispiel Input 2: "400 g Produkt, 1 l Milch"
 Beispiel Output standardPreparation: { "components": [ { "name": "Hauptartikel", "quantity": 400, "unit": "g" }, { "name": "Milch", "quantity": 1, "unit": "l" } ] }
 
 Extrahiere folgende Daten als JSON:
-- name: Name des Artikels (falls im Text erkennbar, sonst "Neuer Artikel")
+- name: Name des Artikels (falls im Text erkennbar, sonst "Neuer Artikel"). WICHTIG: Das Feld 'name' muss die reine Artikelbezeichnung sein und darf KEINE Zusätze wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit' enthalten, es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens.
 - brand: Marke/Hersteller des Artikels (falls erkennbar)
 - unit: Gewicht/Menge des Inhalts (z.B. "1kg", "500g", "400g Abtropfgewicht"). WICHTIG: Das Feld soll den Wert UND die Einheit enthalten (z.B. "500g"), nicht nur die Einheit. Priorisiere Netto- oder Abtropfgewicht.
 - quantity: Menge des Artikels (als Zahl, z.B. 1 für 1 Stück/Packung, oder das Gewicht als Zahl wenn 'unit' nur 'kg' ist. Wenn 'unit' z.B. '500g' ist, setze quantity auf 1).
