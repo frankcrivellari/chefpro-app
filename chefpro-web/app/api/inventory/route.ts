@@ -343,7 +343,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const insertItemResponse = await client
+    let insertItemResponse = await client
       .from("items")
       .insert({
         name: body.name,
@@ -387,6 +387,63 @@ export async function POST(request: Request) {
       })
       .select("*")
       .single();
+
+    // Retry logic for missing columns (schema mismatch)
+    if (
+      insertItemResponse.error &&
+      (insertItemResponse.error.code === "42703" || // undefined_column
+        insertItemResponse.error.message.includes("column") ||
+        insertItemResponse.error.message.includes("does not exist"))
+    ) {
+      console.warn(
+        "Operation failed with column error, retrying with legacy schema",
+        insertItemResponse.error
+      );
+      
+      insertItemResponse = await client
+        .from("items")
+        .insert({
+          name: body.name,
+          item_type: body.type,
+          unit: body.unit,
+          brand: body.brand,
+          currency: body.currency ?? "EUR",
+          purchase_price: body.purchasePrice,
+          category: body.category ?? null,
+          portion_unit: body.portionUnit ?? null,
+          nutrition_tags:
+            body.nutritionTags && body.nutritionTags.length > 0
+              ? body.nutritionTags
+              : null,
+          preparation_steps:
+            typeof body.preparationSteps === "string" &&
+            body.preparationSteps.trim().length > 0
+              ? body.preparationSteps.trim()
+              : null,
+          nutrition_per_unit:
+            body.nutritionPerUnit && typeof body.nutritionPerUnit === "object"
+              ? body.nutritionPerUnit
+              : null,
+          dosage_instructions:
+            typeof body.dosageInstructions === "string" &&
+            body.dosageInstructions.trim().length > 0
+              ? body.dosageInstructions.trim()
+              : null,
+          standard_preparation:
+            body.standardPreparation && typeof body.standardPreparation === "object"
+              ? body.standardPreparation
+              : null,
+          is_vegan: body.isVegan ?? false,
+          is_vegetarian: body.isVegetarian ?? false,
+          is_powder: body.isPowder ?? false,
+          is_granulate: body.isGranulate ?? false,
+          is_paste: body.isPaste ?? false,
+          is_liquid: body.isLiquid ?? false,
+          // Exclude new fields in fallback
+        })
+        .select("*")
+        .single();
+    }
 
     if (insertItemResponse.error || !insertItemResponse.data) {
       console.error("Supabase insert item error", {
