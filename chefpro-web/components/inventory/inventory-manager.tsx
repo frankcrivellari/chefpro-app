@@ -633,24 +633,17 @@ export function InventoryManager() {
         // Update form inputs with extracted data
         setNameInput(extracted.name || "");
         setBrandInput(extracted.brand || "");
-        // setUnitInput is likely missing or named differently, check state definitions
-        // Assuming unit input is handled differently or named differently
-        // Found 'newItemUnit' but that's for new items.
-        // There is 'componentUnitInput' but that's for components.
-        // Let's check for unit state.
-        // Actually, for editing selected item, unit might be directly in item or state.
-        // Looking at state definitions around line 450, there is newItemUnit.
-        // But for editing? 
-        // Let's look at how handleSave uses inputs.
-        
         setPurchasePriceInput(extracted.purchase_price?.toString() || "");
-         setManufacturerArticleNumberInput(extracted.manufacturer_article_number || "");
-         setEanInput(extracted.ean || "");
+        setManufacturerArticleNumberInput(extracted.manufacturer_article_number || "");
+        setEanInput(extracted.ean || "");
         
         // Allergens & Ingredients
         setProAllergensInput(Array.isArray(extracted.allergens) ? extracted.allergens.join(", ") : extracted.allergens || "");
         setProIngredientsInput(extracted.ingredients || "");
         
+        // Yield Info
+        setProYieldWeightInput(extracted.yield_info || "");
+
         // Boolean Flags
         setIsBioInput(extracted.is_bio || false);
         setIsDeklarationsfreiInput(extracted.is_deklarationsfrei || false);
@@ -683,8 +676,65 @@ export function InventoryManager() {
            setProSugarInput(extracted.nutrition_per_100.sugar?.toString() || "");
            setProProteinInput(extracted.nutrition_per_100.protein?.toString() || "");
            setProSaltInput(extracted.nutrition_per_100.salt?.toString() || "");
+           setProFiberInput(extracted.nutrition_per_100.fiber?.toString() || "");
+           setProSodiumInput(extracted.nutrition_per_100.sodium?.toString() || "");
+           setProBreadUnitsInput(extracted.nutrition_per_100.bread_units?.toString() || "");
+           setProCholesterolInput(extracted.nutrition_per_100.cholesterol?.toString() || "");
         }
         
+        // Update selectedItem directly via setItems to ensure UI updates for fields bound to selectedItem
+        setItems(prev => prev.map(item => {
+          if (item.id !== selectedItem.id) return item;
+          return {
+            ...item,
+            name: extracted.name || item.name,
+            brand: extracted.brand || item.brand,
+            unit: extracted.unit || item.unit,
+            purchasePrice: typeof extracted.purchase_price === 'number' ? extracted.purchase_price : item.purchasePrice,
+            manufacturerArticleNumber: extracted.manufacturer_article_number || item.manufacturerArticleNumber,
+            ean: extracted.ean || item.ean,
+            ingredients: extracted.ingredients || item.ingredients,
+            allergens: Array.isArray(extracted.allergens) ? extracted.allergens : item.allergens,
+            warengruppe: extracted.warengruppe || item.warengruppe,
+            storageArea: extracted.storageArea || item.storageArea,
+            
+            // Flags
+            isBio: extracted.is_bio ?? item.isBio,
+            bioControlNumber: extracted.bio_control_number || item.bioControlNumber,
+            isDeklarationsfrei: extracted.is_deklarationsfrei ?? item.isDeklarationsfrei,
+            isAllergenfrei: extracted.is_allergenfrei ?? item.isAllergenfrei,
+            isCookChill: extracted.is_cook_chill ?? item.isCookChill,
+            isFreezeThawStable: extracted.is_freeze_thaw_stable ?? item.isFreezeThawStable,
+            isPalmOilFree: extracted.is_palm_oil_free ?? item.isPalmOilFree,
+            isYeastFree: extracted.is_yeast_free ?? item.isYeastFree,
+            isLactoseFree: extracted.is_lactose_free ?? item.isLactoseFree,
+            isGlutenFree: extracted.is_gluten_free ?? item.isGlutenFree,
+            isVegan: extracted.is_vegan ?? item.isVegan,
+            isVegetarian: extracted.is_vegetarian ?? item.isVegetarian,
+            isPowder: extracted.is_powder ?? item.isPowder,
+            isGranulate: extracted.is_granulate ?? item.isGranulate,
+            isPaste: extracted.is_paste ?? item.isPaste,
+            isLiquid: extracted.is_liquid ?? item.isLiquid,
+
+            // Nutrition object mapping
+            nutritionPerUnit: extracted.nutrition_per_100 ? {
+              energyKcal: extracted.nutrition_per_100.energy_kcal,
+              fat: extracted.nutrition_per_100.fat,
+              saturatedFat: extracted.nutrition_per_100.saturated_fat,
+              carbs: extracted.nutrition_per_100.carbs,
+              sugar: extracted.nutrition_per_100.sugar,
+              protein: extracted.nutrition_per_100.protein,
+              salt: extracted.nutrition_per_100.salt,
+              fiber: extracted.nutrition_per_100.fiber,
+              sodium: extracted.nutrition_per_100.sodium,
+              breadUnits: extracted.nutrition_per_100.bread_units,
+              cholesterol: extracted.nutrition_per_100.cholesterol,
+            } : item.nutritionPerUnit,
+            
+             standardPreparation: extracted.standard_preparation ? extracted.standard_preparation : item.standardPreparation,
+          };
+        }));
+
         // Debug Reasoning
         if (extracted.debug_reasoning) {
             console.log("AI Reasoning:", extracted.debug_reasoning);
@@ -3495,6 +3545,7 @@ export function InventoryManager() {
     }
 
     try {
+      console.log("Starting deletion for item:", selectedItem.id);
       setIsDeleting(true);
       setError(null);
       const response = await fetch("/api/inventory", {
@@ -3503,6 +3554,8 @@ export function InventoryManager() {
         body: JSON.stringify({ id: selectedItem.id }),
       });
 
+      console.log("Delete response status:", response.status);
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || "Fehler beim Löschen");
@@ -3510,9 +3563,12 @@ export function InventoryManager() {
 
       setItems((prev) => prev.filter((i) => i.id !== selectedItem.id));
       setSelectedItemId(null);
+      alert("Artikel erfolgreich gelöscht.");
     } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : "Fehler beim Löschen");
+      console.error("Delete error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Fehler beim Löschen";
+      setError(errorMessage);
+      alert(`Fehler beim Löschen: ${errorMessage}`);
     } finally {
       setIsDeleting(false);
     }
