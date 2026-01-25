@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
+export const dynamic = 'force-dynamic';
+
 type InventoryType = "zukauf" | "eigenproduktion";
 
 type StandardPreparationComponent = {
