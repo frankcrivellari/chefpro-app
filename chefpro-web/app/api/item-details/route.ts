@@ -524,6 +524,8 @@ export async function POST(request: Request) {
     delete safeUpdates.packshot_x;
     delete safeUpdates.packshot_y;
     delete safeUpdates.packshot_zoom;
+    delete safeUpdates.storage_area;
+    delete safeUpdates.warengruppe;
     delete safeUpdates.nutrition_per_unit;
     delete safeUpdates.brand;
     delete safeUpdates.currency;
@@ -559,7 +561,7 @@ export async function POST(request: Request) {
     } else {
       updateResponse = await client
         .from("items")
-        .update(updates)
+        .update(safeUpdates)
         .eq("id", body.id)
         .select("*");
     }
