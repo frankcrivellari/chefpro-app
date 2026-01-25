@@ -125,59 +125,40 @@ export async function POST(request: Request) {
     // 3. AI Extraction
     const systemPrompt = `
 Du bist ein Experte für Lebensmitteldaten und Inventur.
-Deine Aufgabe ist es, den Inhalt eines Dokuments (Webseite oder PDF) zu analysieren und strukturierte Daten für einen Lebensmittel-Artikel zu extrahieren.
+Deine Aufgabe ist es, den Inhalt eines Dokuments (Webseite oder PDF-Text) zu analysieren und strukturierte Daten für einen Lebensmittel-Artikel zu extrahieren.
 
-Extrahiere ALLE relevanten Informationen. Sei gründlich.
-Suche gezielt nach:
-- Artikelbezeichnung (name) - OHNE 'Pulver', 'Granulat' etc. im Namen (außer fester Bestandteil).
-- Marke (brand)
-- Menge/Einheit (quantity, unit) - z.B. "1 kg", "500 ml".
-- Einkaufspreis (purchase_price) - Falls verfügbar.
-- Nährwerte (nutrition_per_100) - SEHR WICHTIG! Suche nach Tabellen oder Listen mit Energy, Fat, Carbs, Protein, Salt etc.
-- Allergene (allergens) - Liste aller Allergene.
-- Zutaten (ingredients) - Vollständige Zutatenliste.
-- Dosierung (dosage_instructions, standard_preparation) - z.B. "50g auf 1L Wasser".
-- Hersteller-Info (manufacturer_article_number, ean).
-- Boolean Flags (is_bio, is_vegan, is_gluten_free, etc.) - Suche nach Hinweisen im Text.
-- Warengruppe & Lagerbereich.
+Antworte immer als JSON-Objekt.
 
-Antworte ausschließlich mit einem validen JSON-Objekt.
-JSON Struktur:
-{
-  "name": string,
-  "brand": string,
-  "unit": string, // z.B. "kg", "l", "stk"
-  "purchase_price": number,
-  "manufacturer_article_number": string,
-  "ean": string,
-  "ingredients": string,
-  "allergens": string[],
-  "dosage_instructions": string,
-  "standard_preparation": string | object,
-  "warengruppe": string, // "Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe"
-  "storageArea": string, // "Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren"
-  "is_bio": boolean,
-  "bio_control_number": string, // z.B. "DE-ÖKO-006"
-  "is_vegan": boolean,
-  "is_gluten_free": boolean,
-  "is_lactose_free": boolean,
-  "is_vegetarian": boolean,
-  "is_powder": boolean,
-  "is_granulate": boolean,
-  "is_paste": boolean,
-  "is_liquid": boolean,
-  "nutrition_per_100": {
-    "energy_kcal": number,
-    "fat": number,
-    "saturated_fat": number,
-    "carbs": number,
-    "sugar": number,
-    "protein": number,
-    "salt": number,
-    "fiber": number,
-    "sodium": number
-  }
-}
+WICHTIG: Das Feld 'name' ist das allerwichtigste Feld. Es MUSS immer einen Wert enthalten (String). Wenn du den exakten Namen nicht findest, generiere einen passenden Namen basierend auf dem Inhalt.
+Füge ein Feld 'debug_reasoning' (string) hinzu, in dem du beschreibst, welche Hinweise du im Text gefunden hast, die auf Eigenschaften wie Bio, Vegan, Glutenfrei etc. hinweisen. Begründe kurz deine Entscheidung für jedes Boolean-Flag.
+
+Ordne das Produkt einer 'warengruppe' (Obst & Gemüse, Molkerei & Eier, Trockensortiment, Getränke, Zusatz- & Hilfsstoffe) und einem 'storageArea' (Frischwaren, Kühlwaren, Tiefkühlwaren, Trockenwaren, Non Food) zu.
+Bestimme auch den Aggregatzustand des Produkts (Pulver, Granulat, Paste, Flüssigkeit).
+
+Die erwarteten Felder sind:
+- name (PFLICHT!)
+- brand (string)
+- unit (string) - WICHTIG: Muss Menge UND Einheit enthalten (z.B. '500g', '1kg', '10 Liter'). Suche explizit nach Nettofüllmengen oder Abtropfgewichten und verwende diese (z.B. '400g Abtropfgewicht').
+- purchase_price (number)
+- allergens (array of strings)
+- ingredients (string)
+- dosage_instructions (string) - Mischverhältnisse/Basismengen
+- standard_preparation (object) - Strukturierte Dosierung: { components: [{ name: string, quantity: number, unit: string }] }
+- yield_info (string) - Ergiebigkeit
+- preparation_steps (string)
+- nutrition_per_100 (object) - { energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt, fiber, sodium, bread_units, cholesterol }
+- manufacturer_article_number (string)
+- ean (string)
+- is_bio (boolean)
+- bio_control_number (string)
+- is_deklarationsfrei, is_allergenfrei, is_cook_chill, is_freeze_thaw_stable, is_palm_oil_free, is_yeast_free, is_lactose_free, is_gluten_free, is_vegan, is_vegetarian (booleans)
+- is_powder, is_granulate, is_paste, is_liquid (booleans)
+- warengruppe (string)
+- storageArea (string)
+
+WICHTIG: Das Feld 'name' muss die reine Artikelbezeichnung sein und darf KEINE Zusätze wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit' enthalten, es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens.
+nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml.
+Für die erste Komponente der 'standard_preparation' (die das Produkt selbst darstellt), verwende immer den vollständigen extrahierten Artikelnamen.
 `;
 
     const completionResponse = await fetch(
@@ -189,7 +170,7 @@ JSON Struktur:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "gpt-4o",
           response_format: { type: "json_object" },
           messages: [
             {
@@ -198,7 +179,7 @@ JSON Struktur:
             },
             {
               role: "user",
-              content: `URL: ${url}\n\nInhalt:\n${limitedText}`,
+              content: `Analysiere diesen Text und extrahiere die Daten:\n\nURL: ${url}\n\nInhalt:\n${limitedText}`,
             },
           ],
         }),
@@ -206,23 +187,33 @@ JSON Struktur:
     );
 
     if (!completionResponse.ok) {
-      throw new Error(`OpenAI API error: ${completionResponse.statusText}`);
+      const errorText = await completionResponse.text();
+      throw new Error(`OpenAI API error: ${completionResponse.status} ${completionResponse.statusText} - ${errorText}`);
     }
 
     const completionJson = await completionResponse.json();
-    const content = completionJson.choices[0]?.message?.content;
+    let content = completionJson.choices[0]?.message?.content;
 
     if (!content) {
       throw new Error("Empty response from OpenAI");
     }
 
-    const extractedData = JSON.parse(content);
+    // Markdown Cleanup (analog zu document-vision-upload)
+    content = content.replace(/```json\s*/g, "").replace(/```\s*$/g, "");
 
-    return NextResponse.json({ 
+    let extractedData;
+    try {
+      extractedData = JSON.parse(content);
+    } catch (e) {
+      console.error("JSON Parse Error:", e);
+      console.error("Raw Content:", content);
+      throw new Error("Fehler beim Verarbeiten der KI-Antwort (ungültiges JSON).");
+    }
+
+    return NextResponse.json({
       extracted: extractedData,
-      fileUrl: publicFileUrl 
+      fileUrl: publicFileUrl,
     });
-
   } catch (error) {
     console.error("AI Web Scan Error:", error);
     return NextResponse.json(
