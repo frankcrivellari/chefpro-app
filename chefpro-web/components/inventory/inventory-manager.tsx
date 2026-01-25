@@ -481,6 +481,7 @@ export function InventoryManager() {
   const [nameInput, setNameInput] = useState("");
   const [categoryInput, setCategoryInput] = useState("");
   const [storageAreaInput, setStorageAreaInput] = useState("");
+  const [openSections, setOpenSections] = useState<string[]>(["Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren", "Non Food", "Unkategorisiert"]);
   const [portionUnitInput, setPortionUnitInput] = useState("");
   const [nutritionTagsInput, setNutritionTagsInput] = useState<string[]>([]);
   const [targetPortionsInput, setTargetPortionsInput] = useState("");
