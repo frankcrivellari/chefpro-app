@@ -1538,6 +1538,9 @@ export function InventoryManager() {
     if (selectedItem) {
       setImageUrlInput(selectedItem.imageUrl ?? "");
       setPackshotUrl(selectedItem.imageUrl ?? "");
+      setPreviewImage(null); // Reset manual preview on item change
+      setDocParsed(null);    // Reset vision parsed data on item change
+
       if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
           selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
           setPackshotPan({ x: selectedItem.packshotX, y: selectedItem.packshotY });
@@ -1551,6 +1554,8 @@ export function InventoryManager() {
       }
     } else {
       setImageUrlInput("");
+      setPreviewImage(null);
+      setDocParsed(null);
       setPackshotPan({ x: 0, y: 0 });
       setPackshotZoom(2.0);
     }
