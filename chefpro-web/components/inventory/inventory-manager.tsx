@@ -592,6 +592,9 @@ export function InventoryManager() {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerZoom, setViewerZoom] = useState(1);
   const [isReScanning, setIsReScanning] = useState(false);
+  const [webScanUrl, setWebScanUrl] = useState("");
+  const [isWebScanning, setIsWebScanning] = useState(false);
+  const [webScanError, setWebScanError] = useState<string | null>(null);
 
   const handleReScan = async () => {
     if (!selectedItem?.fileUrl && !selectedItem?.imageUrl) return;
@@ -692,6 +695,108 @@ export function InventoryManager() {
       alert(`Fehler beim Re-Scan: ${error.message}`);
     } finally {
       setIsReScanning(false);
+    }
+  };
+
+  const handleWebScan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!webScanUrl.trim()) return;
+
+    setIsWebScanning(true);
+    setWebScanError(null);
+
+    try {
+      // 1. Scan the URL
+      const scanResponse = await fetch("/api/ai-web-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: webScanUrl }),
+      });
+
+      if (!scanResponse.ok) {
+        const errorData = await scanResponse.json();
+        throw new Error(errorData.error || "Fehler beim Web-Scan");
+      }
+
+      const { extracted } = await scanResponse.json();
+      const scannedData = extracted || {};
+
+      // 2. Map to InventoryItem structure
+      const newItemPayload = {
+        name: scannedData.name || "Unbenannter Artikel",
+        type: "zukauf",
+        unit: scannedData.unit || "Stück",
+        purchasePrice: typeof scannedData.purchase_price === "number" ? scannedData.purchase_price : 0,
+        brand: scannedData.brand,
+        manufacturerArticleNumber: scannedData.manufacturer_article_number,
+        ean: scannedData.ean,
+        ingredients: scannedData.ingredients,
+        allergens: Array.isArray(scannedData.allergens) ? scannedData.allergens : [],
+        dosageInstructions: typeof scannedData.dosage_instructions === 'string' 
+          ? scannedData.dosage_instructions 
+          : (typeof scannedData.standard_preparation === 'string' ? scannedData.standard_preparation : null),
+        standardPreparation: typeof scannedData.standard_preparation === 'object' ? scannedData.standard_preparation : null,
+        warengruppe: scannedData.warengruppe,
+        storageArea: scannedData.storageArea,
+        
+        // Boolean Flags
+        isBio: scannedData.is_bio,
+        isDeklarationsfrei: scannedData.is_deklarationsfrei,
+        isAllergenfrei: scannedData.is_allergenfrei,
+        isCookChill: scannedData.is_cook_chill,
+        isFreezeThawStable: scannedData.is_freeze_thaw_stable,
+        isPalmOilFree: scannedData.is_palm_oil_free,
+        isYeastFree: scannedData.is_yeast_free,
+        isLactoseFree: scannedData.is_lactose_free,
+        isGlutenFree: scannedData.is_gluten_free,
+        isVegan: scannedData.is_vegan,
+        isVegetarian: scannedData.is_vegetarian,
+        isPowder: scannedData.is_powder,
+        isGranulate: scannedData.is_granulate,
+        isPaste: scannedData.is_paste,
+        isLiquid: scannedData.is_liquid,
+
+        // Nutrition
+        nutritionPerUnit: scannedData.nutrition_per_100 ? {
+          energyKcal: scannedData.nutrition_per_100.energy_kcal,
+          fat: scannedData.nutrition_per_100.fat,
+          saturatedFat: scannedData.nutrition_per_100.saturated_fat,
+          carbs: scannedData.nutrition_per_100.carbs,
+          sugar: scannedData.nutrition_per_100.sugar,
+          protein: scannedData.nutrition_per_100.protein,
+          salt: scannedData.nutrition_per_100.salt,
+          fiber: scannedData.nutrition_per_100.fiber,
+          sodium: scannedData.nutrition_per_100.sodium,
+          breadUnits: scannedData.nutrition_per_100.bread_units,
+          cholesterol: scannedData.nutrition_per_100.cholesterol,
+        } : null,
+      };
+
+      // 3. Create Item in Database
+      const createResponse = await fetch("/api/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newItemPayload),
+      });
+
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json();
+        throw new Error(errorData.error || "Fehler beim Anlegen des Artikels");
+      }
+
+      const createdItem = await createResponse.json();
+
+      // 4. Update UI
+      setItems((prev) => [...prev, createdItem]);
+      setSelectedItemId(createdItem.id);
+      setIsDetailView(true);
+      setWebScanUrl(""); // Clear input
+      
+    } catch (error: any) {
+      console.error("Web Scan Error:", error);
+      setWebScanError(error.message || "Ein unbekannter Fehler ist aufgetreten");
+    } finally {
+      setIsWebScanning(false);
     }
   };
 
@@ -4090,6 +4195,27 @@ export function InventoryManager() {
                         <div className="flex justify-end gap-2">
                           <Button type="submit" size="sm" className="bg-[#4F8F4E] text-white hover:bg-[#3d7a3c]" disabled={aiIsParsing || !aiText.trim()}>
                             {aiIsParsing ? "Analysiere..." : "Analysieren"}
+                          </Button>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div className="space-y-2 rounded-md border border-[#E5E7EB] bg-[#F6F7F5]/50 p-3 text-xs mt-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-semibold text-[#1F2326]">KI Web-Scan</div>
+                        {webScanError && <span className="text-[11px] text-destructive">{webScanError}</span>}
+                      </div>
+                      <form className="space-y-2" onSubmit={handleWebScan}>
+                        <input
+                          type="url"
+                          value={webScanUrl}
+                          onChange={(event) => setWebScanUrl(event.target.value)}
+                          className="w-full rounded-md border border-[#E5E7EB] bg-white px-2 py-1 text-xs text-[#1F2326] placeholder:text-[#6B7176] shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8F4E] focus-visible:ring-offset-2"
+                          placeholder="https://shop.example.com/produkt"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button type="submit" size="sm" className="bg-[#4F8F4E] text-white hover:bg-[#3d7a3c]" disabled={isWebScanning || !webScanUrl.trim()}>
+                            {isWebScanning ? "Scanne..." : "Webseite scannen"}
                           </Button>
                         </div>
                       </form>
