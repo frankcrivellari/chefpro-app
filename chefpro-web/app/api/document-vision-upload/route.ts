@@ -46,6 +46,7 @@ type VisionExtracted = {
   is_liquid?: boolean;
   warengruppe?: string | null;
   storageArea?: string | null;
+  bio_control_number?: string | null;
   debug_reasoning?: string;
   standard_preparation?: {
     components: {
@@ -84,6 +85,7 @@ type SupabaseItemRow = {
   is_liquid: boolean | null;
   warengruppe: string | null;
   storage_area: string | null;
+  bio_control_number: string | null;
   file_url: string | null;
   image_url: string | null;
   nutrition_per_unit: {
@@ -283,10 +285,10 @@ export async function POST(request: Request) {
     }
 
     const instructions =
-      "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt. WICHTIG: Füge ein Feld 'debug_reasoning' (string) hinzu, in dem du zuerst beschreibst, welche visuellen Elemente, Logos, Siegel oder Text-Hinweise du gefunden hast, die auf Eigenschaften wie Bio, Vegan, Glutenfrei etc. hinweisen. Begründe kurz deine Entscheidung für jedes Boolean-Flag. Ordne das Produkt zudem einer 'warengruppe' (Obst & Gemüse, Molkerei & Eier, Trockensortiment, Getränke, Zusatz- & Hilfsstoffe) und einem 'storageArea' (Frischwaren, Kühlwaren, Tiefkühlwaren, Trockenwaren, Non Food) zu. Bestimme auch den Aggregatzustand des Produkts (Pulver, Granulat, Paste, Flüssigkeit) anhand der Beschreibung und Bilder. Danach folgen die Felder: name (string), brand (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), standard_preparation (object), yield_info (string), preparation_steps (string), nutrition_per_100 (object), manufacturer_article_number (string), ean (string), is_bio (boolean), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean), is_vegan (boolean), is_vegetarian (boolean), is_powder (boolean), is_granulate (boolean), is_paste (boolean), is_liquid (boolean), warengruppe (string), storageArea (string). WICHTIG: Das Feld 'name' muss die reine Artikelbezeichnung sein und darf KEINE Zusätze wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit' enthalten, es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens auf der Verpackung. Diese Information wird primär über die Boolean-Flags (is_powder, etc.) erfasst. nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml und enthält die Felder: energy_kcal (number), fat (number), saturated_fat (number), carbs (number), sugar (number), protein (number), salt (number), fiber (number), sodium (number), bread_units (number), cholesterol (number). Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge. ingredients sind die Zutaten in der Reihenfolge der Deklaration. dosage_instructions beschreibt ausschließlich Mischverhältnisse, Basismengen und Dosierungen als Text (z.B. '100g auf 1l' oder '10%'). standard_preparation enthält strukturierte Dosierungsdaten in 'components' (Array). Jeder Eintrag in components hat: name (string), quantity (number), unit (string). Für die erste Komponente der 'standard_preparation' (die das Produkt selbst darstellt), verwende immer den vollständigen, extrahierten Artikelnamen (Feld 'name'). Wenn es sich um ein Pulver handelt, hänge das Wort 'Pulver' an den Namen an (z.B. 'Mousse au Chocolat Klassik FAIRTRADE Pulver'). Verwende keine generischen Begriffe wie 'Mousse-Pulver', 'Produkt' oder 'Basis'. yield_info enthält die Ergiebigkeit als Text (z.B. 'ergibt 5 Liter' oder '50 Portionen à 100g'). preparation_steps enthält die Zubereitungsschritte als Fließtext. manufacturer_article_number ist die Artikelnummer des Herstellers. ean ist die EAN-Nummer (GTIN) des Produkts.";
+      "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt. WICHTIG: Füge ein Feld 'debug_reasoning' (string) hinzu, in dem du zuerst beschreibst, welche visuellen Elemente, Logos, Siegel oder Text-Hinweise du gefunden hast, die auf Eigenschaften wie Bio, Vegan, Glutenfrei etc. hinweisen. Begründe kurz deine Entscheidung für jedes Boolean-Flag. Ordne das Produkt zudem einer 'warengruppe' (Obst & Gemüse, Molkerei & Eier, Trockensortiment, Getränke, Zusatz- & Hilfsstoffe) und einem 'storageArea' (Frischwaren, Kühlwaren, Tiefkühlwaren, Trockenwaren, Non Food) zu. Bestimme auch den Aggregatzustand des Produkts (Pulver, Granulat, Paste, Flüssigkeit) anhand der Beschreibung und Bilder. Danach folgen die Felder: name (string), brand (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), standard_preparation (object), yield_info (string), preparation_steps (string), nutrition_per_100 (object), manufacturer_article_number (string), ean (string), is_bio (boolean), bio_control_number (string), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean), is_vegan (boolean), is_vegetarian (boolean), is_powder (boolean), is_granulate (boolean), is_paste (boolean), is_liquid (boolean), warengruppe (string), storageArea (string). WICHTIG: Das Feld 'name' muss die reine Artikelbezeichnung sein und darf KEINE Zusätze wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit' enthalten, es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens auf der Verpackung. Diese Information wird primär über die Boolean-Flags (is_powder, etc.) erfasst. nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml und enthält die Felder: energy_kcal (number), fat (number), saturated_fat (number), carbs (number), sugar (number), protein (number), salt (number), fiber (number), sodium (number), bread_units (number), cholesterol (number). bio_control_number ist die Bio-Kontrollstelle (z.B. DE-ÖKO-006), falls vorhanden. Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge. ingredients sind die Zutaten in der Reihenfolge der Deklaration. dosage_instructions beschreibt ausschließlich Mischverhältnisse, Basismengen und Dosierungen als Text (z.B. '100g auf 1l' oder '10%'). standard_preparation enthält strukturierte Dosierungsdaten in 'components' (Array). Jeder Eintrag in components hat: name (string), quantity (number), unit (string). Für die erste Komponente der 'standard_preparation' (die das Produkt selbst darstellt), verwende immer den vollständigen, extrahierten Artikelnamen (Feld 'name'). Wenn es sich um ein Pulver handelt, hänge das Wort 'Pulver' an den Namen an (z.B. 'Mousse au Chocolat Klassik FAIRTRADE Pulver'). Verwende keine generischen Begriffe wie 'Mousse-Pulver', 'Produkt' oder 'Basis'. yield_info enthält die Ergiebigkeit als Text (z.B. 'ergibt 5 Liter' oder '50 Portionen à 100g'). preparation_steps enthält die Zubereitungsschritte als Fließtext. manufacturer_article_number ist die Artikelnummer des Herstellers. ean ist die EAN-Nummer (GTIN) des Produkts.";
 
     const userTextInstructions =
-      "Analysiere dieses Produktdatenblatt und gib die Felder debug_reasoning, name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, preparation_steps, nutrition_per_100, manufacturer_article_number, ean, warengruppe, storageArea sowie alle boolean-Flags is_bio, is_deklarationsfrei, is_allergenfrei, is_cook_chill, is_freeze_thaw_stable, is_palm_oil_free, is_yeast_free, is_lactose_free, is_gluten_free, is_vegan, is_vegetarian, is_powder, is_granulate, is_paste, is_liquid zurück. WICHTIG: Achte besonders auf Logos, Icons oder Siegel (z.B. Bio-Logo, Vegan-Blume, Glutenfrei-Symbol), die auf dem Bild zu sehen sind, auch wenn sie nicht explizit im Text stehen. Setze die entsprechenden Flags auf true, wenn solche Symbole erkannt werden. Schreibe deine Beobachtungen dazu in 'debug_reasoning'. nutrition_per_100 sind die Nährwerte pro 100 g bzw. 100 ml mit energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt, fiber, sodium, bread_units, cholesterol.";
+      "Analysiere dieses Produktdatenblatt und gib die Felder debug_reasoning, name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, preparation_steps, nutrition_per_100, manufacturer_article_number, ean, warengruppe, storageArea, bio_control_number sowie alle boolean-Flags is_bio, is_deklarationsfrei, is_allergenfrei, is_cook_chill, is_freeze_thaw_stable, is_palm_oil_free, is_yeast_free, is_lactose_free, is_gluten_free, is_vegan, is_vegetarian, is_powder, is_granulate, is_paste, is_liquid zurück. WICHTIG: Achte besonders auf Logos, Icons oder Siegel (z.B. Bio-Logo, Vegan-Blume, Glutenfrei-Symbol), die auf dem Bild zu sehen sind, auch wenn sie nicht explizit im Text stehen. Setze die entsprechenden Flags auf true, wenn solche Symbole erkannt werden. Schreibe deine Beobachtungen dazu in 'debug_reasoning'. nutrition_per_100 sind die Nährwerte pro 100 g bzw. 100 ml mit energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt, fiber, sodium, bread_units, cholesterol.";
 
     const userText = promptInputText
       ? `${userTextInstructions}\n\nHier ist der extrahierte Text aus dem Dokument (nutze zusätzlich das Bild für Logos/Icons):\n${promptInputText}`
@@ -371,20 +373,35 @@ export async function POST(request: Request) {
 
     let parsed: VisionExtracted;
 
+    // Clean content from markdown code blocks if present (sometimes happens despite JSON mode)
+    const cleanContent = content.trim().replace(/^```json\s*/, "").replace(/^```\s*/, "").replace(/\s*```$/, "");
+
     try {
-      parsed = JSON.parse(content) as VisionExtracted;
-    } catch {
+      parsed = JSON.parse(cleanContent) as VisionExtracted;
+    } catch (e) {
+      console.error("JSON Parse Error:", e);
       return NextResponse.json(
         {
-          error:
-            "Antwort von OpenAI Vision konnte nicht als JSON gelesen werden.",
+          error: "Antwort von OpenAI Vision konnte nicht als JSON gelesen werden.",
+          details: String(e),
+          contentPreview: content.substring(0, 100),
           fileUrl: publicUrl,
         },
         { status: 500 }
       );
     }
 
-    if (!parsed.name) {
+    if (!parsed || typeof parsed !== "object") {
+      return NextResponse.json(
+        {
+          error: "Antwort von OpenAI Vision ist kein gültiges Objekt.",
+          fileUrl: publicUrl,
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!parsed.name || typeof parsed.name !== "string" || parsed.name.trim() === "") {
       return NextResponse.json(
         {
           error: "Antwort von OpenAI Vision ist unvollständig (Name fehlt).",
@@ -506,6 +523,7 @@ export async function POST(request: Request) {
       is_granulate: isGranulate,
       is_paste: isPaste,
       is_liquid: isLiquid,
+      bio_control_number: parsed.bio_control_number || null,
       warengruppe: parsed.warengruppe || null,
       storageArea: parsed.storageArea || null,
       image_url: imagePublicUrl,
@@ -551,6 +569,7 @@ export async function POST(request: Request) {
         is_liquid: isLiquid,
         warengruppe: parsed.warengruppe || null,
         storage_area: parsed.storageArea || null,
+        bio_control_number: parsed.bio_control_number || null,
         file_url: publicUrl,
         image_url: imagePublicUrl,
         brand: parsed.brand || null,
