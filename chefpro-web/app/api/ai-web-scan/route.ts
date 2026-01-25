@@ -157,6 +157,7 @@ JSON Struktur:
   "warengruppe": string, // "Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe"
   "storageArea": string, // "Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren"
   "is_bio": boolean,
+  "bio_control_number": string, // z.B. "DE-ÖKO-006"
   "is_vegan": boolean,
   "is_gluten_free": boolean,
   "is_lactose_free": boolean,

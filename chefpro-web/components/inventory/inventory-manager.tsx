@@ -194,6 +194,7 @@ type InventoryItem = {
   packshotZoom?: number | null;
   storageArea?: string | null;
   warengruppe?: string | null;
+  bioControlNumber?: string | null;
 };
 
 type ParsedAiItem = {
@@ -504,6 +505,7 @@ export function InventoryManager() {
   const [targetPortionsInput, setTargetPortionsInput] = useState("");
   const [targetSalesPriceInput, setTargetSalesPriceInput] = useState("");
   const [isBioInput, setIsBioInput] = useState(false);
+  const [bioControlNumberInput, setBioControlNumberInput] = useState("");
   const [isDeklarationsfreiInput, setIsDeklarationsfreiInput] =
     useState(false);
   const [isAllergenfreiInput, setIsAllergenfreiInput] = useState(false);
@@ -742,6 +744,7 @@ export function InventoryManager() {
         
         // Boolean Flags
         isBio: scannedData.is_bio,
+        bioControlNumber: scannedData.bio_control_number || null,
         isDeklarationsfrei: scannedData.is_deklarationsfrei,
         isAllergenfrei: scannedData.is_allergenfrei,
         isCookChill: scannedData.is_cook_chill,
@@ -1947,6 +1950,7 @@ export function InventoryManager() {
       setTargetPortionsInput("");
       setTargetSalesPriceInput("");
       setIsBioInput(false);
+      setBioControlNumberInput("");
       setIsDeklarationsfreiInput(false);
       setIsAllergenfreiInput(false);
       setIsCookChillInput(false);
@@ -4859,6 +4863,22 @@ export function InventoryManager() {
                             <label htmlFor="check-liquid">Flüssig</label>
                           </div>
                         </div>
+
+                        {isBioInput && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <label className="w-24 shrink-0 text-[11px] text-muted-foreground">
+                              Bio-Kontrollstelle:
+                            </label>
+                            <Input
+                              value={bioControlNumberInput}
+                              onChange={(e) =>
+                                setBioControlNumberInput(e.target.value)
+                              }
+                              className="h-7 w-full px-2 py-1 text-[11px]"
+                              placeholder="z.B. DE-ÖKO-006"
+                            />
+                          </div>
+                        )}
 
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">

@@ -83,6 +83,7 @@ type InventoryItem = {
   packshotZoom?: number | null;
   storageArea?: string | null;
   warengruppe?: string | null;
+  bioControlNumber?: string | null;
 };
 
 type SupabaseItemRow = {
@@ -130,6 +131,7 @@ type SupabaseItemRow = {
   packshot_zoom: number | null;
   storage_area: string | null;
   warengruppe: string | null;
+  bio_control_number: string | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -246,6 +248,7 @@ export async function GET() {
         packshotZoom: row.packshot_zoom,
         storageArea: row.storage_area,
         warengruppe: row.warengruppe,
+        bioControlNumber: row.bio_control_number,
       });
     }
 
@@ -342,6 +345,7 @@ export async function POST(request: Request) {
       isLiquid?: boolean;
       storageArea?: string | null;
       warengruppe?: string | null;
+      bioControlNumber?: string | null;
     };
 
     const client = getSupabaseServerClient();
@@ -416,6 +420,7 @@ export async function POST(request: Request) {
         is_liquid: body.isLiquid ?? false,
         storage_area: body.storageArea ?? null,
         warengruppe: body.warengruppe ?? null,
+        bio_control_number: body.bioControlNumber ?? null,
       })
       .select("*")
       .single();

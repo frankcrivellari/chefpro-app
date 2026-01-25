@@ -74,6 +74,7 @@ type SupabaseItemRow = {
   packshot_zoom: number | null;
   storage_area: string | null;
   warengruppe: string | null;
+  bio_control_number: string | null;
   file_url: string | null;
   image_url: string | null;
 };
@@ -136,6 +137,7 @@ type InventoryItem = {
   packshotZoom?: number | null;
   storageArea?: string | null;
   warengruppe?: string | null;
+  bioControlNumber?: string | null;
   imageUrl?: string | null;
   fileUrl?: string | null;
 };
@@ -196,6 +198,7 @@ export async function POST(request: Request) {
       packshotZoom?: number | null;
       storageArea?: string | null;
       warengruppe?: string | null;
+      bioControlNumber?: string | null;
       imageUrl?: string | null;
       fileUrl?: string | null;
     };
@@ -250,6 +253,7 @@ export async function POST(request: Request) {
     packshot_zoom?: number | null;
     storage_area?: string | null;
     warengruppe?: string | null;
+    bio_control_number?: string | null;
     file_url?: string | null;
     image_url?: string | null;
     nutrition_per_unit?: NutritionTotals | null;
@@ -464,6 +468,11 @@ export async function POST(request: Request) {
     updates.warengruppe = trimmed.length > 0 ? trimmed : null;
   }
 
+  if (typeof body.bioControlNumber === "string") {
+    const trimmed = body.bioControlNumber.trim();
+    updates.bio_control_number = trimmed.length > 0 ? trimmed : null;
+  }
+
   if (Object.prototype.hasOwnProperty.call(body, "standardPreparation")) {
     const value = body.standardPreparation;
     if (value === null) {
@@ -526,6 +535,7 @@ export async function POST(request: Request) {
     delete safeUpdates.packshot_zoom;
     delete safeUpdates.storage_area;
     delete safeUpdates.warengruppe;
+    delete safeUpdates.bio_control_number;
     delete safeUpdates.nutrition_per_unit;
     delete safeUpdates.brand;
     delete safeUpdates.currency;
