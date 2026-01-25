@@ -29,6 +29,7 @@ import {
   Clipboard,
   ChevronDown,
   ChevronUp,
+  Sparkles,
 } from "lucide-react";
 import { Accordion,
   AccordionContent,
@@ -447,7 +448,11 @@ export function InventoryManager() {
   const [newItemName, setNewItemName] = useState("");
   const [newItemType, setNewItemType] = useState<InventoryType>("zukauf");
   const [newItemUnit, setNewItemUnit] = useState("");
-  const [newItemPrice, setNewItemPrice] = useState("");
+  const [purchasePriceInput, setPurchasePriceInput] = useState("");
+  // Legacy alias for compatibility with existing code
+  const newItemPrice = purchasePriceInput;
+  const setNewItemPrice = setPurchasePriceInput;
+
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingComponents, setIsEditingComponents] = useState(false);
   const [componentSearch, setComponentSearch] = useState("");
@@ -482,7 +487,11 @@ export function InventoryManager() {
   const [proYieldWeightInput, setProYieldWeightInput] = useState("");
   const [proYieldVolumeInput, setProYieldVolumeInput] = useState("");
   const [proPreparationInput, setProPreparationInput] = useState("");
-  const [manufacturerInput, setManufacturerInput] = useState("");
+  const [manufacturerArticleNumberInput, setManufacturerArticleNumberInput] = useState("");
+  // Legacy alias for compatibility with existing code
+  const manufacturerInput = manufacturerArticleNumberInput;
+  const setManufacturerInput = setManufacturerArticleNumberInput;
+  
   const [eanInput, setEanInput] = useState("");
   const [brandInput, setBrandInput] = useState("");
   const [nameInput, setNameInput] = useState("");
@@ -582,6 +591,110 @@ export function InventoryManager() {
   // Document Viewer State
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [viewerZoom, setViewerZoom] = useState(1);
+  const [isReScanning, setIsReScanning] = useState(false);
+
+  const handleReScan = async () => {
+    if (!selectedItem?.fileUrl && !selectedItem?.imageUrl) return;
+    
+    if (!window.confirm("Möchten Sie die bestehenden Daten durch einen neuen Scan überschreiben? Ungespeicherte Änderungen gehen verloren.")) {
+      return;
+    }
+
+    setIsReScanning(true);
+
+    try {
+      const formData = new FormData();
+      // Pass the existing URL instead of a file
+      const url = selectedItem.imageUrl || selectedItem.fileUrl;
+      if (url) {
+        formData.append("existing_image_url", url);
+      }
+      formData.append("analyze_only", "true");
+
+      const response = await fetch("/api/document-vision-upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Fehler beim Re-Scan");
+      }
+
+      if (data.extracted) {
+        const extracted = data.extracted;
+        
+        // Update form inputs with extracted data
+        setNameInput(extracted.name || "");
+        setBrandInput(extracted.brand || "");
+        // setUnitInput is likely missing or named differently, check state definitions
+        // Assuming unit input is handled differently or named differently
+        // Found 'newItemUnit' but that's for new items.
+        // There is 'componentUnitInput' but that's for components.
+        // Let's check for unit state.
+        // Actually, for editing selected item, unit might be directly in item or state.
+        // Looking at state definitions around line 450, there is newItemUnit.
+        // But for editing? 
+        // Let's look at how handleSave uses inputs.
+        
+        setPurchasePriceInput(extracted.purchase_price?.toString() || "");
+         setManufacturerArticleNumberInput(extracted.manufacturer_article_number || "");
+         setEanInput(extracted.ean || "");
+        
+        // Allergens & Ingredients
+        setProAllergensInput(Array.isArray(extracted.allergens) ? extracted.allergens.join(", ") : extracted.allergens || "");
+        setProIngredientsInput(extracted.ingredients || "");
+        
+        // Boolean Flags
+        setIsBioInput(extracted.is_bio || false);
+        setIsDeklarationsfreiInput(extracted.is_deklarationsfrei || false);
+        setIsAllergenfreiInput(extracted.is_allergenfrei || false);
+        setIsCookChillInput(extracted.is_cook_chill || false);
+        setIsFreezeThawStableInput(extracted.is_freeze_thaw_stable || false);
+        setIsPalmOilFreeInput(extracted.is_palm_oil_free || false);
+        setIsYeastFreeInput(extracted.is_yeast_free || false);
+        setIsLactoseFreeInput(extracted.is_lactose_free || false);
+        setIsGlutenFreeInput(extracted.is_gluten_free || false);
+        setIsVeganInput(extracted.is_vegan || false);
+        setIsVegetarianInput(extracted.is_vegetarian || false);
+        
+        // Physical State Flags
+        setIsPowderInput(extracted.is_powder || false);
+        setIsGranulateInput(extracted.is_granulate || false);
+        setIsPasteInput(extracted.is_paste || false);
+        setIsLiquidInput(extracted.is_liquid || false);
+
+        // Category & Storage
+        setWarengruppeInput(extracted.warengruppe || "Trockensortiment");
+        setStorageAreaInput(extracted.storageArea || "Trockenwaren");
+
+        // Nutrition
+        if (extracted.nutrition_per_100) {
+           setProEnergyKcalInput(extracted.nutrition_per_100.energy_kcal?.toString() || "");
+           setProFatInput(extracted.nutrition_per_100.fat?.toString() || "");
+           setProSaturatedFatInput(extracted.nutrition_per_100.saturated_fat?.toString() || "");
+           setProCarbsInput(extracted.nutrition_per_100.carbs?.toString() || "");
+           setProSugarInput(extracted.nutrition_per_100.sugar?.toString() || "");
+           setProProteinInput(extracted.nutrition_per_100.protein?.toString() || "");
+           setProSaltInput(extracted.nutrition_per_100.salt?.toString() || "");
+        }
+        
+        // Debug Reasoning
+        if (extracted.debug_reasoning) {
+            console.log("AI Reasoning:", extracted.debug_reasoning);
+        }
+
+        alert("Daten wurden erfolgreich aktualisiert. Bitte prüfen und speichern.");
+      }
+    } catch (error: any) {
+      console.error("Re-Scan Error:", error);
+      alert(`Fehler beim Re-Scan: ${error.message}`);
+    } finally {
+      setIsReScanning(false);
+    }
+  };
+
 
 
   // Packshot Focus State
@@ -4778,11 +4891,37 @@ export function InventoryManager() {
                             onClick={() => setIsViewerOpen(!isViewerOpen)}
                           >
                             <span className="text-xs font-medium">Original-Dokument / Produktpass</span>
-                            {isViewerOpen ? (
-                                <ChevronUp className="h-4 w-4" />
-                            ) : (
-                                <ChevronDown className="h-4 w-4" />
-                            )}
+                            <div className="flex items-center gap-2">
+                                {(selectedItem?.fileUrl || selectedItem?.imageUrl) && (
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        className="h-6 text-[10px] px-2 bg-white/20 hover:bg-white/30 text-white border-none"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleReScan();
+                                        }}
+                                        disabled={isReScanning}
+                                    >
+                                        {isReScanning ? (
+                                            <>
+                                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                Scanne...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles className="mr-1 h-3 w-3" />
+                                                KI Re-Scan
+                                            </>
+                                        )}
+                                    </Button>
+                                )}
+                                {isViewerOpen ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                    <ChevronDown className="h-4 w-4" />
+                                )}
+                            </div>
                           </div>
                           
                           {isViewerOpen && (

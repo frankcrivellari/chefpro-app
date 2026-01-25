@@ -142,80 +142,108 @@ export async function POST(request: Request) {
 
   try {
     const formData = await request.formData();
-    const file = formData.get("file");
+    const existingImageUrl = formData.get("existing_image_url");
+    const analyzeOnly = formData.get("analyze_only") === "true";
+    let file = formData.get("file");
 
-    if (!(file instanceof Blob)) {
-      return NextResponse.json(
-        { error: "Es wurde keine Datei hochgeladen." },
-        { status: 400 }
-      );
-    }
+    let publicUrl = "";
+    let originalName = "upload";
+    let isImage = false;
+    let isPdf = false;
+    let fileBuffer: Buffer | null = null;
 
-    const originalName =
-      typeof formData.get("filename") === "string"
-        ? (formData.get("filename") as string)
-        : "upload";
-
-    const extensionFromName = originalName.includes(".")
-      ? originalName.split(".").pop() ?? ""
-      : "";
-
-    const safeExtension =
-      extensionFromName ||
-      (file.type === "application/pdf"
-        ? "pdf"
-        : file.type.startsWith("image/")
-        ? "jpg"
-        : "bin");
-
-    const objectPath = `${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}.${safeExtension}`;
-
-    const arrayBuffer = await file.arrayBuffer();
-    const fileBuffer = Buffer.from(arrayBuffer);
-
-    console.log(
-      `Starting upload to Supabase Storage. Bucket: ${STORAGE_BUCKET}, File: ${originalName}, Size: ${file.size}`
-    );
-
-    const uploadResult = await client.storage
-      .from(STORAGE_BUCKET)
-      .upload(objectPath, fileBuffer, {
-        contentType: file.type || "application/octet-stream",
-        upsert: false,
-      });
-
-    if (uploadResult.error) {
-      console.error("Supabase Storage Upload Error:", uploadResult.error);
-      const isHtmlError =
-        uploadResult.error.message.includes("<") ||
-        uploadResult.error.message.includes("Unexpected token");
-      
-      let errorMessage = uploadResult.error.message;
-      if (isHtmlError) {
-        errorMessage = "Der Storage-Server hat eine ungültige Antwort (HTML statt JSON) zurückgegeben. Möglicherweise ist die Datei zu groß oder der Service nicht erreichbar.";
+    if (existingImageUrl && typeof existingImageUrl === "string") {
+      publicUrl = existingImageUrl;
+      originalName = publicUrl.split("/").pop() ?? "existing_file";
+      isImage = true; // Assume image for simplicity if re-scanning, or check extension
+      if (publicUrl.toLowerCase().endsWith(".pdf")) {
+         isImage = false;
+         isPdf = true;
+         // For existing PDFs, we might need to fetch content if we want to extract text, 
+         // but for now let's assume we rely on vision if possible or just skip text extraction if we can't fetch easily.
+         // Actually, if it's a PDF, we need the buffer to parse text.
+         try {
+            const response = await fetch(publicUrl);
+            const arrayBuffer = await response.arrayBuffer();
+            fileBuffer = Buffer.from(arrayBuffer);
+         } catch (e) {
+            console.error("Failed to fetch existing PDF for re-scan:", e);
+         }
       }
+    } else {
+        if (!(file instanceof Blob)) {
+        return NextResponse.json(
+            { error: "Es wurde keine Datei hochgeladen." },
+            { status: 400 }
+        );
+        }
 
-      return NextResponse.json(
-        {
-          error: `Fehler beim Upload in Supabase Storage: ${errorMessage}`,
-        },
-        { status: 500 }
-      );
+        originalName =
+        typeof formData.get("filename") === "string"
+            ? (formData.get("filename") as string)
+            : "upload";
+
+        const extensionFromName = originalName.includes(".")
+        ? originalName.split(".").pop() ?? ""
+        : "";
+
+        const safeExtension =
+        extensionFromName ||
+        (file.type === "application/pdf"
+            ? "pdf"
+            : file.type.startsWith("image/")
+            ? "jpg"
+            : "bin");
+
+        const objectPath = `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}.${safeExtension}`;
+
+        const arrayBuffer = await file.arrayBuffer();
+        fileBuffer = Buffer.from(arrayBuffer);
+
+        console.log(
+        `Starting upload to Supabase Storage. Bucket: ${STORAGE_BUCKET}, File: ${originalName}, Size: ${file.size}`
+        );
+
+        const uploadResult = await client.storage
+        .from(STORAGE_BUCKET)
+        .upload(objectPath, fileBuffer, {
+            contentType: file.type || "application/octet-stream",
+            upsert: false,
+        });
+
+        if (uploadResult.error) {
+        console.error("Supabase Storage Upload Error:", uploadResult.error);
+        const isHtmlError =
+            uploadResult.error.message.includes("<") ||
+            uploadResult.error.message.includes("Unexpected token");
+        
+        let errorMessage = uploadResult.error.message;
+        if (isHtmlError) {
+            errorMessage = "Der Storage-Server hat eine ungültige Antwort (HTML statt JSON) zurückgegeben. Möglicherweise ist die Datei zu groß oder der Service nicht erreichbar.";
+        }
+
+        return NextResponse.json(
+            {
+            error: `Fehler beim Upload in Supabase Storage: ${errorMessage}`,
+            },
+            { status: 500 }
+        );
+        }
+
+        const publicUrlResult = client.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(objectPath);
+
+        publicUrl = publicUrlResult.data.publicUrl;
+
+        isImage = file.type.startsWith("image/");
+        isPdf =
+        file.type === "application/pdf" ||
+        file.type === "application/x-pdf" ||
+        file.type.endsWith("+pdf");
     }
-
-    const publicUrlResult = client.storage
-      .from(STORAGE_BUCKET)
-      .getPublicUrl(objectPath);
-
-    const publicUrl = publicUrlResult.data.publicUrl;
-
-    const isImage = file.type.startsWith("image/");
-    const isPdf =
-      file.type === "application/pdf" ||
-      file.type === "application/x-pdf" ||
-      file.type.endsWith("+pdf");
 
     const imagePublicUrl = isImage ? publicUrl : null;
 
@@ -236,7 +264,7 @@ export async function POST(request: Request) {
       useImage = true;
     }
 
-    if (isPdf) {
+    if (isPdf && fileBuffer) {
       try {
         const pdfData = await pdfParse(fileBuffer);
         promptInputText = pdfData.text.slice(0, 15000);
@@ -449,9 +477,50 @@ export async function POST(request: Request) {
         ? parsed.ean
         : null;
 
-    const insertItemResponse = await client
-      .from("items")
-      .insert({
+    const extractedData = {
+      name: parsed.name,
+      brand: parsed.brand,
+      unit: parsed.unit,
+      purchase_price: parsed.purchase_price,
+      nutrition_per_100: parsed.nutrition_per_100,
+      allergens,
+      ingredients,
+      dosage_instructions: dosageInstructions,
+      standard_preparation: parsed.standard_preparation,
+      yield_info: yieldInfo,
+      preparation_steps: preparationSteps,
+      manufacturer_article_number: manufacturerArticleNumber,
+      ean: ean,
+      is_bio: isBio,
+      is_deklarationsfrei: isDeklarationsfrei,
+      is_allergenfrei: isAllergenfrei,
+      is_cook_chill: isCookChill,
+      is_freeze_thaw_stable: isFreezeThawStable,
+      is_palm_oil_free: isPalmOilFree,
+      is_yeast_free: isYeastFree,
+      is_lactose_free: isLactoseFree,
+      is_gluten_free: isGlutenFree,
+      is_vegan: isVegan,
+      is_vegetarian: isVegetarian,
+      is_powder: isPowder,
+      is_granulate: isGranulate,
+      is_paste: isPaste,
+      is_liquid: isLiquid,
+      warengruppe: parsed.warengruppe || null,
+      storageArea: parsed.storageArea || null,
+      image_url: imagePublicUrl,
+      debug_reasoning: parsed.debug_reasoning,
+    };
+
+    if (analyzeOnly) {
+        return NextResponse.json({
+            item: null, // No new item created
+            extracted: extractedData,
+        });
+    }
+
+    const itemData: SupabaseItemRow = {
+        id: undefined as unknown as string, // Let DB generate ID
         name: parsed.name,
         item_type: "zukauf",
         unit: parsed.unit,
@@ -460,7 +529,7 @@ export async function POST(request: Request) {
         allergens,
         ingredients,
         dosage_instructions: dosageInstructions,
-        standard_preparation: parsed.standard_preparation,
+        standard_preparation: parsed.standard_preparation || null,
         yield_info: yieldInfo,
         preparation_steps: preparationSteps,
         manufacturer_article_number: manufacturerArticleNumber,
@@ -482,11 +551,18 @@ export async function POST(request: Request) {
         is_liquid: isLiquid,
         warengruppe: parsed.warengruppe || null,
         storage_area: parsed.storageArea || null,
-          file_url: publicUrl,
-          image_url: imagePublicUrl,
-          brand: parsed.brand || null,
-        })
-        .select("*")
+        file_url: publicUrl,
+        image_url: imagePublicUrl,
+        brand: parsed.brand || null,
+    };
+
+    // Remove id from object to let DB generate it
+    const { id, ...insertData } = itemData;
+
+    const insertItemResponse = await client
+      .from("items")
+      .insert(insertData)
+      .select("*")
       .single();
 
     if (insertItemResponse.error || !insertItemResponse.data) {
