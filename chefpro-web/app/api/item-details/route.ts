@@ -562,6 +562,7 @@ export async function POST(request: Request) {
     delete safeUpdates.is_gluten_free;
     delete safeUpdates.is_vegan;
     delete safeUpdates.is_vegetarian;
+    delete safeUpdates.is_fairtrade;
 
     if (!isUUID) {
       const safeInsertData = {
