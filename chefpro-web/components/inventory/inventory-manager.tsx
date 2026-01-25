@@ -3545,7 +3545,6 @@ export function InventoryManager() {
     }
 
     try {
-      console.log("Starting deletion for item:", selectedItem.id);
       setIsDeleting(true);
       setError(null);
       const response = await fetch("/api/inventory", {
@@ -3553,8 +3552,6 @@ export function InventoryManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: selectedItem.id }),
       });
-
-      console.log("Delete response status:", response.status);
 
       if (!response.ok) {
         const data = await response.json();
