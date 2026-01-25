@@ -46,6 +46,8 @@ type ParsedItem = {
   isGlutenFree?: boolean;
   isVegan?: boolean;
   isVegetarian?: boolean;
+  warengruppe?: string | null;
+  storageArea?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -105,6 +107,8 @@ Extrahiere folgende Daten als JSON:
 - Boolean Flags (true/false, default false): isBio, isDeklarationsfrei, isAllergenfrei, isCookChill, isFreezeThawStable, isPalmOilFree, isYeastFree (Hefefrei), isLactoseFree (Laktosefrei), isGlutenFree (Glutenfrei), isVegan, isVegetarian.
 - manufacturerArticleNumber: Hersteller-Artikelnummer (optional, als String)
 - ean: EAN-Nummer / GTIN (optional, als String)
+- warengruppe: "Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke" oder "Zusatz- & Hilfsstoffe" (optional, passende Kategorie wählen)
+- storageArea: "Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren" oder "Non Food" (optional, passenden Lagerbereich wählen)
 
 Berechne 'calculated_price_per_unit' = purchase_price / quantity.
 Antworte NUR mit dem JSON-Objekt.
@@ -282,6 +286,8 @@ Antworte NUR mit dem JSON-Objekt.
       isVegan: !!parsedRaw.isVegan,
       isVegetarian: !!parsedRaw.isVegetarian,
       brand: parsedRaw.brand,
+      warengruppe: parsedRaw.warengruppe || null,
+      storageArea: parsedRaw.storageArea || null,
     };
 
     return NextResponse.json(normalized);

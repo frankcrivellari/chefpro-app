@@ -204,6 +204,8 @@ type ParsedAiItem = {
   preparationText?: string | null;
   nutritionPerUnit?: NutritionTotals | null;
   dosageInstructions?: string | null;
+  warengruppe?: string | null;
+  storageArea?: string | null;
 };
 
 type ParsedDocumentItem = {
@@ -229,6 +231,8 @@ type ParsedDocumentItem = {
   isYeastFree?: boolean;
   isLactoseFree?: boolean;
   isGlutenFree?: boolean;
+  warengruppe?: string | null;
+  storageArea?: string | null;
 };
 
 const recipeCategories = ["Vorspeise", "Hauptgang", "Dessert"];
@@ -2628,6 +2632,8 @@ export function InventoryManager() {
           is_liquid?: boolean;
           image_url?: string | null;
           debug_reasoning?: string;
+          warengruppe?: string | null;
+          storageArea?: string | null;
         };
         fileUrl?: string;
       };
@@ -2830,6 +2836,8 @@ export function InventoryManager() {
         setIsGranulateInput(payload.extracted.is_granulate ?? false);
         setIsPasteInput(payload.extracted.is_paste ?? false);
         setIsLiquidInput(payload.extracted.is_liquid ?? false);
+        setWarengruppeInput(payload.extracted.warengruppe ?? "");
+        setStorageAreaInput(payload.extracted.storageArea ?? "");
 
         // Nutrition state updates
         const nutritionRaw = (payload.extracted.nutrition_per_100 || payload.extracted.nutrition_per_100g) as any;
@@ -3507,6 +3515,8 @@ export function InventoryManager() {
         preparationText?: string | null;
         nutritionPerUnit?: NutritionTotals | null;
         dosageInstructions?: string | null;
+        warengruppe?: string | null;
+        storageArea?: string | null;
       };
       setAiParsed({
         name: data.name,
@@ -3518,6 +3528,8 @@ export function InventoryManager() {
         preparationText: data.preparationText ?? null,
         nutritionPerUnit: data.nutritionPerUnit ?? null,
         dosageInstructions: data.dosageInstructions ?? null,
+        warengruppe: data.warengruppe ?? null,
+        storageArea: data.storageArea ?? null,
       });
     } catch (error) {
       const message =
@@ -4197,7 +4209,7 @@ export function InventoryManager() {
                               </div>
                                
                                <div className="grid gap-2">
-                                <label className="text-xs font-medium text-[#1F2326]">Warengruppe</label>
+                                <label className="text-xs font-medium text-[#1F2326]">Warengruppe (kulinarisch)</label>
                                 <select
                                   value={selectedItem.warengruppe || ""}
                                   onChange={(e) => {
@@ -4217,7 +4229,7 @@ export function InventoryManager() {
                               </div>
 
                               <div className="grid gap-2">
-                                <label className="text-xs font-medium text-[#1F2326]">Lagerbereich (Standby)</label>
+                                <label className="text-xs font-medium text-[#1F2326]">Lagerbereich (räumlich)</label>
                                 <select
                                   value={selectedItem.storageArea || ""}
                                    onChange={(e) => {
