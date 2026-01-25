@@ -1975,6 +1975,11 @@ export function InventoryManager() {
         ? String(selectedItem.targetSalesPrice)
         : ""
     );
+    setPackshotZoom(selectedItem.packshotZoom ?? 2.0);
+    setPackshotPan({
+      x: selectedItem.packshotX ?? 0,
+      y: selectedItem.packshotY ?? 0,
+    });
   }, [selectedItem]);
 
   const componentSearchResults = useMemo(() => {

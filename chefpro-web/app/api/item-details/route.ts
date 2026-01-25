@@ -247,6 +247,7 @@ export async function POST(request: Request) {
     packshot_y?: number | null;
     packshot_zoom?: number | null;
     storage_area?: string | null;
+    warengruppe?: string | null;
     file_url?: string | null;
     image_url?: string | null;
     nutrition_per_unit?: NutritionTotals | null;
@@ -454,6 +455,11 @@ export async function POST(request: Request) {
   if (typeof body.storageArea === "string") {
     const trimmed = body.storageArea.trim();
     updates.storage_area = trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (typeof body.warengruppe === "string") {
+    const trimmed = body.warengruppe.trim();
+    updates.warengruppe = trimmed.length > 0 ? trimmed : null;
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "standardPreparation")) {

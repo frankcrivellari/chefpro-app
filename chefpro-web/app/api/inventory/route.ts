@@ -242,6 +242,8 @@ export async function GET() {
         packshotX: row.packshot_x,
         packshotY: row.packshot_y,
         packshotZoom: row.packshot_zoom,
+        storageArea: row.storage_area,
+        warengruppe: row.warengruppe,
       });
     }
 
