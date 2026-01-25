@@ -151,7 +151,7 @@ Die erwarteten Felder sind:
 - ean (string)
 - is_bio (boolean)
 - bio_control_number (string)
-- is_deklarationsfrei, is_allergenfrei, is_cook_chill, is_freeze_thaw_stable, is_palm_oil_free, is_yeast_free, is_lactose_free, is_gluten_free, is_vegan, is_vegetarian (booleans)
+- is_deklarationsfrei, is_allergenfrei, is_cook_chill, is_freeze_thaw_stable, is_palm_oil_free, is_yeast_free, is_lactose_free, is_gluten_free, is_vegan, is_vegetarian, is_fairtrade (booleans)
 - is_powder, is_granulate, is_paste, is_liquid (booleans)
 - warengruppe (string)
 - storageArea (string)

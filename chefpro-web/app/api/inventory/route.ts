@@ -72,6 +72,7 @@ type InventoryItem = {
   isGlutenFree?: boolean;
   isVegan?: boolean;
   isVegetarian?: boolean;
+  isFairtrade?: boolean;
   isPowder?: boolean;
   isGranulate?: boolean;
   isPaste?: boolean;
@@ -122,6 +123,7 @@ type SupabaseItemRow = {
   is_gluten_free: boolean | null;
   is_vegan: boolean | null;
   is_vegetarian: boolean | null;
+  is_fairtrade: boolean | null;
   is_powder: boolean | null;
   is_granulate: boolean | null;
   is_paste: boolean | null;
@@ -238,8 +240,9 @@ export async function GET() {
         isLactoseFree: row.is_lactose_free ?? false,
         isGlutenFree: row.is_gluten_free ?? false,
         isVegan: row.is_vegan ?? false,
-        isVegetarian: row.is_vegetarian ?? false,
-        isPowder: row.is_powder ?? false,
+          isVegetarian: row.is_vegetarian ?? false,
+          isFairtrade: row.is_fairtrade ?? false,
+          isPowder: row.is_powder ?? false,
         isGranulate: row.is_granulate ?? false,
         isPaste: row.is_paste ?? false,
         isLiquid: row.is_liquid ?? false,
@@ -339,6 +342,7 @@ export async function POST(request: Request) {
       isGlutenFree?: boolean;
       isVegan?: boolean;
       isVegetarian?: boolean;
+      isFairtrade?: boolean;
       isPowder?: boolean;
       isGranulate?: boolean;
       isPaste?: boolean;
@@ -414,6 +418,7 @@ export async function POST(request: Request) {
         is_gluten_free: body.isGlutenFree ?? false,
         is_vegan: body.isVegan ?? false,
         is_vegetarian: body.isVegetarian ?? false,
+        is_fairtrade: body.isFairtrade ?? false,
         is_powder: body.isPowder ?? false,
         is_granulate: body.isGranulate ?? false,
         is_paste: body.isPaste ?? false,

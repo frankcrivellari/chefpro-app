@@ -182,6 +182,7 @@ type InventoryItem = {
   isGlutenFree?: boolean;
   isVegan?: boolean;
   isVegetarian?: boolean;
+  isFairtrade?: boolean;
   isPowder?: boolean;
   isGranulate?: boolean;
   isPaste?: boolean;
@@ -518,6 +519,7 @@ export function InventoryManager() {
   const [isGlutenFreeInput, setIsGlutenFreeInput] = useState(false);
   const [isVeganInput, setIsVeganInput] = useState(false);
   const [isVegetarianInput, setIsVegetarianInput] = useState(false);
+  const [isFairtradeInput, setIsFairtradeInput] = useState(false);
   const [isPowderInput, setIsPowderInput] = useState(false);
   const [isGranulateInput, setIsGranulateInput] = useState(false);
   const [isPasteInput, setIsPasteInput] = useState(false);
@@ -656,6 +658,7 @@ export function InventoryManager() {
         setIsGlutenFreeInput(extracted.is_gluten_free || false);
         setIsVeganInput(extracted.is_vegan || false);
         setIsVegetarianInput(extracted.is_vegetarian || false);
+        setIsFairtradeInput(extracted.is_fairtrade || false);
         
         // Physical State Flags
         setIsPowderInput(extracted.is_powder || false);
@@ -711,6 +714,7 @@ export function InventoryManager() {
             isGlutenFree: extracted.is_gluten_free ?? item.isGlutenFree,
             isVegan: extracted.is_vegan ?? item.isVegan,
             isVegetarian: extracted.is_vegetarian ?? item.isVegetarian,
+            isFairtrade: extracted.is_fairtrade ?? item.isFairtrade,
             isPowder: extracted.is_powder ?? item.isPowder,
             isGranulate: extracted.is_granulate ?? item.isGranulate,
             isPaste: extracted.is_paste ?? item.isPaste,
@@ -805,6 +809,7 @@ export function InventoryManager() {
         isGlutenFree: scannedData.is_gluten_free,
         isVegan: scannedData.is_vegan,
         isVegetarian: scannedData.is_vegetarian,
+        isFairtrade: scannedData.is_fairtrade,
         isPowder: scannedData.is_powder,
         isGranulate: scannedData.is_granulate,
         isPaste: scannedData.is_paste,
@@ -2009,6 +2014,9 @@ export function InventoryManager() {
       setIsYeastFreeInput(false);
       setIsLactoseFreeInput(false);
       setIsGlutenFreeInput(false);
+      setIsVeganInput(false);
+      setIsVegetarianInput(false);
+      setIsFairtradeInput(false);
       setIsPowderInput(false);
       setIsGranulateInput(false);
       setIsPasteInput(false);
@@ -2053,6 +2061,7 @@ export function InventoryManager() {
     setIsGlutenFreeInput(selectedItem.isGlutenFree ?? false);
     setIsVeganInput(selectedItem.isVegan ?? false);
     setIsVegetarianInput(selectedItem.isVegetarian ?? false);
+    setIsFairtradeInput(selectedItem.isFairtrade ?? false);
     setIsPowderInput(selectedItem.isPowder ?? false);
     setIsGranulateInput(selectedItem.isGranulate ?? false);
     setIsPasteInput(selectedItem.isPaste ?? false);
@@ -2906,6 +2915,7 @@ export function InventoryManager() {
           is_gluten_free?: boolean;
           is_vegan?: boolean;
           is_vegetarian?: boolean;
+          is_fairtrade?: boolean;
           is_powder?: boolean;
           is_granulate?: boolean;
           is_paste?: boolean;
@@ -2973,6 +2983,7 @@ export function InventoryManager() {
           isGlutenFree: rawItem.isGlutenFree ?? rawItem.is_gluten_free,
           isVegan: rawItem.isVegan ?? rawItem.is_vegan,
           isVegetarian: rawItem.isVegetarian ?? rawItem.is_vegetarian,
+          isFairtrade: rawItem.isFairtrade ?? rawItem.is_fairtrade,
           isPowder: rawItem.isPowder ?? rawItem.is_powder,
           isGranulate: rawItem.isGranulate ?? rawItem.is_granulate,
           isPaste: rawItem.isPaste ?? rawItem.is_paste,
@@ -3470,6 +3481,7 @@ export function InventoryManager() {
           isGlutenFree: isGlutenFreeInput,
           isVegan: isVeganInput,
           isVegetarian: isVegetarianInput,
+          isFairtrade: isFairtradeInput,
           isPowder: isPowderInput,
           isGranulate: isGranulateInput,
           isPaste: isPasteInput,
@@ -4872,6 +4884,18 @@ export function InventoryManager() {
                               className="h-3 w-3 rounded border-gray-300"
                             />
                             <label htmlFor="check-vegetarian">Vegetarisch</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isFairtradeInput}
+                              onChange={(e) =>
+                                setIsFairtradeInput(e.target.checked)
+                              }
+                              id="check-fairtrade"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-fairtrade">Fairtrade</label>
                           </div>
                           <div className="flex items-center gap-1.5">
                             <input

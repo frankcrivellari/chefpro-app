@@ -65,6 +65,7 @@ type SupabaseItemRow = {
   is_gluten_free: boolean | null;
   is_vegan: boolean | null;
   is_vegetarian: boolean | null;
+  is_fairtrade: boolean | null;
   is_powder: boolean | null;
   is_granulate: boolean | null;
   is_paste: boolean | null;
@@ -130,6 +131,7 @@ type InventoryItem = {
   isGlutenFree?: boolean;
   isVegan?: boolean;
   isVegetarian?: boolean;
+  isFairtrade?: boolean;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
   packshotX?: number | null;
@@ -188,8 +190,9 @@ export async function POST(request: Request) {
       isLactoseFree?: boolean;
       isGlutenFree?: boolean;
       isVegan?: boolean;
-      isVegetarian?: boolean;
-      isPowder?: boolean;
+  isVegetarian?: boolean;
+  isFairtrade?: boolean;
+  isPowder?: boolean;
       isGranulate?: boolean;
       isPaste?: boolean;
       isLiquid?: boolean;
@@ -244,6 +247,7 @@ export async function POST(request: Request) {
     is_gluten_free?: boolean;
     is_vegan?: boolean;
     is_vegetarian?: boolean;
+    is_fairtrade?: boolean;
     is_powder?: boolean;
     is_granulate?: boolean;
     is_paste?: boolean;
@@ -434,6 +438,9 @@ export async function POST(request: Request) {
   }
   if (typeof body.isVegetarian === "boolean") {
     updates.is_vegetarian = body.isVegetarian;
+  }
+  if (typeof body.isFairtrade === "boolean") {
+    updates.is_fairtrade = body.isFairtrade;
   }
   if (typeof body.isPowder === "boolean") {
     updates.is_powder = body.isPowder;
@@ -709,6 +716,7 @@ export async function POST(request: Request) {
     isGlutenFree: row.is_gluten_free ?? false,
     isVegan: row.is_vegan ?? false,
     isVegetarian: row.is_vegetarian ?? false,
+    isFairtrade: row.is_fairtrade ?? false,
     packshotX: row.packshot_x,
     packshotY: row.packshot_y,
     packshotZoom: row.packshot_zoom,
