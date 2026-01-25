@@ -27,6 +27,8 @@ import {
   Copy,
   Check,
   Clipboard,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Accordion,
   AccordionContent,
@@ -576,6 +578,11 @@ export function InventoryManager() {
   const [crop, setCrop] = useState<Crop>();
   const packshotImgRef = useRef<HTMLImageElement>(null);
   const [packshotTranslate, setPackshotTranslate] = useState({ x: 0, y: 0 }); // Kept for build compatibility but unused in crop logic
+
+  // Document Viewer State
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [viewerZoom, setViewerZoom] = useState(1);
+
 
   // Packshot Focus State
   const [packshotPan, setPackshotPan] = useState({ x: 0, y: 0 });
@@ -2838,6 +2845,7 @@ export function InventoryManager() {
         setIsLiquidInput(payload.extracted.is_liquid ?? false);
         setWarengruppeInput(payload.extracted.warengruppe ?? "");
         setStorageAreaInput(payload.extracted.storageArea ?? "");
+        setIsViewerOpen(true);
 
         // Nutrition state updates
         const nutritionRaw = (payload.extracted.nutrition_per_100 || payload.extracted.nutrition_per_100g) as any;
@@ -4764,7 +4772,55 @@ export function InventoryManager() {
                                  </>
                                )}
 
-
+                        <div className="pt-4">
+                          <div
+                            className="flex items-center justify-between rounded-t-md bg-[#6B7176] px-3 py-2 text-white cursor-pointer hover:bg-[#5a5f64] transition-colors"
+                            onClick={() => setIsViewerOpen(!isViewerOpen)}
+                          >
+                            <span className="text-xs font-medium">Original-Dokument / Produktpass</span>
+                            {isViewerOpen ? (
+                                <ChevronUp className="h-4 w-4" />
+                            ) : (
+                                <ChevronDown className="h-4 w-4" />
+                            )}
+                          </div>
+                          
+                          {isViewerOpen && (
+                             <div className="border border-t-0 border-gray-200 rounded-b-md p-2 bg-white">
+                                {selectedItem?.fileUrl || selectedItem?.imageUrl ? (
+                                   <div className="flex flex-col gap-2">
+                                      {!(selectedItem.fileUrl?.toLowerCase().endsWith('.pdf')) && (
+                                          <div className="flex justify-end gap-2">
+                                              <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => setViewerZoom(z => Math.max(0.5, z - 0.1))}><Minus className="h-3 w-3" /></Button>
+                                              <span className="text-[10px] self-center w-8 text-center">{Math.round(viewerZoom * 100)}%</span>
+                                              <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => setViewerZoom(z => Math.min(3, z + 0.1))}><Plus className="h-3 w-3" /></Button>
+                                          </div>
+                                      )}
+                                      <div className="overflow-auto max-h-[500px] border rounded bg-gray-50 flex justify-center p-2 relative">
+                                          {selectedItem.fileUrl?.toLowerCase().endsWith('.pdf') ? (
+                                              <iframe 
+                                                src={selectedItem.fileUrl} 
+                                                className="w-full h-[500px]" 
+                                                style={{ border: 'none' }} 
+                                              />
+                                          ) : (
+                                              <div style={{ transform: `scale(${viewerZoom})`, transformOrigin: 'top left', transition: 'transform 0.2s' }}>
+                                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                  <img 
+                                                    src={selectedItem.imageUrl || selectedItem.fileUrl || ""} 
+                                                    alt="Original Dokument" 
+                                                    className="max-w-full h-auto"
+                                                  />
+                                              </div>
+                                          )}
+                                      </div>
+                                   </div>
+                                ) : (
+                                   <div className="text-center text-xs text-gray-500 py-4">Kein Dokument vorhanden</div>
+                                )}
+                             </div>
+                          )}
+                        </div>
 
                                <div className="flex justify-between items-center">
                                   {/* Buttons moved to header */}
