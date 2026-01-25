@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
+import pdfParse from "pdf-parse";
 
 export async function POST(request: Request) {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -10,6 +12,9 @@ export async function POST(request: Request) {
     );
   }
 
+  const client = getSupabaseServerClient();
+  const STORAGE_BUCKET = "product-documents";
+
   try {
     const { url } = (await request.json()) as { url?: string };
 
@@ -20,19 +25,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Web Scraping
-    let htmlContent = "";
+    // 1. Fetch URL
+    let fetchResponse: Response;
     try {
-      const response = await fetch(url, {
+      fetchResponse = await fetch(url, {
         headers: {
           "User-Agent":
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         },
       });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!fetchResponse.ok) {
+        throw new Error(`HTTP error! status: ${fetchResponse.status}`);
       }
-      htmlContent = await response.text();
     } catch (fetchError) {
       console.error("Error fetching URL:", fetchError);
       return NextResponse.json(
@@ -45,54 +49,134 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Simple text extraction (stripping HTML)
-    // Remove scripts and styles
-    let textContent = htmlContent.replace(
-      /<script\b[^>]*>[\s\S]*?<\/script>/gim,
-      ""
-    );
-    textContent = textContent.replace(
-      /<style\b[^>]*>[\s\S]*?<\/style>/gim,
-      ""
-    );
-    // Remove HTML tags
-    textContent = textContent.replace(/<[^>]+>/g, "\n");
-    // Decode HTML entities (basic ones)
-    textContent = textContent
-      .replace(/&nbsp;/g, " ")
-      .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&quot;/g, '"');
-    // Normalize whitespace
-    textContent = textContent.replace(/\s+/g, " ").trim();
+    const contentType = fetchResponse.headers.get("content-type") || "";
+    let extractedText = "";
+    let publicFileUrl: string | null = null;
 
-    // Limit text length to avoid token limits (e.g., 15000 chars should be enough for product details)
-    const limitedText = textContent.slice(0, 15000);
+    // 2. Handle Content Type
+    if (contentType.includes("application/pdf")) {
+      // PDF Handling
+      const arrayBuffer = await fetchResponse.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
 
-    // 3. Generic AI Extraction
+      // Upload to Supabase Storage if client is available
+      if (client) {
+        const filename = `web-scan-${Date.now()}.pdf`;
+        const { data, error: uploadError } = await client.storage
+          .from(STORAGE_BUCKET)
+          .upload(filename, buffer, {
+            contentType: "application/pdf",
+            upsert: false,
+          });
+
+        if (!uploadError) {
+          const { data: publicUrlData } = client.storage
+            .from(STORAGE_BUCKET)
+            .getPublicUrl(filename);
+          publicFileUrl = publicUrlData.publicUrl;
+        } else {
+          console.error("Supabase Upload Error:", uploadError);
+        }
+      }
+
+      // Extract text from PDF
+      try {
+        const pdfData = await pdfParse(buffer);
+        extractedText = pdfData.text;
+      } catch (pdfError) {
+        console.error("PDF Parse Error:", pdfError);
+        return NextResponse.json(
+          { error: "Fehler beim Lesen der PDF-Datei" },
+          { status: 500 }
+        );
+      }
+    } else {
+      // HTML Handling
+      const htmlContent = await fetchResponse.text();
+
+      // Improve HTML text extraction
+      let textContent = htmlContent
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gim, "")
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gim, "")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n")
+        .replace(/<\/div>/gi, "\n")
+        .replace(/<\/tr>/gi, "\n")
+        .replace(/<\/li>/gi, "\n")
+        .replace(/<td[^>]*>/gi, " | ")
+        .replace(/<\/td>/gi, "")
+        .replace(/<[^>]+>/g, " ");
+
+      // Decode entities
+      textContent = textContent
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"');
+
+      // Normalize whitespace
+      extractedText = textContent.replace(/\s+/g, " ").trim();
+    }
+
+    // Limit text length
+    const limitedText = extractedText.slice(0, 25000); // Increased limit for better context
+
+    // 3. AI Extraction
     const systemPrompt = `
-Du bist ein Experte für Lebensmittdaten und Inventur.
-Deine Aufgabe ist es, den Inhalt einer Webseite zu analysieren und alle Informationen zu extrahieren, die zu den Stammdaten-Feldern eines Lebensmittel-Artikels passen.
+Du bist ein Experte für Lebensmitteldaten und Inventur.
+Deine Aufgabe ist es, den Inhalt eines Dokuments (Webseite oder PDF) zu analysieren und strukturierte Daten für einen Lebensmittel-Artikel zu extrahieren.
 
-Extrahiere so viele relevante Informationen wie möglich.
-Gib der KI keine feste Liste an Feldern vor, aber orientiere dich an typischen Feldern wie:
-- Artikelbezeichnung (name) - OHNE Aggregatzustände wie 'Pulver', 'Granulat' etc., es sei denn Teil des offiziellen Namens.
+Extrahiere ALLE relevanten Informationen. Sei gründlich.
+Suche gezielt nach:
+- Artikelbezeichnung (name) - OHNE 'Pulver', 'Granulat' etc. im Namen (außer fester Bestandteil).
 - Marke (brand)
-- Menge/Einheit (quantity, unit)
-- Einkaufspreis (purchase_price)
-- Nährwerte pro 100g (nutrition_per_100: { energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt })
-- Allergene (allergens: string[])
-- Zutaten (ingredients: string)
-- Dosierung (dosage_instructions, standard_preparation)
-- Hersteller-Info (manufacturer_article_number, ean)
-- Boolean Flags (is_bio, is_vegan, is_gluten_free, is_lactose_free, etc.)
-- Warengruppe (warengruppe)
-- Lagerbereich (storageArea)
+- Menge/Einheit (quantity, unit) - z.B. "1 kg", "500 ml".
+- Einkaufspreis (purchase_price) - Falls verfügbar.
+- Nährwerte (nutrition_per_100) - SEHR WICHTIG! Suche nach Tabellen oder Listen mit Energy, Fat, Carbs, Protein, Salt etc.
+- Allergene (allergens) - Liste aller Allergene.
+- Zutaten (ingredients) - Vollständige Zutatenliste.
+- Dosierung (dosage_instructions, standard_preparation) - z.B. "50g auf 1L Wasser".
+- Hersteller-Info (manufacturer_article_number, ean).
+- Boolean Flags (is_bio, is_vegan, is_gluten_free, etc.) - Suche nach Hinweisen im Text.
+- Warengruppe & Lagerbereich.
 
 Antworte ausschließlich mit einem validen JSON-Objekt.
-Strukturiere das JSON flach wo möglich, aber nutze verschachtelte Objekte für 'nutrition_per_100' oder 'standard_preparation' wenn sinnvoll.
-Versuche, die Keys so zu benennen, wie sie in einer Datenbank üblich wären (snake_case oder camelCase).
+JSON Struktur:
+{
+  "name": string,
+  "brand": string,
+  "unit": string, // z.B. "kg", "l", "stk"
+  "purchase_price": number,
+  "manufacturer_article_number": string,
+  "ean": string,
+  "ingredients": string,
+  "allergens": string[],
+  "dosage_instructions": string,
+  "standard_preparation": string | object,
+  "warengruppe": string, // "Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe"
+  "storageArea": string, // "Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren"
+  "is_bio": boolean,
+  "is_vegan": boolean,
+  "is_gluten_free": boolean,
+  "is_lactose_free": boolean,
+  "is_vegetarian": boolean,
+  "is_powder": boolean,
+  "is_granulate": boolean,
+  "is_paste": boolean,
+  "is_liquid": boolean,
+  "nutrition_per_100": {
+    "energy_kcal": number,
+    "fat": number,
+    "saturated_fat": number,
+    "carbs": number,
+    "sugar": number,
+    "protein": number,
+    "salt": number,
+    "fiber": number,
+    "sodium": number
+  }
+}
 `;
 
     const completionResponse = await fetch(
@@ -113,7 +197,7 @@ Versuche, die Keys so zu benennen, wie sie in einer Datenbank üblich wären (sn
             },
             {
               role: "user",
-              content: `URL: ${url}\n\nWebseiten-Inhalt:\n${limitedText}`,
+              content: `URL: ${url}\n\nInhalt:\n${limitedText}`,
             },
           ],
         }),
@@ -133,7 +217,11 @@ Versuche, die Keys so zu benennen, wie sie in einer Datenbank üblich wären (sn
 
     const extractedData = JSON.parse(content);
 
-    return NextResponse.json({ extracted: extractedData });
+    return NextResponse.json({ 
+      extracted: extractedData,
+      fileUrl: publicFileUrl 
+    });
+
   } catch (error) {
     console.error("AI Web Scan Error:", error);
     return NextResponse.json(

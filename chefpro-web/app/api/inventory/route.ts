@@ -318,6 +318,22 @@ export async function POST(request: Request) {
       preparationSteps?: string | null;
       nutritionPerUnit?: NutritionTotals | null;
       dosageInstructions?: string | null;
+      ingredients?: string | null;
+      yieldInfo?: string | null;
+      manufacturerArticleNumber?: string | null;
+      ean?: string | null;
+      allergens?: string[] | null;
+      fileUrl?: string | null;
+      imageUrl?: string | null;
+      isBio?: boolean;
+      isDeklarationsfrei?: boolean;
+      isAllergenfrei?: boolean;
+      isCookChill?: boolean;
+      isFreezeThawStable?: boolean;
+      isPalmOilFree?: boolean;
+      isYeastFree?: boolean;
+      isLactoseFree?: boolean;
+      isGlutenFree?: boolean;
       isVegan?: boolean;
       isVegetarian?: boolean;
       isPowder?: boolean;
@@ -372,10 +388,26 @@ export async function POST(request: Request) {
           body.dosageInstructions.trim().length > 0
             ? body.dosageInstructions.trim()
             : null,
+        ingredients: body.ingredients ?? null,
+        yield_info: body.yieldInfo ?? null,
+        manufacturer_article_number: body.manufacturerArticleNumber ?? null,
+        ean: body.ean ?? null,
+        allergens: body.allergens ?? null,
+        file_url: body.fileUrl ?? null,
+        image_url: body.imageUrl ?? null,
         standard_preparation:
           body.standardPreparation && typeof body.standardPreparation === "object"
             ? body.standardPreparation
             : null,
+        is_bio: body.isBio ?? false,
+        is_deklarationsfrei: body.isDeklarationsfrei ?? false,
+        is_allergenfrei: body.isAllergenfrei ?? false,
+        is_cook_chill: body.isCookChill ?? false,
+        is_freeze_thaw_stable: body.isFreezeThawStable ?? false,
+        is_palm_oil_free: body.isPalmOilFree ?? false,
+        is_yeast_free: body.isYeastFree ?? false,
+        is_lactose_free: body.isLactoseFree ?? false,
+        is_gluten_free: body.isGlutenFree ?? false,
         is_vegan: body.isVegan ?? false,
         is_vegetarian: body.isVegetarian ?? false,
         is_powder: body.isPowder ?? false,

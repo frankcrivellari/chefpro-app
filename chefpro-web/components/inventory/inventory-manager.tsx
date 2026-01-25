@@ -718,7 +718,7 @@ export function InventoryManager() {
         throw new Error(errorData.error || "Fehler beim Web-Scan");
       }
 
-      const { extracted } = await scanResponse.json();
+      const { extracted, fileUrl } = await scanResponse.json();
       const scannedData = extracted || {};
 
       // 2. Map to InventoryItem structure
@@ -738,6 +738,7 @@ export function InventoryManager() {
         standardPreparation: typeof scannedData.standard_preparation === 'object' ? scannedData.standard_preparation : null,
         warengruppe: scannedData.warengruppe,
         storageArea: scannedData.storageArea,
+        fileUrl: fileUrl || null,
         
         // Boolean Flags
         isBio: scannedData.is_bio,
