@@ -71,6 +71,7 @@ type SupabaseItemRow = {
   packshot_y: number | null;
   packshot_zoom: number | null;
   storage_area: string | null;
+  warengruppe: string | null;
   file_url: string | null;
   image_url: string | null;
 };
@@ -131,6 +132,8 @@ type InventoryItem = {
   packshotX?: number | null;
   packshotY?: number | null;
   packshotZoom?: number | null;
+  storageArea?: string | null;
+  warengruppe?: string | null;
   imageUrl?: string | null;
   fileUrl?: string | null;
 };
@@ -190,6 +193,7 @@ export async function POST(request: Request) {
       packshotY?: number | null;
       packshotZoom?: number | null;
       storageArea?: string | null;
+      warengruppe?: string | null;
       imageUrl?: string | null;
       fileUrl?: string | null;
     };
@@ -688,6 +692,8 @@ export async function POST(request: Request) {
     packshotX: row.packshot_x,
     packshotY: row.packshot_y,
     packshotZoom: row.packshot_zoom,
+    storageArea: row.storage_area,
+    warengruppe: row.warengruppe,
     hasGhostComponents:
       hasGhostComponents || undefined,
     components,

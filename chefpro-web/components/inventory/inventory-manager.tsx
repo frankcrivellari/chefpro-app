@@ -190,6 +190,7 @@ type InventoryItem = {
   packshotY?: number | null;
   packshotZoom?: number | null;
   storageArea?: string | null;
+  warengruppe?: string | null;
 };
 
 type ParsedAiItem = {
@@ -481,7 +482,8 @@ export function InventoryManager() {
   const [nameInput, setNameInput] = useState("");
   const [categoryInput, setCategoryInput] = useState("");
   const [storageAreaInput, setStorageAreaInput] = useState("");
-  const [openSections, setOpenSections] = useState<string[]>(["Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren", "Non Food", "Unkategorisiert"]);
+  const [warengruppeInput, setWarengruppeInput] = useState("");
+  const [openSections, setOpenSections] = useState<string[]>(["Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe", "Unkategorisiert"]);
   const [portionUnitInput, setPortionUnitInput] = useState("");
   const [nutritionTagsInput, setNutritionTagsInput] = useState<string[]>([]);
   const [targetPortionsInput, setTargetPortionsInput] = useState("");
@@ -1706,6 +1708,8 @@ export function InventoryManager() {
       setProPreparationInput("");
       setNameInput("");
       setCategoryInput("");
+      setStorageAreaInput("");
+      setWarengruppeInput("");
       setPortionUnitInput("");
       setNutritionTagsInput([]);
       setStandardPreparationComponents([]);
@@ -1745,6 +1749,8 @@ export function InventoryManager() {
     setNameInput(selectedItem.name);
     setImageUrlInput(selectedItem.imageUrl ?? "");
     setCategoryInput(selectedItem.category ?? "");
+    setStorageAreaInput(selectedItem.storageArea ?? "");
+    setWarengruppeInput(selectedItem.warengruppe ?? "");
     setPortionUnitInput(selectedItem.portionUnit ?? "");
     setNutritionTagsInput(selectedItem.nutritionTags ?? []);
     setManufacturerInput(selectedItem.manufacturerArticleNumber ?? "");
@@ -3150,6 +3156,7 @@ export function InventoryManager() {
           targetPortions,
           targetSalesPrice,
           storageArea: storageAreaInput,
+          warengruppe: warengruppeInput,
           category: categoryValue,
           portionUnit: portionUnitValue,
           nutritionTags: nutritionTagsValue,
@@ -3702,25 +3709,28 @@ export function InventoryManager() {
                 </div>
               )}
               <Accordion className="w-full">
-                {["Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren", "Non Food", "Unkategorisiert"].map((area) => {
-                  const areaItems = filteredItems.filter((item) =>
-                    area === "Unkategorisiert"
-                      ? !item.storageArea ||
-                        !["Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren", "Non Food"].includes(
-                          item.storageArea
+                {["Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe", "Unkategorisiert"].map((group) => {
+                  const groupItems = filteredItems.filter((item) =>
+                    group === "Unkategorisiert"
+                      ? !item.warengruppe ||
+                        !["Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe"].includes(
+                          item.warengruppe
                         )
-                      : item.storageArea === area
+                      : item.warengruppe === group
                   );
+                  
+                  // Sort items alphabetically within the group
+                  groupItems.sort((a, b) => a.name.localeCompare(b.name));
 
-                  if (areaItems.length === 0) return null;
+                  if (groupItems.length === 0) return null;
 
-                  const isOpen = openSections.includes(area);
-                  const toggle = () => setOpenSections(prev => prev.includes(area) ? prev.filter(a => a !== area) : [...prev, area]);
+                  const isOpen = openSections.includes(group);
+                  const toggle = () => setOpenSections(prev => prev.includes(group) ? prev.filter(a => a !== group) : [...prev, group]);
 
                   return (
                     <AccordionItem
-                      key={area}
-                      value={area}
+                      key={group}
+                      value={group}
                       className="border-b border-[#6B7176]/50"
                     >
                       <AccordionTrigger 
@@ -3728,13 +3738,13 @@ export function InventoryManager() {
                         onToggle={toggle}
                         className="px-3 py-2 text-xs font-semibold text-white hover:no-underline hover:bg-white/5"
                       >
-                        {area}
+                        {group}
                         <span className="ml-2 text-[10px] text-[#9CA3AF]">
-                          ({areaItems.length})
+                          ({groupItems.length})
                         </span>
                       </AccordionTrigger>
                       <AccordionContent isOpen={isOpen} className="pt-0 pb-0">
-                        {areaItems.map((item) => (
+                        {groupItems.map((item) => (
                           <button
                             key={item.id}
                             type="button"
@@ -4182,9 +4192,29 @@ export function InventoryManager() {
                               </div>
                                
                                <div className="grid gap-2">
-                                 <label className="text-xs font-medium text-[#1F2326]">Lagerbereich</label>
-                                 <select
-                                   value={selectedItem.storageArea || ""}
+                                <label className="text-xs font-medium text-[#1F2326]">Warengruppe</label>
+                                <select
+                                  value={selectedItem.warengruppe || ""}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setWarengruppeInput(val);
+                                    setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, warengruppe: val } : i));
+                                  }}
+                                  className="flex h-9 w-full rounded-md border border-[#E5E7EB] bg-white px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-[#1F2326]"
+                                >
+                                  <option value="">Bitte wählen...</option>
+                                  <option value="Obst & Gemüse">Obst & Gemüse</option>
+                                  <option value="Molkerei & Eier">Molkerei & Eier</option>
+                                  <option value="Trockensortiment">Trockensortiment</option>
+                                  <option value="Getränke">Getränke</option>
+                                  <option value="Zusatz- & Hilfsstoffe">Zusatz- & Hilfsstoffe</option>
+                                </select>
+                              </div>
+
+                              <div className="grid gap-2">
+                                <label className="text-xs font-medium text-[#1F2326]">Lagerbereich (Standby)</label>
+                                <select
+                                  value={selectedItem.storageArea || ""}
                                    onChange={(e) => {
                                      const val = e.target.value;
                                      setStorageAreaInput(val);
