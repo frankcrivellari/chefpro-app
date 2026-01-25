@@ -10,9 +10,9 @@ export function SidebarNav() {
       <Link
         href="/artikel"
         className={cn(
-          "rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground",
+          "rounded-md px-3 py-2 text-left hover:bg-white/20 hover:text-white transition-colors",
           pathname.startsWith("/artikel") &&
-            "bg-primary text-primary-foreground font-semibold"
+            "bg-primary text-primary-foreground font-semibold shadow-sm"
         )}
       >
         Zutaten
@@ -20,9 +20,9 @@ export function SidebarNav() {
       <Link
         href="/rezepte"
         className={cn(
-          "rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground",
+          "rounded-md px-3 py-2 text-left hover:bg-white/20 hover:text-white transition-colors",
           pathname.startsWith("/rezepte") &&
-            "bg-primary text-primary-foreground font-semibold"
+            "bg-primary text-primary-foreground font-semibold shadow-sm"
         )}
       >
         Rezepte
@@ -30,9 +30,9 @@ export function SidebarNav() {
       <Link
         href="/lager"
         className={cn(
-          "rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground",
+          "rounded-md px-3 py-2 text-left hover:bg-white/20 hover:text-white transition-colors",
           pathname.startsWith("/lager") &&
-            "bg-primary text-primary-foreground font-semibold"
+            "bg-primary text-primary-foreground font-semibold shadow-sm"
         )}
       >
         Lager
