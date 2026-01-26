@@ -158,25 +158,49 @@ export async function POST(request: Request) {
 
     if (existingImageUrl && typeof existingImageUrl === "string") {
       publicUrl = existingImageUrl;
-      originalName = publicUrl.split("/").pop() ?? "existing_file";
-      isImage = true; // Assume image for simplicity if re-scanning, or check extension
-      if (publicUrl.toLowerCase().endsWith(".pdf")) {
-         isImage = false;
-         isPdf = true;
+      
+      // Safe URL parsing to handle query parameters and extraction
+      try {
+          const urlObj = new URL(publicUrl);
+          const pathname = urlObj.pathname;
+          originalName = pathname.split("/").pop() ?? "existing_file";
+          
+          isImage = true; // Default assumption
+          if (pathname.toLowerCase().endsWith(".pdf")) {
+             isImage = false;
+             isPdf = true;
+          }
+      } catch (e) {
+          console.error("Invalid URL in Re-Scan:", publicUrl, e);
+          // Fallback simple check if URL parsing fails
+          originalName = publicUrl.split("/").pop()?.split('?')[0] ?? "existing_file";
+          if (publicUrl.toLowerCase().includes(".pdf")) {
+              isImage = false;
+              isPdf = true;
+          }
+      }
+
+      if (isPdf) {
          // For existing PDFs, we need to fetch content to extract text
          try {
             console.log(`Re-Scan: Fetching PDF content from ${publicUrl}`);
             const response = await fetch(publicUrl);
             if (!response.ok) {
-                throw new Error(`Fetch failed with status ${response.status}`);
+                throw new Error(`Fetch failed with status ${response.status} ${response.statusText}`);
             }
             const arrayBuffer = await response.arrayBuffer();
             fileBuffer = Buffer.from(arrayBuffer);
             console.log(`Re-Scan: PDF fetched successfully, size: ${fileBuffer.length}`);
          } catch (e) {
             console.error("Failed to fetch existing PDF for re-scan:", e);
-            // If fetch fails, we cannot extract text, which leads to poor AI results.
-            // We should probably fail or warn, but for now we proceed (AI will only get instructions).
+            return NextResponse.json(
+                {
+                    error: "Fehler beim Laden des PDF-Dokuments für den Re-Scan. Bitte prüfen Sie die Internetverbindung oder laden Sie das Dokument erneut hoch.",
+                    details: String(e),
+                    fileUrl: publicUrl,
+                },
+                { status: 500 }
+            );
          }
       }
     } else {
