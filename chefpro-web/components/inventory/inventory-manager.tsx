@@ -211,6 +211,25 @@ type ParsedAiItem = {
   dosageInstructions?: string | null;
   warengruppe?: string | null;
   storageArea?: string | null;
+  isBio?: boolean;
+  isDeklarationsfrei?: boolean;
+  isAllergenfrei?: boolean;
+  isCookChill?: boolean;
+  isFreezeThawStable?: boolean;
+  isPalmOilFree?: boolean;
+  isYeastFree?: boolean;
+  isLactoseFree?: boolean;
+  isGlutenFree?: boolean;
+  isVegan?: boolean;
+  isVegetarian?: boolean;
+  isFairtrade?: boolean;
+  isPowder?: boolean;
+  isGranulate?: boolean;
+  isPaste?: boolean;
+  isLiquid?: boolean;
+  manufacturerArticleNumber?: string | null;
+  ean?: string | null;
+  bioControlNumber?: string | null;
 };
 
 type ParsedDocumentItem = {
@@ -476,12 +495,14 @@ export function InventoryManager() {
   const [docError, setDocError] = useState<string | null>(null);
   const [docParsed, setDocParsed] =
     useState<ParsedDocumentItem | null>(null);
+  const [docParsedItemId, setDocParsedItemId] = useState<string | null>(null);
   const [docDosageSteps, setDocDosageSteps] = useState<
     { id: string; quantity: string; line: string }[]
   >([]);
   const [docPreviewIsGenerating, setDocPreviewIsGenerating] = useState(false);
   const [docPreviewError, setDocPreviewError] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImageItemId, setPreviewImageItemId] = useState<string | null>(null);
   const [proAllergensInput, setProAllergensInput] = useState("");
   const [specItem, setSpecItem] = useState<InventoryItem | null>(null);
   const [proIngredientsInput, setProIngredientsInput] = useState("");
@@ -582,7 +603,6 @@ export function InventoryManager() {
   const [isRecipePresentationMode, setIsRecipePresentationMode] =
     useState(false);
   const [imageUrlInput, setImageUrlInput] = useState("");
-  const [packshotUrl, setPackshotUrl] = useState("");
   const [imageIsUploading, setImageIsUploading] = useState(false);
   const [imageUploadError, setImageUploadError] = useState<string | null>(null);
   const [isImageDropActive, setIsImageDropActive] = useState(false);
@@ -1521,7 +1541,13 @@ export function InventoryManager() {
     null;
 
 
-  const packshotPreview = previewImage || packshotUrl || selectedItem?.imageUrl || (docParsed && docParsed.imageUrl) || "";
+  const packshotPreview = (previewImage && previewImageItemId === selectedItem?.id)
+    ? previewImage
+    : selectedItem?.imageUrl
+    ? selectedItem.imageUrl
+    : (docParsed && docParsedItemId === selectedItem?.id && docParsed.imageUrl)
+    ? docParsed.imageUrl
+    : "";
 
   const handleCopyPackshot = useCallback(async () => {
     if (!packshotPreview) return;
@@ -1537,9 +1563,10 @@ export function InventoryManager() {
   useEffect(() => {
     if (selectedItem) {
       setImageUrlInput(selectedItem.imageUrl ?? "");
-      setPackshotUrl(selectedItem.imageUrl ?? "");
       setPreviewImage(null); // Reset manual preview on item change
+      setPreviewImageItemId(null);
       setDocParsed(null);    // Reset vision parsed data on item change
+      setDocParsedItemId(null);
 
       if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
           selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
@@ -3620,7 +3647,6 @@ export function InventoryManager() {
       if (payload.imageUrl) {
         setPreviewImage(null);
         setImageUrlInput(payload.imageUrl);
-        setPackshotUrl(payload.imageUrl);
         setItems((previous) =>
           previous.map((item) =>
             item.id === selectedItem.id
@@ -3745,14 +3771,12 @@ export function InventoryManager() {
       }
       if (payload.item) {
         const updated = payload.item;
-        if (updated.imageUrl) setPackshotUrl(updated.imageUrl);
         setItems((previous) =>
           previous.map((item) =>
             item.id === updated.id ? { ...item, ...updated } : item
           )
         );
       } else {
-        if (trimmed.length > 0) setPackshotUrl(trimmed);
         setItems((previous) =>
           previous.map((item) =>
             item.id === selectedItem.id
@@ -3866,6 +3890,27 @@ export function InventoryManager() {
           preparationSteps: aiParsed.preparationText ?? null,
           nutritionPerUnit: aiParsed.nutritionPerUnit ?? null,
           dosageInstructions: aiParsed.dosageInstructions ?? null,
+          warengruppe: aiParsed.warengruppe ?? null,
+          storageArea: aiParsed.storageArea ?? null,
+          isBio: aiParsed.isBio,
+          isDeklarationsfrei: aiParsed.isDeklarationsfrei,
+          isAllergenfrei: aiParsed.isAllergenfrei,
+          isCookChill: aiParsed.isCookChill,
+          isFreezeThawStable: aiParsed.isFreezeThawStable,
+          isPalmOilFree: aiParsed.isPalmOilFree,
+          isYeastFree: aiParsed.isYeastFree,
+          isLactoseFree: aiParsed.isLactoseFree,
+          isGlutenFree: aiParsed.isGlutenFree,
+          isVegan: aiParsed.isVegan,
+          isVegetarian: aiParsed.isVegetarian,
+          isFairtrade: aiParsed.isFairtrade,
+          isPowder: aiParsed.isPowder,
+          isGranulate: aiParsed.isGranulate,
+          isPaste: aiParsed.isPaste,
+          isLiquid: aiParsed.isLiquid,
+          manufacturerArticleNumber: aiParsed.manufacturerArticleNumber,
+          ean: aiParsed.ean,
+          bioControlNumber: aiParsed.bioControlNumber,
         }),
       });
       if (!response.ok) {
@@ -3968,7 +4013,6 @@ export function InventoryManager() {
 
         if (payload.imageUrl) {
           const freshUrl = `${payload.imageUrl}?t=${Date.now()}`;
-          setPackshotUrl(freshUrl);
           setItems((prev) =>
             prev.map((item) =>
               item.id === selectedItem.id ? { ...item, imageUrl: freshUrl } : item
@@ -6084,6 +6128,7 @@ export function InventoryManager() {
                         }}
                       >
                         {(imageUrlInput || selectedItem.imageUrl) && (
+                          <div key={selectedItem.id} className="relative h-full w-full">
                           <Image
                             unoptimized
                             src={imageUrlInput || selectedItem.imageUrl || ""}
@@ -6091,6 +6136,7 @@ export function InventoryManager() {
                             fill
                             className="object-cover"
                           />
+                          </div>
                         )}
                         {(!imageUrlInput && !selectedItem.imageUrl) ||
                         imageIsUploading ? (
