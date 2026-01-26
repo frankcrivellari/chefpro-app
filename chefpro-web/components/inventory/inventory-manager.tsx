@@ -11,7 +11,6 @@ import {
   type ReactNode,
 } from "react";
 import * as pdfjsLib from "pdfjs-dist";
-import ReactCrop, { Crop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
@@ -610,9 +609,7 @@ export function InventoryManager() {
   const [isImageDropActive, setIsImageDropActive] = useState(false);
   
   // Crop State
-  const [crop, setCrop] = useState<Crop>();
   const packshotImgRef = useRef<HTMLImageElement>(null);
-  const [packshotTranslate, setPackshotTranslate] = useState({ x: 0, y: 0 }); // Kept for build compatibility but unused in crop logic
 
   // Document Viewer State
   const [isViewerOpen, setIsViewerOpen] = useState(false);
@@ -1065,23 +1062,33 @@ export function InventoryManager() {
       const loadingTask = pdfjsLib.getDocument({ data: buf });
       const pdf = await loadingTask.promise;
       const maxPages = Math.min(3, (pdf as unknown as { numPages?: number }).numPages ?? 1);
+      
       let chosenBlob: Blob | null = null;
+      let finalZoom = 1.0;
+      let finalPanX = 0;
+      let finalPanY = 0;
+
+      // Container size in frontend (w-64 = 256px)
+      const CONTAINER_SIZE = 256;
+
       for (let i = 1; i <= maxPages; i++) {
         const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
+        // High quality render
+        const viewport = page.getViewport({ scale: 2.0 });
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
-        if (!context) {
-          continue;
-        }
+        if (!context) continue;
+        
         canvas.width = viewport.width;
         canvas.height = viewport.height;
+        
         await page.render({ canvasContext: context, viewport }).promise;
         const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-        setPreviewImage(dataUrl);
+        
+        // Default: Show full image
         let crop = { x: 0, y: 0, w: canvas.width, h: canvas.height };
-        let confidence = 0;
-        let hadDetection = false;
+        let hasDetection = false;
+
         try {
           const detectResponse = await fetch("/api/pdf-packshot-extract", {
             method: "POST",
@@ -1092,233 +1099,86 @@ export function InventoryManager() {
               height: canvas.height,
             }),
           });
-          const detectPayload = (await detectResponse.json()) as {
-            error?: unknown;
-            bbox?: { x: number; y: number; w: number; h: number };
-            confidence?: number;
-          };
+          const detectPayload = (await detectResponse.json()) as { bbox?: { x: number; y: number; w: number; h: number } };
           if (detectResponse.ok && detectPayload.bbox) {
             const { x, y, w, h } = detectPayload.bbox;
-            // No bias applied for automatic detection
-            const biasedY = y;
-            
-            const safe = {
-              x: Math.max(0, Math.min(canvas.width - 1, Math.floor(x))),
-              y: Math.max(0, Math.min(canvas.height - 1, Math.floor(biasedY))),
-              w: Math.max(1, Math.min(canvas.width, Math.floor(w))),
-              h: Math.max(1, Math.min(canvas.height, Math.floor(h))),
+            crop = {
+               x: Math.max(0, x),
+               y: Math.max(0, y),
+               w: Math.min(canvas.width - x, w),
+               h: Math.min(canvas.height - y, h)
             };
-            crop = safe;
-            confidence = Number(detectPayload.confidence ?? 0.5);
-            hadDetection = true;
-            const areaRatio = (safe.w * safe.h) / (canvas.width * canvas.height);
-            if (areaRatio > 0.85 || areaRatio < 0.05 || confidence < 0.5) {
-              const strictResponse = await fetch("/api/pdf-packshot-extract", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  dataUrl,
-                  width: canvas.width,
-                  height: canvas.height,
-                  strict: true,
-                }),
-              });
-              const strictPayload = (await strictResponse.json()) as {
-                error?: unknown;
-                bbox?: { x: number; y: number; w: number; h: number };
-                confidence?: number;
-              };
-              if (strictResponse.ok && strictPayload.bbox) {
-                const { x: sx, y: sy, w: sw, h: sh } = strictPayload.bbox;
-                const safe2 = {
-                  x: Math.max(0, Math.min(canvas.width - 1, Math.floor(sx))),
-                  y: Math.max(0, Math.min(canvas.height - 1, Math.floor(sy))),
-                  w: Math.max(1, Math.min(canvas.width, Math.floor(sw))),
-                  h: Math.max(1, Math.min(canvas.height, Math.floor(sh))),
-                };
-                const areaRatio2 = (safe2.w * safe2.h) / (canvas.width * canvas.height);
-                const conf2 = Number(strictPayload.confidence ?? confidence);
-                if (areaRatio2 <= 0.85 && areaRatio2 >= 0.05 && conf2 >= 0.5) {
-                  crop = safe2;
-                  confidence = conf2;
-                  hadDetection = true;
-                }
-              }
-            }
+            hasDetection = true;
           }
-        } catch {
+        } catch (e) {
+          console.error("Packshot detection failed", e);
         }
-        if (crop.w === canvas.width && crop.h === canvas.height) {
-          const side = Math.floor(Math.min(canvas.width, canvas.height) * 0.6);
-          const cx = Math.floor((canvas.width - side) / 2);
-          const cy = Math.floor((canvas.height - side) / 2);
-          // Ensure crop stays within bounds
-          const safeY = Math.max(0, Math.min(canvas.height - side, cy));
-          crop = { x: cx, y: safeY, w: side, h: side };
+
+        if (hasDetection) {
+            // Calculate Zoom to fit crop in container
+            // Zoom is relative to container width. Rendered Image Width = Zoom * CONTAINER_SIZE
+            // We want Rendered Crop Width approx CONTAINER_SIZE * 0.9 (some padding)
+            // Rendered Crop Width = crop.w * (Rendered Image Width / canvas.width)
+            // RCW = crop.w * (Zoom * CONTAINER_SIZE / canvas.width)
+            // CONTAINER_SIZE * 0.9 = crop.w * Zoom * CONTAINER_SIZE / canvas.width
+            // 0.9 = crop.w * Zoom / canvas.width
+            // Zoom = 0.9 * canvas.width / crop.w
+            
+            finalZoom = Math.min(50, Math.max(0.1, (0.9 * canvas.width) / Math.max(50, crop.w)));
+            
+            // Calculate Pan to center crop
+            // Rendered Image Dimensions
+            const rIW = finalZoom * CONTAINER_SIZE;
+            const rIH = (canvas.height / canvas.width) * rIW;
+            
+            // Crop Center in Original
+            const cx = crop.x + crop.w / 2;
+            const cy = crop.y + crop.h / 2;
+            
+            // Crop Center in Rendered
+            const rCX = cx * (rIW / canvas.width);
+            const rCY = cy * (rIH / canvas.height);
+            
+            // We want rCX at CONTAINER_SIZE / 2
+            // PanX + rCX = CONTAINER_SIZE / 2
+            finalPanX = (CONTAINER_SIZE / 2) - rCX;
+            finalPanY = (CONTAINER_SIZE / 2) - rCY;
+        } else {
+            // No detection: Fit full image
+            // Zoom = 1.0 means width matches container.
+            finalZoom = 1.0;
+            finalPanX = 0;
+            finalPanY = 0;
         }
-        const cropCanvas = document.createElement("canvas");
-        cropCanvas.width = crop.w;
-        cropCanvas.height = crop.h;
-        const cropCtx = cropCanvas.getContext("2d");
-        if (!cropCtx) {
-          continue;
-        }
-        cropCtx.drawImage(
-          canvas,
-          crop.x,
-          crop.y,
-          crop.w,
-          crop.h,
-          0,
-          0,
-          crop.w,
-          crop.h
-        );
-        function tightenByWhitespace(source: HTMLCanvasElement) {
-          const ctx = source.getContext("2d");
-          if (!ctx) {
-            return { x: 0, y: 0, w: source.width, h: source.height };
-          }
-          const w = source.width;
-          const h = source.height;
-          const data = ctx.getImageData(0, 0, w, h).data;
-          function isRowWhite(y: number) {
-            let white = 0;
-            for (let x = 0; x < w; x++) {
-              const idx = (y * w + x) * 4;
-              const r = data[idx],
-                g = data[idx + 1],
-                b = data[idx + 2];
-              const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-              if (gray > 240) white++;
-            }
-            return white / w > 0.9;
-          }
-          function isColWhite(x: number) {
-            let white = 0;
-            for (let y = 0; y < h; y++) {
-              const idx = (y * w + x) * 4;
-              const r = data[idx],
-                g = data[idx + 1],
-                b = data[idx + 2];
-              const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-              if (gray > 240) white++;
-            }
-            return white / h > 0.9;
-          }
-          let top = 0;
-          while (top < h - 1 && isRowWhite(top)) top++;
-          let bottom = h - 1;
-          while (bottom > top + 1 && isRowWhite(bottom)) bottom--;
-          let left = 0;
-          while (left < w - 1 && isColWhite(left)) left++;
-          let right = w - 1;
-          while (right > left + 1 && isColWhite(right)) right--;
-          const newW = Math.max(32, right - left + 1);
-          const newH = Math.max(32, bottom - top + 1);
-          return { x: left, y: top, w: newW, h: newH };
-        }
-        const refined = tightenByWhitespace(cropCanvas);
-        const refinedArea = refined.w * refined.h;
-        const originalArea = crop.w * crop.h;
-        const finalRegion =
-          refinedArea < originalArea * 0.1
-            ? { x: 0, y: 0, w: crop.w, h: crop.h }
-            : refined;
-        function computeEdgeCentroid(
-          ctx: CanvasRenderingContext2D,
-          sx: number,
-          sy: number,
-          sw: number,
-          sh: number
-        ) {
-          const img = ctx.getImageData(sx, sy, sw, sh).data;
-          let sum = 0;
-          let cxSum = 0;
-          let cySum = 0;
-          const step = 2;
-          for (let y = 1; y < sh - 1; y += step) {
-            for (let x = 1; x < sw - 1; x += step) {
-              const idxL = (y * sw + (x - 1)) * 4;
-              const idxR = (y * sw + (x + 1)) * 4;
-              const idxT = ((y - 1) * sw + x) * 4;
-              const idxB = ((y + 1) * sw + x) * 4;
-              const gL = 0.299 * img[idxL] + 0.587 * img[idxL + 1] + 0.114 * img[idxL + 2];
-              const gR = 0.299 * img[idxR] + 0.587 * img[idxR + 1] + 0.114 * img[idxR + 2];
-              const gT = 0.299 * img[idxT] + 0.587 * img[idxT + 1] + 0.114 * img[idxT + 2];
-              const gB = 0.299 * img[idxB] + 0.587 * img[idxB + 1] + 0.114 * img[idxB + 2];
-              const mag = Math.abs(gR - gL) + Math.abs(gB - gT);
-              sum += mag;
-              cxSum += mag * x;
-              cySum += mag * y;
-            }
-          }
-          if (sum <= 0) {
-            return { cx: Math.floor(sw / 2), cy: Math.floor(sh / 2) };
-          }
-          return { cx: Math.floor(cxSum / sum), cy: Math.floor(cySum / sum) };
-        }
-        const centroid = hadDetection
-          ? { cx: Math.floor(finalRegion.w / 2), cy: Math.floor(finalRegion.h / 2) }
-          : cropCtx
-          ? computeEdgeCentroid(cropCtx, finalRegion.x, finalRegion.y, finalRegion.w, finalRegion.h)
-          : { cx: Math.floor(finalRegion.w / 2), cy: Math.floor(finalRegion.h / 2) };
-        const side = Math.floor(Math.min(finalRegion.w, finalRegion.h) * 0.95);
-        const localX = Math.max(
-          0,
-          Math.min(
-            finalRegion.w - side,
-            Math.floor(centroid.cx - side / 2 + packshotTranslate.x)
-          )
-        );
-        const localY = Math.max(
-          0,
-          Math.min(
-            finalRegion.h - side,
-            Math.floor(centroid.cy - side / 2 + packshotTranslate.y)
-          )
-        );
-        const finalCanvas = document.createElement("canvas");
-        finalCanvas.width = side;
-        finalCanvas.height = side;
-        const finalCtx = finalCanvas.getContext("2d");
-        if (!finalCtx) {
-          continue;
-        }
-        finalCtx.drawImage(
-          cropCanvas,
-          finalRegion.x + localX,
-          finalRegion.y + localY,
-          side,
-          side,
-          0,
-          0,
-          side,
-          side
-        );
+
+        // Convert WHOLE PAGE to blob
         const blob: Blob | null = await new Promise((resolve) => {
-          finalCanvas.toBlob((b) => resolve(b), "image/jpeg", 0.9);
+          canvas.toBlob((b) => resolve(b), "image/jpeg", 0.9);
         });
+        
         if (blob) {
           chosenBlob = blob;
           break;
         }
       }
+
       if (!chosenBlob) {
         throw new Error("Packshot konnte nicht erzeugt werden");
       }
-      const file = new File([chosenBlob], "pdf-packshot.jpg", { type: "image/jpeg" });
+      
+      const file = new File([chosenBlob], "pdf-full-page.jpg", { type: "image/jpeg" });
       const form = new FormData();
       form.append("file", file);
       form.append("itemId", itemId);
-      form.append("filename", "pdf-preview.jpg");
+      form.append("filename", "pdf-full.jpg");
+      
       const response = await fetch("/api/recipe-image-upload", {
         method: "POST",
         body: form,
       });
       const payload = (await response.json()) as { error?: unknown; imageUrl?: string };
       if (!response.ok) {
-        let message = "Fehler beim Upload des PDF-Vorschaubilds.";
+        let message = "Fehler beim Upload des PDF-Bilds.";
         if (payload && typeof payload.error === "string") {
           message = payload.error;
         }
@@ -1327,11 +1187,25 @@ export function InventoryManager() {
       if (payload.imageUrl) {
         const freshUrl = `${payload.imageUrl}?t=${Date.now()}`;
         setDocParsed((prev) => (prev ? { ...prev, imageUrl: freshUrl } : prev));
+        
         setItems((previous) =>
           previous.map((item) =>
-            item.id === itemId ? { ...item, imageUrl: freshUrl } : item
+            item.id === itemId ? { 
+                ...item, 
+                imageUrl: freshUrl,
+                packshotX: finalPanX,
+                packshotY: finalPanY,
+                packshotZoom: finalZoom
+            } : item
           )
         );
+
+        // Update local state if this item is selected
+        if (selectedItemId === itemId) {
+            setPackshotPan({ x: finalPanX, y: finalPanY });
+            setPackshotZoom(finalZoom);
+            setIsAutoFit(false);
+        }
       }
     } catch (err) {
       const message =
@@ -1340,7 +1214,7 @@ export function InventoryManager() {
     } finally {
       setDocPreviewIsGenerating(false);
     }
-  }, [packshotTranslate]);
+  }, [selectedItemId]);
 
   const activeFileUrl = (docParsed && docParsed.fileUrl) || 
     (selectedItemId && effectiveItems.find((i) => i.id === selectedItemId)?.fileUrl);
@@ -1639,33 +1513,39 @@ export function InventoryManager() {
       setPreviewImageItemId(null);
       setDocParsed(null);    // Reset vision parsed data on item change
       setDocParsedItemId(null);
-
-      if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
-          selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
-          setPackshotPan({ x: selectedItem.packshotX, y: selectedItem.packshotY });
-          setIsAutoFit(false);
-      } else {
-          setPackshotPan({ x: 0, y: 0 });
-          setIsAutoFit(true);
-      }
-      if (selectedItem.packshotZoom !== undefined && selectedItem.packshotZoom !== null) {
-          setPackshotZoom(selectedItem.packshotZoom);
-          setIsAutoFit(false);
-      } else {
-          setPackshotZoom(1.0);
-          setIsAutoFit(true);
-      }
     } else {
       setImageUrlInput("");
       setPreviewImage(null);
       setDocParsed(null);
-      setPackshotPan({ x: 0, y: 0 });
-      setPackshotZoom(1.0);
-      setIsAutoFit(true);
     }
     setImageUploadError(null);
     setIsImageDropActive(false);
   }, [selectedItem?.id]);
+
+  // Sync Packshot State from Item
+  useEffect(() => {
+      if (selectedItem) {
+          if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
+              selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
+              setPackshotPan({ x: selectedItem.packshotX, y: selectedItem.packshotY });
+              setIsAutoFit(false);
+          } else {
+              setPackshotPan({ x: 0, y: 0 });
+              setIsAutoFit(true);
+          }
+          if (selectedItem.packshotZoom !== undefined && selectedItem.packshotZoom !== null) {
+              setPackshotZoom(selectedItem.packshotZoom);
+              setIsAutoFit(false);
+          } else {
+              setPackshotZoom(1.0);
+              setIsAutoFit(true);
+          }
+      } else {
+          setPackshotPan({ x: 0, y: 0 });
+          setPackshotZoom(1.0);
+          setIsAutoFit(true);
+      }
+  }, [selectedItem?.id, selectedItem?.packshotX, selectedItem?.packshotY, selectedItem?.packshotZoom]);
 
 
 
@@ -4034,80 +3914,7 @@ export function InventoryManager() {
     return `INT-${value}`;
   }
 
-  const handleSaveCrop = async () => {
-    if (!crop || !packshotImgRef.current || !selectedItem) return;
 
-    const image = packshotImgRef.current;
-    const canvas = document.createElement("canvas");
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-    
-    // Use the crop width/height for the canvas
-    const pixelCrop = {
-      x: crop.x * scaleX,
-      y: crop.y * scaleY,
-      width: crop.width * scaleX,
-      height: crop.height * scaleY,
-    };
-
-    canvas.width = pixelCrop.width;
-    canvas.height = pixelCrop.height;
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) return;
-
-    ctx.drawImage(
-      image,
-      pixelCrop.x,
-      pixelCrop.y,
-      pixelCrop.width,
-      pixelCrop.height,
-      0,
-      0,
-      pixelCrop.width,
-      pixelCrop.height
-    );
-
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-
-      try {
-        setImageIsUploading(true);
-        setImageUploadError(null);
-        
-        // Use a new file name
-        const file = new File([blob], "packshot-crop.jpg", { type: "image/jpeg" });
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("itemId", selectedItem.id);
-
-        const response = await fetch("/api/recipe-image-upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const payload = (await response.json());
-        if (!response.ok) {
-           throw new Error(payload.error || "Fehler beim Hochladen des Ausschnitts");
-        }
-
-        if (payload.imageUrl) {
-          const freshUrl = `${payload.imageUrl}?t=${Date.now()}`;
-          setItems((prev) =>
-            prev.map((item) =>
-              item.id === selectedItem.id ? { ...item, imageUrl: freshUrl } : item
-            )
-          );
-          // Reset crop
-          setCrop(undefined);
-        }
-      } catch (err) {
-        setImageUploadError(err instanceof Error ? err.message : "Upload fehlgeschlagen");
-      } finally {
-        setImageIsUploading(false);
-      }
-    }, "image/jpeg", 0.95);
-  };
 
   return (
     <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
@@ -4444,7 +4251,7 @@ export function InventoryManager() {
                                 <div className="text-[10px] font-medium text-[#6B7176] mb-1 w-full text-left">Packshot-Fokus</div>
                                 <div 
           className={cn(
-            "relative h-96 w-96 overflow-hidden rounded-md border bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#4F8F4E]",
+            "relative h-64 w-64 overflow-hidden rounded-md border bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#4F8F4E]",
             isPackshotDragOver ? "border-blue-500 bg-blue-50" : "border-gray-200",
             packshotPreview ? "cursor-move touch-none" : "flex flex-col items-center justify-center cursor-default"
           )}
@@ -4501,7 +4308,7 @@ export function InventoryManager() {
                                     )}
                                 </div>
                                 
-                                <div className="text-[9px] text-[#6B7176] mt-1 text-center w-96">
+                                <div className="text-[9px] text-[#6B7176] mt-1 text-center w-64">
                                     {packshotPreview ? "Ausschnitt verschieben oder neues Bild hineinziehen" : "Ziehe ein Bild in das Fenster"}
                                 </div>
 
