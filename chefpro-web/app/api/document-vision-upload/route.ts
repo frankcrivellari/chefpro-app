@@ -163,15 +163,20 @@ export async function POST(request: Request) {
       if (publicUrl.toLowerCase().endsWith(".pdf")) {
          isImage = false;
          isPdf = true;
-         // For existing PDFs, we might need to fetch content if we want to extract text, 
-         // but for now let's assume we rely on vision if possible or just skip text extraction if we can't fetch easily.
-         // Actually, if it's a PDF, we need the buffer to parse text.
+         // For existing PDFs, we need to fetch content to extract text
          try {
+            console.log(`Re-Scan: Fetching PDF content from ${publicUrl}`);
             const response = await fetch(publicUrl);
+            if (!response.ok) {
+                throw new Error(`Fetch failed with status ${response.status}`);
+            }
             const arrayBuffer = await response.arrayBuffer();
             fileBuffer = Buffer.from(arrayBuffer);
+            console.log(`Re-Scan: PDF fetched successfully, size: ${fileBuffer.length}`);
          } catch (e) {
             console.error("Failed to fetch existing PDF for re-scan:", e);
+            // If fetch fails, we cannot extract text, which leads to poor AI results.
+            // We should probably fail or warn, but for now we proceed (AI will only get instructions).
          }
       }
     } else {

@@ -729,6 +729,8 @@ export function InventoryManager() {
             name: extracted.name || item.name,
             brand: extracted.brand || item.brand,
             unit: extracted.unit || item.unit,
+            // Update Packshot (imageUrl) if available in extraction (for image scans)
+            imageUrl: extracted.image_url || item.imageUrl,
             purchasePrice: typeof extracted.purchase_price === 'number' ? extracted.purchase_price : item.purchasePrice,
             manufacturerArticleNumber: extracted.manufacturer_article_number || item.manufacturerArticleNumber,
             ean: extracted.ean || item.ean,
