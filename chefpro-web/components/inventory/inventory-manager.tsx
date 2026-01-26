@@ -30,6 +30,7 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
+  Maximize2,
 } from "lucide-react";
 import { Accordion,
   AccordionContent,
@@ -902,6 +903,7 @@ export function InventoryManager() {
   // Packshot Focus State
   const [packshotPan, setPackshotPan] = useState({ x: 0, y: 0 });
   const [packshotZoom, setPackshotZoom] = useState(2.0);
+  const [isAutoFit, setIsAutoFit] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
@@ -909,6 +911,7 @@ export function InventoryManager() {
   const handlePanMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsPanning(true);
+    setIsAutoFit(false);
     setPanStart({ x: e.clientX - packshotPan.x, y: e.clientY - packshotPan.y });
   };
 
@@ -926,10 +929,12 @@ export function InventoryManager() {
   };
   
   const handleZoomIn = () => {
+    setIsAutoFit(false);
     setPackshotZoom((prev) => Math.min(prev + 0.2, 5.0));
   };
   
   const handleZoomOut = () => {
+    setIsAutoFit(false);
     setPackshotZoom((prev) => Math.max(prev - 0.2, 0.1));
   };
 
@@ -1613,13 +1618,17 @@ export function InventoryManager() {
       if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
           selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
           setPackshotPan({ x: selectedItem.packshotX, y: selectedItem.packshotY });
+          setIsAutoFit(false);
       } else {
           setPackshotPan({ x: 0, y: 0 });
+          setIsAutoFit(true);
       }
       if (selectedItem.packshotZoom !== undefined && selectedItem.packshotZoom !== null) {
           setPackshotZoom(selectedItem.packshotZoom);
+          setIsAutoFit(false);
       } else {
           setPackshotZoom(1.0);
+          setIsAutoFit(true);
       }
     } else {
       setImageUrlInput("");
@@ -1627,6 +1636,7 @@ export function InventoryManager() {
       setDocParsed(null);
       setPackshotPan({ x: 0, y: 0 });
       setPackshotZoom(1.0);
+      setIsAutoFit(true);
     }
     setImageUploadError(null);
     setIsImageDropActive(false);
@@ -4429,8 +4439,11 @@ export function InventoryManager() {
                                         <img 
                                             src={packshotPreview} 
                                             alt="Packshot Focus" 
-                                            className="max-w-none absolute origin-top-left pointer-events-none select-none"
-                                            style={{ 
+                                            className={cn(
+                                              "max-w-none absolute origin-top-left pointer-events-none select-none",
+                                              isAutoFit ? "w-full h-full object-contain static transform-none" : ""
+                                            )}
+                                            style={isAutoFit ? {} : { 
                                                 transform: `translate(${packshotPan.x}px, ${packshotPan.y}px)`,
                                                 width: `${packshotZoom * 100}%`, 
                                                 height: 'auto'
@@ -4475,7 +4488,22 @@ export function InventoryManager() {
                                         <>
                                             <div className="flex items-center rounded-md border border-[#E5E7EB] bg-white p-0.5 shadow-sm">
                                                 <Button
-                                                    variant="ghost"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="absolute top-2 right-12 h-8 w-8 bg-white/80 hover:bg-white shadow-sm z-10"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsAutoFit(true);
+                                        setPackshotPan({ x: 0, y: 0 });
+                                        setPackshotZoom(1.0);
+                                      }}
+                                      title="Bild einpassen"
+                                    >
+                                      <Maximize2 className="h-4 w-4" />
+                                    </Button>
+
+                                    <Button
+                                      variant="ghost"
                                                     size="sm"
                                                     className="h-5 w-5 p-0 text-[#6B7176] hover:bg-[#F6F7F5]"
                                                     onClick={handleZoomOut}
