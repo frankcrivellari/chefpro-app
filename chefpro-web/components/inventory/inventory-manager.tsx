@@ -930,7 +930,7 @@ export function InventoryManager() {
   };
   
   const handleZoomOut = () => {
-    setPackshotZoom((prev) => Math.max(prev - 0.2, 0.5));
+    setPackshotZoom((prev) => Math.max(prev - 0.2, 0.1));
   };
 
   // Packshot Drag & Drop
@@ -1619,14 +1619,14 @@ export function InventoryManager() {
       if (selectedItem.packshotZoom !== undefined && selectedItem.packshotZoom !== null) {
           setPackshotZoom(selectedItem.packshotZoom);
       } else {
-          setPackshotZoom(2.0);
+          setPackshotZoom(1.0);
       }
     } else {
       setImageUrlInput("");
       setPreviewImage(null);
       setDocParsed(null);
       setPackshotPan({ x: 0, y: 0 });
-      setPackshotZoom(2.0);
+      setPackshotZoom(1.0);
     }
     setImageUploadError(null);
     setIsImageDropActive(false);
@@ -4433,9 +4433,7 @@ export function InventoryManager() {
                                             style={{ 
                                                 transform: `translate(${packshotPan.x}px, ${packshotPan.y}px)`,
                                                 width: `${packshotZoom * 100}%`, 
-                                                height: 'auto',
-                                                minWidth: '50%', // Allow image to be smaller
-                                                minHeight: '50%'
+                                                height: 'auto'
                                             }}
                                             draggable={false}
                                         />
