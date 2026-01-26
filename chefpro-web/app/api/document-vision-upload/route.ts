@@ -356,6 +356,7 @@ export async function POST(request: Request) {
       "WICHTIG für 'standard_preparation' (Zubereitung):\n" +
       "- Wenn die Zubereitung aus mehreren Komponenten besteht (z.B. '400g Pulver + 1l Milch'), MÜSSEN diese als separate Objekte im Array `standard_preparation.components` zurückgegeben werden.\n" +
       "- WICHTIG: Verwende für die Hauptkomponente (das Produkt selbst) NICHT das Wort 'Produkt', sondern den Artikelnamen plus Aggregatzustand (z.B. 'Mousse au Chocolat Pulver' oder 'Suppenbasis Paste'). Das Wort 'Produkt' ist als Komponenten-Name VERBOTEN.\n" +
+      "- WICHTIG: Suche explizit nach ALLEN weiteren Zutaten für die Zubereitung (z.B. Milch, Sahne, Wasser, Zucker) und füge diese als eigene Komponenten hinzu. Es dürfen keine Zutaten fehlen!\n" +
       "- Beispiel: `[{name: 'Mousse au Chocolat Pulver', quantity: 400, unit: 'g'}, {name: 'Milch (1,5% Fett)', quantity: 1, unit: 'l'}]`.\n" +
       "- Schreibe NICHT alles in ein Feld. Trenne die Zutaten sauber auf.\n" +
       "\n" +
@@ -380,7 +381,7 @@ export async function POST(request: Request) {
 
 
     const userTextInstructions =
-      "Analysiere dieses Produktdatenblatt. WICHTIG: Marke (brand) muss korrekt erkannt werden (z.B. Vogeley). Unit muss die Gesamtmenge sein (z.B. 2,4 kg), NICHT Portionsgröße. Standardzubereitung MUSS in separate Komponenten aufgeteilt werden (z.B. 400g Produkt und 1l Milch als ZWEI Einträge). Gib die Felder debug_reasoning, name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, preparation_steps, nutrition_per_100, manufacturer_article_number, ean, warengruppe, storageArea, bio_control_number sowie alle boolean-Flags zurück. Achte besonders auf Logos (Bio, Vegan, Fairtrade). Wenn 'Fairtrade' im Text/Bild, setze is_fairtrade=true. Name EXAKT übernehmen.";
+      "Analysiere dieses Produktdatenblatt. WICHTIG: Marke (brand) muss korrekt erkannt werden (z.B. Vogeley). Unit muss die Gesamtmenge sein (z.B. 2,4 kg), NICHT Portionsgröße. Standardzubereitung MUSS alle Komponenten enthalten (z.B. 400g Artikelname-Pulver UND 1l Milch als ZWEI separate Einträge). Gib die Felder debug_reasoning, name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, preparation_steps, nutrition_per_100, manufacturer_article_number, ean, warengruppe, storageArea, bio_control_number sowie alle boolean-Flags zurück. Achte besonders auf Logos (Bio, Vegan, Fairtrade). Wenn 'Fairtrade' im Text/Bild, setze is_fairtrade=true. Name EXAKT übernehmen.";
 
     const userText = promptInputText
       ? `${userTextInstructions}\n\nHier ist der extrahierte Text aus dem Dokument (nutze zusätzlich das Bild für Logos/Icons):\n${promptInputText}`
