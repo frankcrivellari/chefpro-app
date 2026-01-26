@@ -915,27 +915,52 @@ export function InventoryManager() {
     setPanStart({ x: e.clientX - packshotPan.x, y: e.clientY - packshotPan.y });
   };
 
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!isPanning) return;
+      e.preventDefault();
+      setPackshotPan({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y
+      });
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (isPanning) {
+        setIsPanning(false);
+      }
+    };
+
+    if (isPanning) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isPanning, panStart]);
+
   const handlePanMouseMove = (e: React.MouseEvent) => {
+    // Deprecated in favor of global listener, but kept for compatibility
     if (!isPanning) return;
     e.preventDefault();
-    setPackshotPan({
-      x: e.clientX - panStart.x,
-      y: e.clientY - panStart.y
-    });
   };
 
   const handlePanMouseUp = () => {
-    setIsPanning(false);
+     // Deprecated in favor of global listener
+     setIsPanning(false);
   };
   
   const handleZoomIn = () => {
     setIsAutoFit(false);
-    setPackshotZoom((prev) => Math.min(prev + 0.2, 5.0));
+    setPackshotZoom((prev) => Math.min(prev + 0.2, 50.0));
   };
   
   const handleZoomOut = () => {
     setIsAutoFit(false);
-    setPackshotZoom((prev) => Math.max(prev - 0.2, 0.1));
+    setPackshotZoom((prev) => Math.max(prev - 0.2, 0.01));
   };
 
   // Packshot Drag & Drop
@@ -4418,20 +4443,17 @@ export function InventoryManager() {
                             <div className="flex flex-col items-center mb-4">
                                 <div className="text-[10px] font-medium text-[#6B7176] mb-1 w-full text-left">Packshot-Fokus</div>
                                 <div 
-                                    className={cn(
-                                        "relative h-64 w-64 overflow-hidden rounded-md border bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#4F8F4E]",
-                                        isPackshotDragOver ? "border-blue-500 bg-blue-50" : "border-gray-200",
-                                        packshotPreview ? "cursor-move touch-none" : "flex flex-col items-center justify-center cursor-default"
-                                    )}
+          className={cn(
+            "relative h-96 w-96 overflow-hidden rounded-md border bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#4F8F4E]",
+            isPackshotDragOver ? "border-blue-500 bg-blue-50" : "border-gray-200",
+            packshotPreview ? "cursor-move touch-none" : "flex flex-col items-center justify-center cursor-default"
+          )}
                                     tabIndex={0}
                                     onPaste={handlePaste}
                                     onMouseDown={packshotPreview ? handlePanMouseDown : undefined}
-                                    onMouseMove={packshotPreview ? handlePanMouseMove : undefined}
-                                    onMouseUp={packshotPreview ? handlePanMouseUp : undefined}
-                                    onMouseLeave={(e) => {
-                                        if (packshotPreview) handlePanMouseUp();
-                                        handlePackshotLeave(e);
-                                    }}
+                                    onMouseMove={undefined}
+                                    onMouseUp={undefined}
+                                    onMouseLeave={handlePackshotLeave}
                                     onDragOver={handlePackshotDragOver}
                                     onDrop={handlePackshotDrop}
                                 >
@@ -4479,7 +4501,7 @@ export function InventoryManager() {
                                     )}
                                 </div>
                                 
-                                <div className="text-[9px] text-[#6B7176] mt-1 text-center w-64">
+                                <div className="text-[9px] text-[#6B7176] mt-1 text-center w-96">
                                     {packshotPreview ? "Ausschnitt verschieben oder neues Bild hineinziehen" : "Ziehe ein Bild in das Fenster"}
                                 </div>
 
