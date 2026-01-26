@@ -1320,6 +1320,7 @@ export function InventoryManager() {
       } else {
          // It's an image, set it as preview directly
          setPreviewImage(url);
+         setPreviewImageItemId(selectedItemId);
       }
     }, 500);
 
