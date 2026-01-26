@@ -155,6 +155,9 @@ export async function POST(request: Request) {
     let isImage = false;
     let isPdf = false;
     let fileBuffer: Buffer | null = null;
+    let promptInputText: string | null = null;
+    let useImage: boolean = false;
+    let visionImageUrl: string | null = null;
 
     if (existingImageUrl && typeof existingImageUrl === "string") {
       publicUrl = existingImageUrl;
@@ -202,6 +205,28 @@ export async function POST(request: Request) {
                 { status: 500 }
             );
          }
+      } else if (isImage) {
+          // For existing Images, we fetch content and convert to base64 to ensure OpenAI can access it reliably
+          try {
+              console.log(`Re-Scan: Fetching Image content from ${publicUrl}`);
+              const response = await fetch(publicUrl);
+              if (!response.ok) {
+                  throw new Error(`Fetch failed with status ${response.status} ${response.statusText}`);
+              }
+              const arrayBuffer = await response.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              const base64 = buffer.toString("base64");
+              const contentType = response.headers.get("content-type") || "image/jpeg";
+              
+              visionImageUrl = `data:${contentType};base64,${base64}`;
+              useImage = true;
+              console.log(`Re-Scan: Image fetched and converted to base64 successfully`);
+          } catch (e) {
+              console.error("Failed to fetch existing Image for re-scan:", e);
+              // Fallback: Try with URL if fetch fails, but log error
+              visionImageUrl = publicUrl;
+              useImage = true;
+          }
       }
     } else {
         if (!(file instanceof Blob)) {
@@ -279,10 +304,6 @@ export async function POST(request: Request) {
     }
 
     const imagePublicUrl = isImage ? publicUrl : null;
-
-    let promptInputText: string | null = null;
-    let useImage: boolean = false;
-    let visionImageUrl: string | null = null;
 
     const visionFile = formData.get("vision_file");
     if (visionFile && visionFile instanceof Blob) {
