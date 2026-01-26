@@ -132,7 +132,7 @@ Antworte immer als JSON-Objekt.
 WICHTIG: Das Feld 'name' ist das allerwichtigste Feld. Es MUSS immer einen Wert enthalten (String). Wenn du den exakten Namen nicht findest, generiere einen passenden Namen basierend auf dem Inhalt.
 Füge ein Feld 'debug_reasoning' (string) hinzu, in dem du beschreibst, welche Hinweise du im Text gefunden hast, die auf Eigenschaften wie Bio, Vegan, Glutenfrei etc. hinweisen. Begründe kurz deine Entscheidung für jedes Boolean-Flag.
 
-Ordne das Produkt einer 'warengruppe' (Obst & Gemüse, Molkerei & Eier, Trockensortiment, Getränke, Zusatz- & Hilfsstoffe) und einem 'storageArea' (Frischwaren, Kühlwaren, Tiefkühlwaren, Trockenwaren, Non Food) zu.
+Ordne das Produkt zwingend einer 'warengruppe' (Obst & Gemüse, Molkerei & Eier, Trockensortiment, Getränke, Zusatz- & Hilfsstoffe) und einem 'storageArea' (Frischwaren, Kühlwaren, Tiefkühlwaren, Trockenwaren, Non Food) zu. NULL ist NICHT ERLAUBT. Falls unsicher, nutze 'Trockensortiment' / 'Trockenwaren'.
 Bestimme auch den Aggregatzustand des Produkts (Pulver, Granulat, Paste, Flüssigkeit).
 
 Die erwarteten Felder sind:
@@ -158,7 +158,7 @@ Die erwarteten Felder sind:
 
 WICHTIG: Das Feld 'name' muss die reine Artikelbezeichnung sein und darf KEINE Zusätze wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit' enthalten, es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens.
 nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml.
-Für die erste Komponente der 'standard_preparation' (die das Produkt selbst darstellt), verwende immer den vollständigen extrahierten Artikelnamen.
+Für die erste Komponente der 'standard_preparation' (die das Produkt selbst darstellt), verwende immer den Artikelnamen plus Aggregatzustand (z.B. 'Mousse au Chocolat Pulver'). Das Wort 'Produkt' ist VERBOTEN.
 `;
 
     const completionResponse = await fetch(
@@ -204,6 +204,8 @@ Für die erste Komponente der 'standard_preparation' (die das Produkt selbst dar
     let extractedData;
     try {
       extractedData = JSON.parse(content);
+      if (!extractedData.warengruppe) extractedData.warengruppe = "Trockensortiment";
+      if (!extractedData.storageArea) extractedData.storageArea = "Trockenwaren";
     } catch (e) {
       console.error("JSON Parse Error:", e);
       console.error("Raw Content:", content);

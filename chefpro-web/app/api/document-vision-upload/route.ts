@@ -354,17 +354,18 @@ export async function POST(request: Request) {
       "- Das Feld 'unit' muss die GESAMT-Menge der Verkaufseinheit enthalten.\n" +
       "\n" +
       "WICHTIG für 'standard_preparation' (Zubereitung):\n" +
-      "- Wenn die Zubereitung aus mehreren Komponenten besteht (z.B. '400g Produkt + 1l Milch'), MÜSSEN diese als separate Objekte im Array `standard_preparation.components` zurückgegeben werden.\n" +
-      "- Beispiel: `[{name: 'Produkt', quantity: 400, unit: 'g'}, {name: 'Milch (1,5% Fett)', quantity: 1, unit: 'l'}]`.\n" +
-      "- Schreibe NICHT alles in ein Feld (z.B. NICHT `name: 'Produkt, 1l Milch'`). Trenne die Zutaten sauber auf.\n" +
+      "- Wenn die Zubereitung aus mehreren Komponenten besteht (z.B. '400g Pulver + 1l Milch'), MÜSSEN diese als separate Objekte im Array `standard_preparation.components` zurückgegeben werden.\n" +
+      "- WICHTIG: Verwende für die Hauptkomponente (das Produkt selbst) NICHT das Wort 'Produkt', sondern den Artikelnamen plus Aggregatzustand (z.B. 'Mousse au Chocolat Pulver' oder 'Suppenbasis Paste'). Das Wort 'Produkt' ist als Komponenten-Name VERBOTEN.\n" +
+      "- Beispiel: `[{name: 'Mousse au Chocolat Pulver', quantity: 400, unit: 'g'}, {name: 'Milch (1,5% Fett)', quantity: 1, unit: 'l'}]`.\n" +
+      "- Schreibe NICHT alles in ein Feld. Trenne die Zutaten sauber auf.\n" +
       "\n" +
       "Füge ein Feld 'debug_reasoning' (string) hinzu, in dem du zuerst beschreibst, welche visuellen Elemente, Logos, Siegel oder Text-Hinweise du gefunden hast.\n" +
       "- Suche aggressiv nach dem Wort 'Fairtrade' oder dem Fairtrade-Logo. Wenn 'Fairtrade' im Namen oder auf dem Bild steht, MUSS 'is_fairtrade' true sein.\n" +
       "- Begründe kurz deine Entscheidung für jedes Boolean-Flag.\n" +
       "\n" +
-      "Kategorisierung (WICHTIG: Du MUSST zwingend einen Wert aus den Listen wählen, auch wenn du ihn schätzen musst):\n" +
-      "- 'warengruppe': Wähle exakt einen aus: ['Obst & Gemüse', 'Molkerei & Eier', 'Trockensortiment', 'Getränke', 'Zusatz- & Hilfsstoffe']. Wenn unsicher, nimm 'Trockensortiment' oder was am besten passt.\n" +
-      "- 'storageArea': Wähle exakt einen aus: ['Frischwaren', 'Kühlwaren', 'Tiefkühlwaren', 'Trockenwaren', 'Non Food']. Wenn unsicher, nimm 'Trockenwaren' oder was am besten passt.\n" +
+      "Kategorisierung (WICHTIG: Du MUSST zwingend einen Wert aus den Listen wählen. NULL ist VERBOTEN. Falls unsicher, nutze den Default 'Trockensortiment'/'Trockenwaren'):\n" +
+      "- 'warengruppe': Wähle exakt einen aus: ['Obst & Gemüse', 'Molkerei & Eier', 'Trockensortiment', 'Getränke', 'Zusatz- & Hilfsstoffe']. Wenn unsicher, nimm 'Trockensortiment'.\n" +
+      "- 'storageArea': Wähle exakt einen aus: ['Frischwaren', 'Kühlwaren', 'Tiefkühlwaren', 'Trockenwaren', 'Non Food']. Wenn unsicher, nimm 'Trockenwaren'.\n" +
       "\n" +
       "Bestimme auch den Aggregatzustand des Produkts (Pulver, Granulat, Paste, Flüssigkeit) anhand der Beschreibung und Bilder.\n" +
       "\n" +
@@ -617,8 +618,8 @@ export async function POST(request: Request) {
       is_paste: isPaste,
       is_liquid: isLiquid,
       bio_control_number: parsed.bio_control_number || null,
-      warengruppe: parsed.warengruppe || null,
-      storageArea: parsed.storageArea || null,
+      warengruppe: parsed.warengruppe || "Trockensortiment",
+      storageArea: parsed.storageArea || "Trockenwaren",
       image_url: imagePublicUrl,
       debug_reasoning: parsed.debug_reasoning,
     };
@@ -661,8 +662,8 @@ export async function POST(request: Request) {
         is_granulate: isGranulate,
         is_paste: isPaste,
         is_liquid: isLiquid,
-        warengruppe: parsed.warengruppe || null,
-        storage_area: parsed.storageArea || null,
+        warengruppe: parsed.warengruppe || "Trockensortiment",
+        storage_area: parsed.storageArea || "Trockenwaren",
         bio_control_number: parsed.bio_control_number || null,
         file_url: publicUrl,
         image_url: imagePublicUrl,
@@ -697,8 +698,8 @@ export async function POST(request: Request) {
             preparation_steps: preparationSteps,
             manufacturer_article_number: manufacturerArticleNumber,
             image_url: imagePublicUrl,
-            warengruppe: parsed.warengruppe || null,
-            storageArea: parsed.storageArea || null,
+            warengruppe: parsed.warengruppe || "Trockensortiment",
+            storageArea: parsed.storageArea || "Trockenwaren",
           },
         },
         { status: 500 }
@@ -770,8 +771,8 @@ export async function POST(request: Request) {
         is_granulate: isGranulate,
         is_paste: isPaste,
         is_liquid: isLiquid,
-        warengruppe: parsed.warengruppe || null,
-        storageArea: parsed.storageArea || null,
+        warengruppe: parsed.warengruppe || "Trockensortiment",
+        storageArea: parsed.storageArea || "Trockenwaren",
         image_url: imagePublicUrl,
         debug_reasoning: parsed.debug_reasoning,
       },
