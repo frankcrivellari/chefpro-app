@@ -4407,7 +4407,7 @@ export function InventoryManager() {
                                 <div className="text-[10px] font-medium text-[#6B7176] mb-1 w-full text-left">Packshot-Fokus</div>
                                 <div 
                                     className={cn(
-                                        "relative h-40 w-40 overflow-hidden rounded-md border bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#4F8F4E]",
+                                        "relative h-64 w-64 overflow-hidden rounded-md border bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-[#4F8F4E]",
                                         isPackshotDragOver ? "border-blue-500 bg-blue-50" : "border-gray-200",
                                         packshotPreview ? "cursor-move touch-none" : "flex flex-col items-center justify-center cursor-default"
                                     )}
@@ -4464,7 +4464,7 @@ export function InventoryManager() {
                                     )}
                                 </div>
                                 
-                                <div className="text-[9px] text-[#6B7176] mt-1 text-center w-40">
+                                <div className="text-[9px] text-[#6B7176] mt-1 text-center w-64">
                                     {packshotPreview ? "Ausschnitt verschieben oder neues Bild hineinziehen" : "Ziehe ein Bild in das Fenster"}
                                 </div>
 
