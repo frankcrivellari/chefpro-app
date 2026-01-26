@@ -246,6 +246,7 @@ type ParsedDocumentItem = {
   ean?: string | null;
   yieldVolume?: string | null;
   imageUrl?: string | null;
+  standardPreparation?: StandardPreparation | null;
   isBio?: boolean;
   isDeklarationsfrei?: boolean;
   isAllergenfrei?: boolean;
@@ -703,6 +704,21 @@ export function InventoryManager() {
            setProSodiumInput(extracted.nutrition_per_100.sodium?.toString() || "");
            setProBreadUnitsInput(extracted.nutrition_per_100.bread_units?.toString() || "");
            setProCholesterolInput(extracted.nutrition_per_100.cholesterol?.toString() || "");
+        }
+
+        // Standard Preparation / Dosage
+        if (extracted.standard_preparation?.components) {
+            setStandardPreparationComponents(extracted.standard_preparation.components);
+        } else if (extracted.dosage_instructions) {
+             // Fallback if no structured data
+             const lines = extracted.dosage_instructions
+                .split(/\r?\n/)
+                .map((value: string) => value.trim())
+                .filter((value: string) => value.length > 0);
+              const parsedComponents: StandardPreparationComponent[] = lines.map(
+                (line: string) => parseStandardPreparationLine(line)
+              );
+              setStandardPreparationComponents(parsedComponents);
         }
         
         // Update selectedItem directly via setItems to ensure UI updates for fields bound to selectedItem
@@ -1495,17 +1511,31 @@ export function InventoryManager() {
   }, [docParsed]);
 
   useEffect(() => {
-    if (!docParsed || !docParsed.dosageInstructions) {
+    if (!docParsed) {
       return;
     }
-    const lines = docParsed.dosageInstructions
-      .split(/\r?\n/)
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0);
-    const parsedComponents: StandardPreparationComponent[] = lines.map(
-      (line) => parseStandardPreparationLine(line)
-    );
-    setStandardPreparationComponents(parsedComponents);
+
+    // Prioritize structured standardPreparation from AI if available
+    if (
+      docParsed.standardPreparation &&
+      docParsed.standardPreparation.components &&
+      docParsed.standardPreparation.components.length > 0
+    ) {
+      setStandardPreparationComponents(docParsed.standardPreparation.components);
+      return;
+    }
+
+    // Fallback: Parse dosageInstructions string if no structured data
+    if (docParsed.dosageInstructions) {
+      const lines = docParsed.dosageInstructions
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+      const parsedComponents: StandardPreparationComponent[] = lines.map(
+        (line) => parseStandardPreparationLine(line)
+      );
+      setStandardPreparationComponents(parsedComponents);
+    }
   }, [docParsed]);
 
   const recentRecipes = useMemo(() => {
@@ -3299,6 +3329,9 @@ export function InventoryManager() {
             typeof payload.extracted.image_url === "string"
               ? payload.extracted.image_url
               : null,
+          standardPreparation: payload.extracted.standard_preparation || null,
+          warengruppe: payload.extracted.warengruppe || null,
+          storageArea: payload.extracted.storageArea || null,
           isBio: payload.extracted.is_bio ?? false,
           isDeklarationsfrei:
             payload.extracted.is_deklarationsfrei ?? false,

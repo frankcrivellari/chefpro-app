@@ -294,6 +294,20 @@ export async function POST(request: Request) {
       "- Negativ-Beispiel: Aus 'Mousse au Chocolat FAIRTRADE' darf NICHT 'Fairtrade Schoko Dessert' werden. Es MUSS 'Mousse au Chocolat FAIRTRADE' bleiben.\n" +
       "- Entferne jedoch rein physische Zustandsbeschreibungen wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit', es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens.\n" +
       "\n" +
+      "WICHTIG für 'brand' (Marke):\n" +
+      "- Suche explizit nach Hersteller-Logos oder Markennamen (z.B. 'Vogeley', 'Knorr', 'Unilever').\n" +
+      "- Verwechsle diese NICHT mit anderen Marken. Wenn 'Vogeley' auf der Packung steht, ist das die Marke.\n" +
+      "\n" +
+      "WICHTIG für 'unit' (Menge/Gewicht):\n" +
+      "- Suche nach der Nettofüllmenge oder dem Abtropfgewicht (z.B. '2,4 kg', '1000 ml', '500 g').\n" +
+      "- Ignoriere Portionsangaben (z.B. '72g pro Portion') oder Nährwert-Referenzmengen (z.B. '100g').\n" +
+      "- Das Feld 'unit' muss die GESAMT-Menge der Verkaufseinheit enthalten.\n" +
+      "\n" +
+      "WICHTIG für 'standard_preparation' (Zubereitung):\n" +
+      "- Wenn die Zubereitung aus mehreren Komponenten besteht (z.B. '400g Produkt + 1l Milch'), MÜSSEN diese als separate Objekte im Array `standard_preparation.components` zurückgegeben werden.\n" +
+      "- Beispiel: `[{name: 'Produkt', quantity: 400, unit: 'g'}, {name: 'Milch (1,5% Fett)', quantity: 1, unit: 'l'}]`.\n" +
+      "- Schreibe NICHT alles in ein Feld (z.B. NICHT `name: 'Produkt, 1l Milch'`). Trenne die Zutaten sauber auf.\n" +
+      "\n" +
       "Füge ein Feld 'debug_reasoning' (string) hinzu, in dem du zuerst beschreibst, welche visuellen Elemente, Logos, Siegel oder Text-Hinweise du gefunden hast.\n" +
       "- Suche aggressiv nach dem Wort 'Fairtrade' oder dem Fairtrade-Logo. Wenn 'Fairtrade' im Namen oder auf dem Bild steht, MUSS 'is_fairtrade' true sein.\n" +
       "- Begründe kurz deine Entscheidung für jedes Boolean-Flag.\n" +
@@ -306,7 +320,7 @@ export async function POST(request: Request) {
       "Die erwarteten Felder sind: name (PFLICHT!), brand (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), standard_preparation (object), yield_info (string), preparation_steps (string), nutrition_per_100 (object), manufacturer_article_number (string), ean (string), is_bio (boolean), bio_control_number (string), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean), is_vegan (boolean), is_vegetarian (boolean), is_fairtrade (boolean), is_powder (boolean), is_granulate (boolean), is_paste (boolean), is_liquid (boolean), warengruppe (string), storageArea (string).";
 
     const userTextInstructions =
-      "Analysiere dieses Produktdatenblatt und gib die Felder debug_reasoning, name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, preparation_steps, nutrition_per_100, manufacturer_article_number, ean, warengruppe, storageArea, bio_control_number sowie alle boolean-Flags is_bio, is_deklarationsfrei, is_allergenfrei, is_cook_chill, is_freeze_thaw_stable, is_palm_oil_free, is_yeast_free, is_lactose_free, is_gluten_free, is_vegan, is_vegetarian, is_fairtrade, is_powder, is_granulate, is_paste, is_liquid zurück. WICHTIG: Das Feld 'unit' muss Menge und Einheit enthalten (z.B. '500g' oder '400g Abtropfgewicht'). Priorisiere Nettofüllmenge oder Abtropfgewicht. Achte besonders auf Logos, Icons oder Siegel (z.B. Bio-Logo, Vegan-Blume, Fairtrade-Siegel, Glutenfrei-Symbol), die auf dem Bild zu sehen sind, auch wenn sie nicht explizit im Text stehen. Setze die entsprechenden Flags auf true, wenn solche Symbole erkannt werden. Schreibe deine Beobachtungen dazu in 'debug_reasoning'. WICHTIG für Fairtrade: Wenn das Wort 'Fairtrade' im Text oder als Logo erscheint, setze is_fairtrade=true. WICHTIG für Name: Übernimm den Namen EXAKT (inkl. Fairtrade/Bio Zusätze) und erfinde keine eigenen Bezeichnungen. WICHTIG für Kategorien: Fülle warengruppe und storageArea immer aus! nutrition_per_100 sind die Nährwerte pro 100 g bzw. 100 ml mit energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt, fiber, sodium, bread_units, cholesterol.";
+      "Analysiere dieses Produktdatenblatt. WICHTIG: Marke (brand) muss korrekt erkannt werden (z.B. Vogeley). Unit muss die Gesamtmenge sein (z.B. 2,4 kg), NICHT Portionsgröße. Standardzubereitung MUSS in separate Komponenten aufgeteilt werden (z.B. 400g Produkt und 1l Milch als ZWEI Einträge). Gib die Felder debug_reasoning, name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, preparation_steps, nutrition_per_100, manufacturer_article_number, ean, warengruppe, storageArea, bio_control_number sowie alle boolean-Flags zurück. Achte besonders auf Logos (Bio, Vegan, Fairtrade). Wenn 'Fairtrade' im Text/Bild, setze is_fairtrade=true. Name EXAKT übernehmen.";
 
     const userText = promptInputText
       ? `${userTextInstructions}\n\nHier ist der extrahierte Text aus dem Dokument (nutze zusätzlich das Bild für Logos/Icons):\n${promptInputText}`
