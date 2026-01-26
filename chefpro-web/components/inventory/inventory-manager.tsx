@@ -1561,9 +1561,18 @@ export function InventoryManager() {
     }
   }, [packshotPreview]);
 
+  // Sync Image URL Input when it changes in DB/State (e.g. after scan)
   useEffect(() => {
     if (selectedItem) {
       setImageUrlInput(selectedItem.imageUrl ?? "");
+    }
+  }, [selectedItem?.imageUrl]);
+
+  // Reset/Load state when Item Selection Changes
+  useEffect(() => {
+    if (selectedItem?.id) {
+      // Don't reset imageUrlInput here, it's handled by the other effect
+      
       setPreviewImage(null); // Reset manual preview on item change
       setPreviewImageItemId(null);
       setDocParsed(null);    // Reset vision parsed data on item change
@@ -1589,7 +1598,7 @@ export function InventoryManager() {
     }
     setImageUploadError(null);
     setIsImageDropActive(false);
-  }, [selectedItem]);
+  }, [selectedItem?.id]);
 
 
 
