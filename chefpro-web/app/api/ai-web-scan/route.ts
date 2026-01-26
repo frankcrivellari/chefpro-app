@@ -158,7 +158,9 @@ Die erwarteten Felder sind:
 
 WICHTIG: Das Feld 'name' muss die reine Artikelbezeichnung sein und darf KEINE Zusätze wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit' enthalten, es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens.
 nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml.
-Für die erste Komponente der 'standard_preparation' (die das Produkt selbst darstellt), verwende immer den Artikelnamen plus Aggregatzustand (z.B. 'Mousse au Chocolat Pulver'). Das Wort 'Produkt' ist VERBOTEN.
+Für die erste Komponente der 'standard_preparation' (die das Produkt selbst darstellt), verwende immer den Artikelnamen plus Aggregatzustand (z.B. 'Mousse au Chocolat Pulver').
+VERBOTEN: {name: 'Produkt', ...} -> KORREKT: {name: 'Mousse au Chocolat Pulver', ...}
+Das Wort 'Produkt' ist als Komponenten-Name STRENGSTENS VERBOTEN.
 Suche explizit nach ALLEN weiteren Zutaten für die Zubereitung (z.B. Milch, Sahne, Wasser) und füge diese als eigene Komponenten hinzu. Es dürfen keine Zutaten fehlen!
 `;
 

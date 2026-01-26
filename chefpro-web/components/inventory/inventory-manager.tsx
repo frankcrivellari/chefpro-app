@@ -706,7 +706,16 @@ export function InventoryManager() {
 
         // Standard Preparation / Dosage
         if (extracted.standard_preparation?.components) {
-            setStandardPreparationComponents(extracted.standard_preparation.components);
+            const cleanComponents = extracted.standard_preparation.components.map((comp: any) => {
+                 // Replace generic "Produkt" with item name + physical state
+                 if (comp.name && (comp.name.toLowerCase() === 'produkt' || comp.name.toLowerCase().includes('produkt'))) {
+                     const stateSuffix = extracted.is_liquid ? 'Flüssigkeit' : extracted.is_paste ? 'Paste' : extracted.is_granulate ? 'Granulat' : 'Pulver';
+                     return { ...comp, name: `${extracted.name || 'Artikel'} ${stateSuffix}` };
+                 }
+                 return comp;
+             });
+            extracted.standard_preparation.components = cleanComponents;
+            setStandardPreparationComponents(cleanComponents);
         } else if (extracted.dosage_instructions) {
              // Fallback if no structured data
              const lines = extracted.dosage_instructions
@@ -734,8 +743,8 @@ export function InventoryManager() {
             ean: extracted.ean || item.ean,
             ingredients: extracted.ingredients || item.ingredients,
             allergens: Array.isArray(extracted.allergens) ? extracted.allergens : item.allergens,
-            warengruppe: extracted.warengruppe || item.warengruppe,
-            storageArea: extracted.storageArea || item.storageArea,
+            warengruppe: extracted.warengruppe || item.warengruppe || "Trockensortiment",
+            storageArea: extracted.storageArea || item.storageArea || "Trockenwaren",
             
             // Flags
             isBio: extracted.is_bio ?? item.isBio,
@@ -813,6 +822,17 @@ export function InventoryManager() {
       const { extracted, fileUrl } = await scanResponse.json();
       const scannedData = extracted || {};
 
+      // Sanitize standard_preparation "Produkt" name
+      if (scannedData.standard_preparation?.components) {
+          scannedData.standard_preparation.components = scannedData.standard_preparation.components.map((comp: any) => {
+              if (comp.name && (comp.name.toLowerCase() === 'produkt' || comp.name.toLowerCase().includes('produkt'))) {
+                   const stateSuffix = scannedData.is_liquid ? 'Flüssigkeit' : scannedData.is_paste ? 'Paste' : scannedData.is_granulate ? 'Granulat' : 'Pulver';
+                   return { ...comp, name: `${scannedData.name || 'Artikel'} ${stateSuffix}` };
+              }
+              return comp;
+          });
+      }
+
       // 2. Map to InventoryItem structure
       const newItemPayload = {
         name: scannedData.name || "Unbenannter Artikel",
@@ -828,8 +848,8 @@ export function InventoryManager() {
           ? scannedData.dosage_instructions 
           : (typeof scannedData.standard_preparation === 'string' ? scannedData.standard_preparation : null),
         standardPreparation: typeof scannedData.standard_preparation === 'object' ? scannedData.standard_preparation : null,
-        warengruppe: scannedData.warengruppe,
-        storageArea: scannedData.storageArea,
+        warengruppe: scannedData.warengruppe || "Trockensortiment",
+        storageArea: scannedData.storageArea || "Trockenwaren",
         fileUrl: fileUrl || null,
         
         // Boolean Flags
@@ -2982,6 +3002,18 @@ export function InventoryManager() {
           packshotZoom: rawItem.packshotZoom ?? rawItem.packshot_zoom,
         };
         const nutritionRaw = (payload.extracted?.nutrition_per_100 || payload.extracted?.nutrition_per_100g) as any;
+        
+        // Sanitize standard_preparation "Produkt" name
+        if (payload.extracted?.standard_preparation?.components) {
+            payload.extracted.standard_preparation.components = payload.extracted.standard_preparation.components.map((comp: any) => {
+                if (comp.name && (comp.name.toLowerCase() === 'produkt' || comp.name.toLowerCase().includes('produkt'))) {
+                     const stateSuffix = payload.extracted?.is_liquid ? 'Flüssigkeit' : payload.extracted?.is_paste ? 'Paste' : payload.extracted?.is_granulate ? 'Granulat' : 'Pulver';
+                     return { ...comp, name: `${payload.extracted?.name || 'Artikel'} ${stateSuffix}` };
+                }
+                return comp;
+            });
+        }
+
         const enriched: InventoryItem = {
           ...created,
           allergens:
@@ -3069,6 +3101,16 @@ export function InventoryManager() {
           isGranulate: payload.extracted?.is_granulate ?? created.isGranulate ?? false,
           isPaste: payload.extracted?.is_paste ?? created.isPaste ?? false,
           isLiquid: payload.extracted?.is_liquid ?? created.isLiquid ?? false,
+          warengruppe:
+            (payload.extracted &&
+            payload.extracted.warengruppe
+              ? payload.extracted.warengruppe
+              : created.warengruppe) || "Trockensortiment",
+          storageArea:
+            (payload.extracted &&
+            payload.extracted.storageArea
+              ? payload.extracted.storageArea
+              : created.storageArea) || "Trockenwaren",
         };
         setItems((previous) => [
           ...previous,
@@ -3116,8 +3158,8 @@ export function InventoryManager() {
         setIsGranulateInput(payload.extracted.is_granulate ?? false);
         setIsPasteInput(payload.extracted.is_paste ?? false);
         setIsLiquidInput(payload.extracted.is_liquid ?? false);
-        setWarengruppeInput(payload.extracted.warengruppe ?? "");
-        setStorageAreaInput(payload.extracted.storageArea ?? "");
+        setWarengruppeInput(payload.extracted.warengruppe || "Trockensortiment");
+        setStorageAreaInput(payload.extracted.storageArea || "Trockenwaren");
         setIsViewerOpen(true);
 
         // Nutrition state updates
@@ -3195,6 +3237,68 @@ export function InventoryManager() {
             : ""
         );
 
+        // Update selected item with extracted data to ensure UI updates immediately
+        setItems((prev) =>
+          prev.map((item) => {
+            if (item.id !== selectedItemId) return item;
+
+            const extracted = payload.extracted!;
+            const nutritionRaw = (extracted.nutrition_per_100 || (extracted as any).nutrition_per_100g) as any;
+
+            return {
+              ...item,
+              name: extracted.name || item.name,
+              brand: extracted.brand || item.brand,
+              unit: extracted.unit || item.unit,
+              purchasePrice: typeof extracted.purchase_price === 'number' ? extracted.purchase_price : item.purchasePrice,
+              manufacturerArticleNumber: extracted.manufacturer_article_number || item.manufacturerArticleNumber,
+              ean: extracted.ean || item.ean,
+              
+              ingredients: typeof extracted.ingredients === 'string' ? extracted.ingredients : item.ingredients,
+              allergens: Array.isArray(extracted.allergens) ? extracted.allergens : item.allergens,
+              
+              warengruppe: extracted.warengruppe || "Trockensortiment",
+              storageArea: extracted.storageArea || "Trockenwaren",
+
+              // Boolean flags
+              isBio: extracted.is_bio ?? item.isBio,
+              isDeklarationsfrei: extracted.is_deklarationsfrei ?? item.isDeklarationsfrei,
+              isAllergenfrei: extracted.is_allergenfrei ?? item.isAllergenfrei,
+              isCookChill: extracted.is_cook_chill ?? item.isCookChill,
+              isFreezeThawStable: extracted.is_freeze_thaw_stable ?? item.isFreezeThawStable,
+              isPalmOilFree: extracted.is_palm_oil_free ?? item.isPalmOilFree,
+              isYeastFree: extracted.is_yeast_free ?? item.isYeastFree,
+              isLactoseFree: extracted.is_lactose_free ?? item.isLactoseFree,
+              isGlutenFree: extracted.is_gluten_free ?? item.isGlutenFree,
+              isVegan: extracted.is_vegan ?? item.isVegan,
+              isVegetarian: extracted.is_vegetarian ?? item.isVegetarian,
+              isFairtrade: extracted.is_fairtrade ?? item.isFairtrade,
+              
+              isPowder: extracted.is_powder ?? item.isPowder,
+              isGranulate: extracted.is_granulate ?? item.isGranulate,
+              isPaste: extracted.is_paste ?? item.isPaste,
+              isLiquid: extracted.is_liquid ?? item.isLiquid,
+
+              // Nutrition
+              nutritionPerUnit: nutritionRaw ? {
+                energyKcal: nutritionRaw.energy_kcal,
+                fat: nutritionRaw.fat,
+                saturatedFat: nutritionRaw.saturated_fat,
+                carbs: nutritionRaw.carbohydrates || nutritionRaw.carbs,
+                sugar: nutritionRaw.sugar,
+                protein: nutritionRaw.protein,
+                salt: nutritionRaw.salt,
+                fiber: nutritionRaw.fiber,
+                sodium: nutritionRaw.sodium,
+                breadUnits: nutritionRaw.bread_units,
+                cholesterol: nutritionRaw.cholesterol,
+              } : item.nutritionPerUnit,
+              
+               standardPreparation: extracted.standard_preparation ? extracted.standard_preparation : item.standardPreparation,
+            };
+          })
+        );
+
       }
       if (payload.extracted && payload.fileUrl) {
         if (
@@ -3247,8 +3351,8 @@ export function InventoryManager() {
               ? payload.extracted.image_url
               : null,
           standardPreparation: payload.extracted.standard_preparation || null,
-          warengruppe: payload.extracted.warengruppe || null,
-          storageArea: payload.extracted.storageArea || null,
+          warengruppe: payload.extracted.warengruppe || "Trockensortiment",
+          storageArea: payload.extracted.storageArea || "Trockenwaren",
           isBio: payload.extracted.is_bio ?? false,
           isDeklarationsfrei:
             payload.extracted.is_deklarationsfrei ?? false,

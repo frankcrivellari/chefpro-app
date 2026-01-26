@@ -355,7 +355,9 @@ export async function POST(request: Request) {
       "\n" +
       "WICHTIG für 'standard_preparation' (Zubereitung):\n" +
       "- Wenn die Zubereitung aus mehreren Komponenten besteht (z.B. '400g Pulver + 1l Milch'), MÜSSEN diese als separate Objekte im Array `standard_preparation.components` zurückgegeben werden.\n" +
-      "- WICHTIG: Verwende für die Hauptkomponente (das Produkt selbst) NICHT das Wort 'Produkt', sondern den Artikelnamen plus Aggregatzustand (z.B. 'Mousse au Chocolat Pulver' oder 'Suppenbasis Paste'). Das Wort 'Produkt' ist als Komponenten-Name VERBOTEN.\n" +
+      "- WICHTIG: Verwende für die Hauptkomponente (das Produkt selbst) NICHT das Wort 'Produkt', sondern den Artikelnamen plus Aggregatzustand (z.B. 'Mousse au Chocolat Pulver' oder 'Suppenbasis Paste').\n" +
+      "- VERBOTEN: {name: 'Produkt', ...} -> KORREKT: {name: 'Mousse au Chocolat Pulver', ...}\n" +
+      "- Das Wort 'Produkt' ist als Komponenten-Name STRENGSTENS VERBOTEN. Nutze immer den spezifischen Namen.\n" +
       "- WICHTIG: Suche explizit nach ALLEN weiteren Zutaten für die Zubereitung (z.B. Milch, Sahne, Wasser, Zucker) und füge diese als eigene Komponenten hinzu. Es dürfen keine Zutaten fehlen!\n" +
       "- Beispiel: `[{name: 'Mousse au Chocolat Pulver', quantity: 400, unit: 'g'}, {name: 'Milch (1,5% Fett)', quantity: 1, unit: 'l'}]`.\n" +
       "- Schreibe NICHT alles in ein Feld. Trenne die Zutaten sauber auf.\n" +
