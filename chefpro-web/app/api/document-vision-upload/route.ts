@@ -346,7 +346,16 @@ export async function POST(request: Request) {
       "- 'storageArea': Wähle exakt einen aus: ['Frischwaren', 'Kühlwaren', 'Tiefkühlwaren', 'Trockenwaren', 'Non Food']. Wenn unsicher, nimm 'Trockenwaren' oder was am besten passt.\n" +
       "\n" +
       "Bestimme auch den Aggregatzustand des Produkts (Pulver, Granulat, Paste, Flüssigkeit) anhand der Beschreibung und Bilder.\n" +
+      "\n" +
+      "WICHTIG für 'nutrition_per_100' (Nährwerte):\n" +
+      "- Extrahiere IMMER Nährwerte, wenn sie auf dem Bild oder im Text zu finden sind.\n" +
+      "- Suche nach einer Tabelle mit 'Nährwerte', 'Nutrition Facts' oder ähnlichem.\n" +
+      "- Wenn Werte pro 100g/ml angegeben sind, nutze diese.\n" +
+      "- Fülle das Objekt `nutrition_per_100` mit den Feldern: energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt.\n" +
+      "- Falls keine Nährwerte vorhanden sind, lasse das Feld `nutrition_per_100` null, aber erfinde keine Werte.\n" +
+      "\n" +
       "Die erwarteten Felder sind: name (PFLICHT!), brand (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), standard_preparation (object), yield_info (string), preparation_steps (string), nutrition_per_100 (object), manufacturer_article_number (string), ean (string), is_bio (boolean), bio_control_number (string), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean), is_vegan (boolean), is_vegetarian (boolean), is_fairtrade (boolean), is_powder (boolean), is_granulate (boolean), is_paste (boolean), is_liquid (boolean), warengruppe (string), storageArea (string).";
+
 
     const userTextInstructions =
       "Analysiere dieses Produktdatenblatt. WICHTIG: Marke (brand) muss korrekt erkannt werden (z.B. Vogeley). Unit muss die Gesamtmenge sein (z.B. 2,4 kg), NICHT Portionsgröße. Standardzubereitung MUSS in separate Komponenten aufgeteilt werden (z.B. 400g Produkt und 1l Milch als ZWEI Einträge). Gib die Felder debug_reasoning, name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, preparation_steps, nutrition_per_100, manufacturer_article_number, ean, warengruppe, storageArea, bio_control_number sowie alle boolean-Flags zurück. Achte besonders auf Logos (Bio, Vegan, Fairtrade). Wenn 'Fairtrade' im Text/Bild, setze is_fairtrade=true. Name EXAKT übernehmen.";

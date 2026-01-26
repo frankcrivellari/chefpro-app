@@ -4433,7 +4433,9 @@ export function InventoryManager() {
                                             style={{ 
                                                 transform: `translate(${packshotPan.x}px, ${packshotPan.y}px)`,
                                                 width: `${packshotZoom * 100}%`, 
-                                                height: 'auto'
+                                                height: 'auto',
+                                                minWidth: '50%', // Allow image to be smaller
+                                                minHeight: '50%'
                                             }}
                                             draggable={false}
                                         />
