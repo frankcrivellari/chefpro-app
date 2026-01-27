@@ -336,54 +336,86 @@ export async function POST(request: Request) {
       );
     }
 
-    const instructions =
-      "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt. WICHTIG: Das Feld 'name' ist das allerwichtigste Feld. Es MUSS immer einen Wert enthalten (String).\n" +
-      "- Der Name soll exakt wie auf der Packung übernommen werden.\n" +
-      "- WICHTIG: Übernimm ALLE Namensbestandteile, inklusive 'Fairtrade', 'Bio', 'Vegan' oder Markenzusätze (z.B. 'Mousse au Chocolat FAIRTRADE'). Kürze den Namen NICHT ab.\n" +
-      "- VERBOTEN: Erfinde KEINE eigenen Namen. Beschreibe das Produkt NICHT (z.B. 'Schoko Dessert' statt 'Mousse au Chocolat'). Nutze NUR den Text, der auf der Packung steht.\n" +
-      "- Negativ-Beispiel: Aus 'Mousse au Chocolat FAIRTRADE' darf NICHT 'Fairtrade Schoko Dessert' werden. Es MUSS 'Mousse au Chocolat FAIRTRADE' bleiben.\n" +
-      "- Entferne jedoch rein physische Zustandsbeschreibungen wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit', es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens.\n" +
-      "\n" +
-      "WICHTIG für 'brand' (Marke):\n" +
-      "- Suche explizit nach Hersteller-Logos oder Markennamen (z.B. 'Vogeley', 'Knorr', 'Unilever').\n" +
-      "- Verwechsle diese NICHT mit anderen Marken. Wenn 'Vogeley' auf der Packung steht, ist das die Marke.\n" +
-      "\n" +
-      "WICHTIG für 'unit' (Menge/Gewicht):\n" +
-      "- Suche nach der Nettofüllmenge oder dem Abtropfgewicht (z.B. '2,4 kg', '1000 ml', '500 g').\n" +
-      "- Ignoriere Portionsangaben (z.B. '72g pro Portion') oder Nährwert-Referenzmengen (z.B. '100g').\n" +
-      "- Das Feld 'unit' muss die GESAMT-Menge der Verkaufseinheit enthalten.\n" +
-      "\n" +
-      "WICHTIG für 'standard_preparation' (Zubereitung):\n" +
-      "- Wenn die Zubereitung aus mehreren Komponenten besteht (z.B. '400g Pulver + 1l Milch'), MÜSSEN diese als separate Objekte im Array `standard_preparation.components` zurückgegeben werden.\n" +
-      "- WICHTIG: Verwende für die Hauptkomponente (das Produkt selbst) NICHT das Wort 'Produkt', sondern den Artikelnamen plus Aggregatzustand (z.B. 'Mousse au Chocolat Pulver' oder 'Suppenbasis Paste').\n" +
-      "- VERBOTEN: {name: 'Produkt', ...} -> KORREKT: {name: 'Mousse au Chocolat Pulver', ...}\n" +
-      "- Das Wort 'Produkt' ist als Komponenten-Name STRENGSTENS VERBOTEN. Nutze immer den spezifischen Namen.\n" +
-      "- WICHTIG: Suche explizit nach ALLEN weiteren Zutaten für die Zubereitung (z.B. Milch, Sahne, Wasser, Zucker) und füge diese als eigene Komponenten hinzu. Es dürfen keine Zutaten fehlen!\n" +
-      "- Beispiel: `[{name: 'Mousse au Chocolat Pulver', quantity: 400, unit: 'g'}, {name: 'Milch (1,5% Fett)', quantity: 1, unit: 'l'}]`.\n" +
-      "- Schreibe NICHT alles in ein Feld. Trenne die Zutaten sauber auf.\n" +
-      "\n" +
-      "Füge ein Feld 'debug_reasoning' (string) hinzu, in dem du zuerst beschreibst, welche visuellen Elemente, Logos, Siegel oder Text-Hinweise du gefunden hast.\n" +
-      "- Suche aggressiv nach dem Wort 'Fairtrade' oder dem Fairtrade-Logo. Wenn 'Fairtrade' im Namen oder auf dem Bild steht, MUSS 'is_fairtrade' true sein.\n" +
-      "- Begründe kurz deine Entscheidung für jedes Boolean-Flag.\n" +
-      "\n" +
-      "Kategorisierung (WICHTIG: Du MUSST zwingend einen Wert aus den Listen wählen. NULL ist VERBOTEN. Falls unsicher, nutze den Default 'Trockensortiment'/'Trockenwaren'):\n" +
-      "- 'warengruppe': Wähle exakt einen aus: ['Obst & Gemüse', 'Molkerei & Eier', 'Trockensortiment', 'Getränke', 'Zusatz- & Hilfsstoffe']. Wenn unsicher, nimm 'Trockensortiment'.\n" +
-      "- 'storageArea': Wähle exakt einen aus: ['Frischwaren', 'Kühlwaren', 'Tiefkühlwaren', 'Trockenwaren', 'Non Food']. Wenn unsicher, nimm 'Trockenwaren'.\n" +
-      "\n" +
-      "Bestimme auch den Aggregatzustand des Produkts (Pulver, Granulat, Paste, Flüssigkeit) anhand der Beschreibung und Bilder.\n" +
-      "\n" +
-      "WICHTIG für 'nutrition_per_100' (Nährwerte):\n" +
-      "- Extrahiere IMMER Nährwerte, wenn sie auf dem Bild oder im Text zu finden sind.\n" +
-      "- Suche nach einer Tabelle mit 'Nährwerte', 'Nutrition Facts' oder ähnlichem.\n" +
-      "- Wenn Werte pro 100g/ml angegeben sind, nutze diese.\n" +
-      "- Fülle das Objekt `nutrition_per_100` mit den Feldern: energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt.\n" +
-      "- Falls keine Nährwerte vorhanden sind, lasse das Feld `nutrition_per_100` null, aber erfinde keine Werte.\n" +
-      "\n" +
-      "Die erwarteten Felder sind: name (PFLICHT!), brand (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), standard_preparation (object), yield_info (string), preparation_steps (string), nutrition_per_100 (object), manufacturer_article_number (string), ean (string), is_bio (boolean), bio_control_number (string), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean), is_vegan (boolean), is_vegetarian (boolean), is_fairtrade (boolean), is_powder (boolean), is_granulate (boolean), is_paste (boolean), is_liquid (boolean), warengruppe (string), storageArea (string).";
+    const mode = formData.get("mode");
+    const isRecipeMode = mode === "recipe";
 
+    let instructions = "";
 
-    const userTextInstructions =
-      "Analysiere dieses Produktdatenblatt. WICHTIG: Marke (brand) muss korrekt erkannt werden (z.B. Vogeley). Unit muss die Gesamtmenge sein (z.B. 2,4 kg), NICHT Portionsgröße. Standardzubereitung MUSS alle Komponenten enthalten (z.B. 400g Artikelname-Pulver UND 1l Milch als ZWEI separate Einträge). Gib die Felder debug_reasoning, name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, preparation_steps, nutrition_per_100, manufacturer_article_number, ean, warengruppe, storageArea, bio_control_number sowie alle boolean-Flags zurück. Achte besonders auf Logos (Bio, Vegan, Fairtrade). Wenn 'Fairtrade' im Text/Bild, setze is_fairtrade=true. Name EXAKT übernehmen.";
+    if (isRecipeMode) {
+      instructions = 
+        "Du analysierst ein Rezept (aus einem Kochbuch, Handschrift oder Web-Ausdruck). Extrahiere die Daten strukturiert als JSON-Objekt.\n" +
+        "WICHTIG: Das Feld 'name' ist der Rezept-Name (z.B. 'Lasagne al Forno').\n" +
+        "\n" +
+        "ZUTATEN (standard_preparation.components):\n" +
+        "- Extrahiere ALLE Zutaten als Liste in `standard_preparation.components`.\n" +
+        "- Jede Zutat muss 'name', 'quantity' (Zahl) und 'unit' (Einheit) haben.\n" +
+        "- Wenn keine Menge angegeben ist, setze quantity=0 und unit=''.\n" +
+        "- Versuche, Zutaten sauber zu benennen (z.B. 'Rinderhackfleisch' statt 'Hack').\n" +
+        "\n" +
+        "ZUBEREITUNG (preparation_steps):\n" +
+        "- Extrahiere den kompletten Zubereitungstext in das Feld `preparation_steps` (als String).\n" +
+        "\n" +
+        "PORTIONEN (yield_info):\n" +
+        "- Suche nach Angaben wie 'für 4 Personen' oder 'ergibt 10 Stück' und schreibe dies in 'yield_info'.\n" +
+        "\n" +
+        "EXTRAS:\n" +
+        "- Falls Nährwerte pro Portion oder pro 100g angegeben sind, extrahiere sie in `nutrition_per_100` (auch wenn es pro Portion ist, nutze dieses Feld, wir mappen es später).\n" +
+        "- Bestimme 'warengruppe' und 'storageArea' passend zum Hauptbestandteil des Rezepts (z.B. Hauptgang -> 'Trockensortiment' oder passendes).\n" +
+        "- Setze Boolean-Flags (is_vegan, is_vegetarian etc.) basierend auf den Zutaten.\n" +
+        "\n" +
+        "Das Ausgabeformat muss identisch zur Produktdatenblatt-Analyse sein (JSON), damit die API kompatibel bleibt.";
+    } else {
+      // Default: Product Data Sheet Analysis
+      instructions =
+        "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt. WICHTIG: Das Feld 'name' ist das allerwichtigste Feld. Es MUSS immer einen Wert enthalten (String).\n" +
+        "- Der Name soll exakt wie auf der Packung übernommen werden.\n" +
+        "- WICHTIG: Übernimm ALLE Namensbestandteile, inklusive 'Fairtrade', 'Bio', 'Vegan' oder Markenzusätze (z.B. 'Mousse au Chocolat FAIRTRADE'). Kürze den Namen NICHT ab.\n" +
+        "- VERBOTEN: Erfinde KEINE eigenen Namen. Beschreibe das Produkt NICHT (z.B. 'Schoko Dessert' statt 'Mousse au Chocolat'). Nutze NUR den Text, der auf der Packung steht.\n" +
+        "- Negativ-Beispiel: Aus 'Mousse au Chocolat FAIRTRADE' darf NICHT 'Fairtrade Schoko Dessert' werden. Es MUSS 'Mousse au Chocolat FAIRTRADE' bleiben.\n" +
+        "- Entferne jedoch rein physische Zustandsbeschreibungen wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit', es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens.\n" +
+        "\n" +
+        "WICHTIG für 'brand' (Marke):\n" +
+        "- Suche explizit nach Hersteller-Logos oder Markennamen (z.B. 'Vogeley', 'Knorr', 'Unilever').\n" +
+        "- Verwechsle diese NICHT mit anderen Marken. Wenn 'Vogeley' auf der Packung steht, ist das die Marke.\n" +
+        "\n" +
+        "WICHTIG für 'unit' (Menge/Gewicht):\n" +
+        "- Suche nach der Nettofüllmenge oder dem Abtropfgewicht (z.B. '2,4 kg', '1000 ml', '500 g').\n" +
+        "- Ignoriere Portionsangaben (z.B. '72g pro Portion') oder Nährwert-Referenzmengen (z.B. '100g').\n" +
+        "- Das Feld 'unit' muss die GESAMT-Menge der Verkaufseinheit enthalten.\n" +
+        "\n" +
+        "WICHTIG für 'standard_preparation' (Zubereitung):\n" +
+        "- Wenn die Zubereitung aus mehreren Komponenten besteht (z.B. '400g Pulver + 1l Milch'), MÜSSEN diese als separate Objekte im Array `standard_preparation.components` zurückgegeben werden.\n" +
+        "- WICHTIG: Verwende für die Hauptkomponente (das Produkt selbst) NICHT das Wort 'Produkt', sondern den Artikelnamen plus Aggregatzustand (z.B. 'Mousse au Chocolat Pulver' oder 'Suppenbasis Paste').\n" +
+        "- VERBOTEN: {name: 'Produkt', ...} -> KORREKT: {name: 'Mousse au Chocolat Pulver', ...}\n" +
+        "- Das Wort 'Produkt' ist als Komponenten-Name STRENGSTENS VERBOTEN. Nutze immer den spezifischen Namen.\n" +
+        "- WICHTIG: Suche explizit nach ALLEN weiteren Zutaten für die Zubereitung (z.B. Milch, Sahne, Wasser, Zucker) und füge diese als eigene Komponenten hinzu. Es dürfen keine Zutaten fehlen!\n" +
+        "- Beispiel: `[{name: 'Mousse au Chocolat Pulver', quantity: 400, unit: 'g'}, {name: 'Milch (1,5% Fett)', quantity: 1, unit: 'l'}]`.\n" +
+        "- Schreibe NICHT alles in ein Feld. Trenne die Zutaten sauber auf.\n" +
+        "\n" +
+        "Füge ein Feld 'debug_reasoning' (string) hinzu, in dem du zuerst beschreibst, welche visuellen Elemente, Logos, Siegel oder Text-Hinweise du gefunden hast.\n" +
+        "- Suche aggressiv nach dem Wort 'Fairtrade' oder dem Fairtrade-Logo. Wenn 'Fairtrade' im Namen oder auf dem Bild steht, MUSS 'is_fairtrade' true sein.\n" +
+        "- Begründe kurz deine Entscheidung für jedes Boolean-Flag.\n" +
+        "\n" +
+        "Kategorisierung (WICHTIG: Du MUSST zwingend einen Wert aus den Listen wählen. NULL ist VERBOTEN. Falls unsicher, nutze den Default 'Trockensortiment'/'Trockenwaren'):\n" +
+        "- 'warengruppe': Wähle exakt einen aus: ['Obst & Gemüse', 'Molkerei & Eier', 'Trockensortiment', 'Getränke', 'Zusatz- & Hilfsstoffe']. Wenn unsicher, nimm 'Trockensortiment'.\n" +
+        "- 'storageArea': Wähle exakt einen aus: ['Frischwaren', 'Kühlwaren', 'Tiefkühlwaren', 'Trockenwaren', 'Non Food']. Wenn unsicher, nimm 'Trockenwaren'.\n" +
+        "\n" +
+        "Bestimme auch den Aggregatzustand des Produkts (Pulver, Granulat, Paste, Flüssigkeit) anhand der Beschreibung und Bilder.\n" +
+        "\n" +
+        "WICHTIG für 'nutrition_per_100' (Nährwerte):\n" +
+        "- Extrahiere IMMER Nährwerte, wenn sie auf dem Bild oder im Text zu finden sind.\n" +
+        "- Suche nach einer Tabelle mit 'Nährwerte', 'Nutrition Facts' oder ähnlichem.\n" +
+        "- Wenn Werte pro 100g/ml angegeben sind, nutze diese.\n" +
+        "- Fülle das Objekt `nutrition_per_100` mit den Feldern: energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt.\n" +
+        "- Falls keine Nährwerte vorhanden sind, lasse das Feld `nutrition_per_100` null, aber erfinde keine Werte.\n" +
+        "\n" +
+        "Die erwarteten Felder sind: name (PFLICHT!), brand (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), standard_preparation (object), yield_info (string), preparation_steps (string), nutrition_per_100 (object), manufacturer_article_number (string), ean (string), is_bio (boolean), bio_control_number (string), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean), is_vegan (boolean), is_vegetarian (boolean), is_fairtrade (boolean), is_powder (boolean), is_granulate (boolean), is_paste (boolean), is_liquid (boolean), warengruppe (string), storageArea (string).";
+    }
+
+    const userTextInstructions = isRecipeMode
+      ? "Analysiere dieses Rezept. Extrahiere Titel, Zutaten (als Komponenten-Liste mit Menge/Einheit), Zubereitungsschritte und Portionen. Achte auf Handschrift oder unstrukturierte Daten."
+      : "Analysiere dieses Produktdatenblatt. WICHTIG: Marke (brand) muss korrekt erkannt werden (z.B. Vogeley). Unit muss die Gesamtmenge sein (z.B. 2,4 kg), NICHT Portionsgröße. Standardzubereitung MUSS alle Komponenten enthalten (z.B. 400g Artikelname-Pulver UND 1l Milch als ZWEI separate Einträge). Gib die Felder debug_reasoning, name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, preparation_steps, nutrition_per_100, manufacturer_article_number, ean, warengruppe, storageArea, bio_control_number sowie alle boolean-Flags zurück. Achte besonders auf Logos (Bio, Vegan, Fairtrade). Wenn 'Fairtrade' im Text/Bild, setze is_fairtrade=true. Name EXAKT übernehmen.";
+
 
     const userText = promptInputText
       ? `${userTextInstructions}\n\nHier ist der extrahierte Text aus dem Dokument (nutze zusätzlich das Bild für Logos/Icons):\n${promptInputText}`

@@ -129,14 +129,66 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ imageUrl: publicUrl });
+    return NextResponse.json({
+      imageUrl: publicUrl,
+    });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unbekannter Fehler";
+    console.error("Upload error:", error);
     return NextResponse.json(
-      {
-        error: `Unerwarteter Fehler beim Bild-Upload: ${message}`,
-      },
+      { error: "Interner Serverfehler beim Upload" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const client = getSupabaseServerClient();
+
+  if (!client) {
+    return NextResponse.json(
+      { error: "Supabase Client nicht verfügbar" },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const { imageUrl } = await request.json();
+
+    if (!imageUrl || typeof imageUrl !== "string") {
+      return NextResponse.json(
+        { error: "Keine Bild-URL angegeben" },
+        { status: 400 }
+      );
+    }
+
+    // Extract object path from URL
+    // URL format: .../storage/v1/object/public/recipe-images/filename.jpg
+    const parts = imageUrl.split(`/${STORAGE_BUCKET}/`);
+    if (parts.length < 2) {
+      return NextResponse.json(
+        { error: "Ungültiges URL-Format" },
+        { status: 400 }
+      );
+    }
+
+    const objectPath = parts[1];
+
+    const { error } = await client.storage
+      .from(STORAGE_BUCKET)
+      .remove([objectPath]);
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Delete error:", error);
+    return NextResponse.json(
+      { error: "Interner Serverfehler beim Löschen" },
       { status: 500 }
     );
   }

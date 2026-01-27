@@ -31,6 +31,8 @@ import {
   Sparkles,
   Maximize2,
   X,
+  Eye,
+  Trash2,
 } from "lucide-react";
 import { Accordion,
   AccordionContent,
@@ -596,6 +598,7 @@ export function RecipeManager() {
     string | null
   >(null);
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
+  const stepFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [imageViewer, setImageViewer] = useState<{
     stepId: string;
     imageUrl: string;
@@ -3013,6 +3016,63 @@ export function RecipeManager() {
     }
   }
 
+  async function handleStepImageUpload(e: React.ChangeEvent<HTMLInputElement>, stepId: string) {
+    const file = e.target.files?.[0];
+    if (!file || !selectedItem) return;
+
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("itemId", selectedItem.id);
+        formData.append("filename", `step-${stepId}.jpg`);
+
+        const response = await fetch("/api/recipe-image-upload", {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!response.ok) throw new Error("Upload failed");
+        
+        const data = await response.json();
+        const imageUrl = data.imageUrl;
+
+        // Update the step with the new image URL
+        const currentSteps = Array.isArray(selectedItem.preparationSteps) ? selectedItem.preparationSteps : [];
+        const newSteps = currentSteps.map(step => 
+            step.id === stepId ? { ...step, imageUrl } : step
+        );
+        
+        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
+        
+    } catch (error) {
+        console.error("Error uploading step image:", error);
+    }
+  }
+
+  async function handleStepImageDelete(stepId: string, imageUrl: string) {
+    if (!selectedItem) return;
+    try {
+        const response = await fetch("/api/recipe-image-upload", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageUrl }),
+        });
+
+        if (!response.ok) throw new Error("Delete failed");
+
+        // Update state to remove image URL
+        const currentSteps = Array.isArray(selectedItem.preparationSteps) ? selectedItem.preparationSteps : [];
+        const newSteps = currentSteps.map(step => 
+            step.id === stepId ? { ...step, imageUrl: null } : step
+        );
+        
+        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
+
+    } catch (error) {
+        console.error("Error deleting step image:", error);
+    }
+  }
+
   async function handleDocumentUpload(file: File) {
     try {
       setDocIsUploading(true);
@@ -5048,10 +5108,50 @@ export function RecipeManager() {
                                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
                                                          }}
                                                       />
-                                                      {/* Placeholder for Image Upload - Implementation for later */}
-                                                      <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground hover:text-foreground">
-                                                         <ImageIcon className="mr-1 h-3 w-3" /> Bild
+                                                      {/* Image Upload */}
+                                                      <input
+                                                          type="file"
+                                                          ref={(el) => { stepFileInputRefs.current[step.id] = el; }}
+                                                          className="hidden"
+                                                          accept="image/*"
+                                                          onChange={(e) => handleStepImageUpload(e, step.id)}
+                                                      />
+                                                      <Button 
+                                                          type="button" 
+                                                          variant={step.imageUrl ? "default" : "ghost"} 
+                                                          size="sm" 
+                                                          className={`h-6 text-[10px] ${step.imageUrl ? "bg-green-100 text-green-800 hover:bg-green-200" : "text-muted-foreground hover:text-foreground"}`}
+                                                          onClick={() => stepFileInputRefs.current[step.id]?.click()}
+                                                      >
+                                                          <ImageIcon className="mr-1 h-3 w-3" /> {step.imageUrl ? "Bild ändern" : "Bild"}
                                                       </Button>
+                                                      {step.imageUrl && (
+                                                          <div className="relative h-6 w-6 overflow-hidden rounded border border-gray-200 group/image">
+                                                              <img src={step.imageUrl} alt="Schritt" className="h-full w-full object-cover" />
+                                                              <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/50 opacity-0 group-hover/image:opacity-100 transition-opacity">
+                                                                  <div 
+                                                                       className="cursor-pointer p-0.5 hover:text-white text-gray-200"
+                                                                       onClick={() => {
+                                                                           setPreviewImage(step.imageUrl || null);
+                                                                           setPreviewImageItemId(selectedItem.id);
+                                                                       }}
+                                                                       title="Vorschau"
+                                                                  >
+                                                                      <Eye className="h-3 w-3" />
+                                                                  </div>
+                                                                  <div 
+                                                                       className="cursor-pointer p-0.5 hover:text-red-400 text-gray-200"
+                                                                       onClick={(e) => {
+                                                                           e.stopPropagation();
+                                                                           if (step.imageUrl) handleStepImageDelete(step.id, step.imageUrl);
+                                                                       }}
+                                                                       title="Bild löschen"
+                                                                  >
+                                                                      <Trash2 className="h-3 w-3" />
+                                                                  </div>
+                                                              </div>
+                                                          </div>
+                                                      )}
                                                    </div>
                                                 </div>
                                                 <Button
