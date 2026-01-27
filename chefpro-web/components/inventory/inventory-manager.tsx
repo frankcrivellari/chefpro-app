@@ -4163,7 +4163,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
 
   return (
     <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
-      {activeSection === "zutaten" && (
+      {["zutaten", "rezepte"].includes(activeSection) && (
         <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#6B7176] bg-[#1F2326]">
           <div className="flex flex-col gap-3 border-b border-[#6B7176] p-4">
             <div className="relative">
@@ -4340,13 +4340,14 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
             </Card>
           )}
 
-          {activeSection === "zutaten" ? (
+          {["zutaten", "rezepte"].includes(activeSection) ? (
             <div className="flex h-full flex-col gap-4 overflow-hidden bg-[#F6F7F5] p-6">
               <div className="grid flex-1 min-h-0 grid-cols-[280px_1fr] grid-rows-[minmax(0,1fr)] gap-4">
                 <Card className="flex h-full flex-col overflow-hidden border-none bg-white shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
-                    <CardTitle className="text-base text-[#1F2326]">Artikel-Import</CardTitle>
-
+                    <CardTitle className="text-base text-[#1F2326]">
+                      {activeSection === "rezepte" ? "Rezept-Import" : "Artikel-Import"}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto p-0">
                     <div className="flex justify-center p-4 border-b border-[#E5E7EB]">
@@ -4359,15 +4360,15 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                           try {
                             setIsSaving(true);
                             setError(null);
-                            const isRecipe = false;
+                            const isRecipe = activeSection === "rezepte";
                             const response = await fetch("/api/inventory", {
                               method: "POST",
                               headers: {
                                 "Content-Type": "application/json",
                               },
                               body: JSON.stringify({
-                                name: "Neuer Artikel",
-                                type: "zukauf",
+                                name: isRecipe ? "Neues Rezept" : "Neuer Artikel",
+                                type: isRecipe ? "eigenproduktion" : "zukauf",
                                 unit: "Stück",
                                 purchasePrice: 0,
                                 components: [],
@@ -4396,7 +4397,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                           }
                         }}
                       >
-                        {isSaving ? "Erstelle..." : "Neuen Artikel anlegen"}
+                        {isSaving ? "Erstelle..." : activeSection === "rezepte" ? "Neues Rezept anlegen" : "Neuen Artikel anlegen"}
                       </Button>
                     </div>
                     <div className="space-y-2 rounded-md border border-[#E5E7EB] bg-[#F6F7F5]/50 p-3 text-xs">
@@ -4678,7 +4679,9 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                             </div>
                             <div className="grid gap-4">
                                <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">Artikelbezeichnung</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">
+                                    {activeSection === "rezepte" ? "Rezeptbezeichnung" : "Artikelbezeichnung"}
+                                  </label>
                                   <Input 
                                     value={selectedItem.name} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -5614,7 +5617,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                          </div>
                       ) : (
                          <div className="flex h-full flex-col items-center justify-center text-[#6B7176] text-xs">
-                            <p>Wähle einen Artikel aus der Liste.</p>
+                            <p>Wähle {activeSection === "rezepte" ? "ein Rezept" : "einen Artikel"} aus der Liste.</p>
                          </div>
                       )}
                    </CardContent>
@@ -5630,7 +5633,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                            void handleSaveAll();
                          }}
                        >
-                         {isSaving ? "Speichere..." : "Artikel speichern"}
+                         {isSaving ? "Speichere..." : activeSection === "rezepte" ? "Rezept speichern" : "Artikel speichern"}
                        </Button>
                        <Button
                          type="button"
@@ -5640,7 +5643,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                          onClick={handleDelete}
                          disabled={isDeleting || isSaving}
                        >
-                         {isDeleting ? "Lösche..." : "Artikel löschen"}
+                         {isDeleting ? "Lösche..." : activeSection === "rezepte" ? "Rezept löschen" : "Artikel löschen"}
                        </Button>
                      </div>
                    )}
