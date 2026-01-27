@@ -1617,30 +1617,9 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
     setIsImageDropActive(false);
   }, [selectedItem?.id]);
 
-  // Sync Packshot State from Item
-  useEffect(() => {
-      if (selectedItem) {
-          if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
-              selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
-              setPackshotPan({ x: selectedItem.packshotX, y: selectedItem.packshotY });
-              setIsAutoFit(false);
-          } else {
-              setPackshotPan({ x: 0, y: 0 });
-              setIsAutoFit(true);
-          }
-          if (selectedItem.packshotZoom !== undefined && selectedItem.packshotZoom !== null) {
-              setPackshotZoom(selectedItem.packshotZoom);
-              setIsAutoFit(false);
-          } else {
-              setPackshotZoom(1.0);
-              setIsAutoFit(true);
-          }
-      } else {
-          setPackshotPan({ x: 0, y: 0 });
-          setPackshotZoom(1.0);
-          setIsAutoFit(true);
-      }
-  }, [selectedItem?.id, selectedItem?.packshotX, selectedItem?.packshotY, selectedItem?.packshotZoom]);
+  // Sync Packshot State from Item - REMOVED to prevent re-render resets
+  // The state initialization is now handled by the ID-based effect below
+
 
 
 
@@ -2077,11 +2056,23 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
 
     // Only initialize if we haven't initialized for this item ID yet
     if (selectedItem.id !== lastInitializedPackshotId.current) {
-      setPackshotZoom(selectedItem.packshotZoom ?? 2.0);
-      setPackshotPan({
-        x: selectedItem.packshotX ?? 0,
-        y: selectedItem.packshotY ?? 0,
-      });
+      // Restore Pan
+      if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
+          selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
+          setPackshotPan({ x: selectedItem.packshotX, y: selectedItem.packshotY });
+      } else {
+          setPackshotPan({ x: 0, y: 0 });
+      }
+
+      // Restore Zoom
+      if (selectedItem.packshotZoom !== undefined && selectedItem.packshotZoom !== null) {
+          setPackshotZoom(selectedItem.packshotZoom);
+          setIsAutoFit(false);
+      } else {
+          setPackshotZoom(2.0); // Default start zoom
+          setIsAutoFit(true);
+      }
+      
       lastInitializedPackshotId.current = selectedItem.id;
     }
   }, [selectedItem]);
@@ -2200,7 +2191,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
       setProBreadUnitsInput(fmt(selectedItem.nutritionPerUnit.breadUnits));
       setProCholesterolInput(fmt(selectedItem.nutritionPerUnit.cholesterol));
     } else {
-      console.log("Clearing nutrition state because nutritionPerUnit is missing");
+      // Nutrition state cleared because nutritionPerUnit is missing
       setProEnergyKcalInput("k.A.");
       setProFatInput("k.A.");
       setProSaturatedFatInput("k.A.");
