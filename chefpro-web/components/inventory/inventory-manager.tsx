@@ -805,6 +805,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
             } : item.nutritionPerUnit,
             
              standardPreparation: extracted.standard_preparation ? extracted.standard_preparation : item.standardPreparation,
+            preparationSteps: extracted.preparation_steps || item.preparationSteps,
           };
         }));
 
@@ -1405,6 +1406,12 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
          // Strict filter for Zutaten section: NO Recipes (Eigenproduktion)
          // Only "zukauf" (which includes Staple Items)
          if (item.type === "eigenproduktion") {
+           return false;
+         }
+      }
+      if (activeSection === "rezepte") {
+         // Strict filter for Rezepte section: ONLY Recipes (Eigenproduktion)
+         if (item.type !== "eigenproduktion") {
            return false;
          }
       }
@@ -2985,6 +2992,10 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
       formData.append("file", file);
       formData.append("filename", file.name);
 
+      if (activeSection === "rezepte") {
+        formData.append("mode", "recipe");
+      }
+
       if (file.type === "application/pdf") {
         try {
           const imageBlob = await convertPdfToImage(file);
@@ -3369,6 +3380,9 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
         }
         if (typeof payload.extracted.brand === "string") {
           setBrandInput(payload.extracted.brand);
+        }
+        if (typeof payload.extracted.preparation_steps === "string") {
+           setProPreparationInput(payload.extracted.preparation_steps);
         }
         setProPreparationInput(
           typeof payload.extracted.preparation_steps ===
