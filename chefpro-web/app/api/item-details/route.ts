@@ -556,9 +556,6 @@ export async function POST(request: Request) {
     delete safeUpdates.is_granulate;
     delete safeUpdates.is_paste;
     delete safeUpdates.is_liquid;
-    delete safeUpdates.packshot_x;
-    delete safeUpdates.packshot_y;
-    delete safeUpdates.packshot_zoom;
     delete safeUpdates.storage_area;
     delete safeUpdates.warengruppe;
     delete safeUpdates.bio_control_number;
