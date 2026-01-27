@@ -1,6 +1,6 @@
-import { InventoryManager } from "@/components/inventory/inventory-manager";
+import { RecipeManager } from "@/components/recipes/recipe-manager";
 
 export default function RezeptePage() {
-  return <InventoryManager />;
+  return <RecipeManager />;
 }
 
