@@ -94,6 +94,13 @@ type StandardPreparation = {
   text?: string | null;
 };
 
+type DeviceSetting = {
+  quantity: string;
+  device: string;
+  runtime: string;
+  energy: string;
+};
+
 type PreparationStep = {
   id: string;
   text: string;
@@ -196,6 +203,7 @@ type InventoryItem = {
   storageArea?: string | null;
   warengruppe?: string | null;
   bioControlNumber?: string | null;
+  deviceSettings?: DeviceSetting[] | null;
 };
 
 type ParsedAiItem = {
@@ -482,6 +490,7 @@ export function InventoryManager() {
   const [componentUnitInput, setComponentUnitInput] = useState("");
   const [standardPreparationComponents, setStandardPreparationComponents] =
     useState<StandardPreparationComponent[]>([]);
+  const [deviceSettingsInput, setDeviceSettingsInput] = useState<DeviceSetting[]>([]);
   const [standardPreparationText, setStandardPreparationText] = useState("");
   const [editingComponents, setEditingComponents] = useState<
     InventoryComponent[]
@@ -2057,6 +2066,7 @@ export function InventoryManager() {
     setManufacturerInput(selectedItem.manufacturerArticleNumber ?? "");
     setEanInput(selectedItem.ean ?? "");
     setBrandInput(selectedItem.brand ?? "");
+    setDeviceSettingsInput(selectedItem.deviceSettings || []);
     setIsBioInput(selectedItem.isBio ?? false);
     setIsDeklarationsfreiInput(selectedItem.isDeklarationsfrei ?? false);
     setIsAllergenfreiInput(selectedItem.isAllergenfrei ?? false);
@@ -3582,6 +3592,7 @@ export function InventoryManager() {
           isGranulate: isGranulateInput,
           isPaste: isPasteInput,
           isLiquid: isLiquidInput,
+          deviceSettings: deviceSettingsInput,
           imageUrl: imageUrlValue,
           packshotX: packshotPan.x,
           packshotY: packshotPan.y,
@@ -4740,17 +4751,103 @@ export function InventoryManager() {
                                </div>
 
                                <div className="grid gap-2">
-                                 <label className="text-xs font-medium text-[#1F2326]">Zubereitungsempfehlung</label>
-                                 <Textarea
-                                   value={typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps : ''}
-                                   className="min-h-[80px] text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                   placeholder="Zubereitungsschritte hier eingeben..."
-                                   onChange={(e) => {
-                                      const val = e.target.value;
-                                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: val } : i));
-                                   }}
-                                 />
-                               </div>
+                                  <label className="text-xs font-medium text-[#1F2326]">Zubereitungsempfehlung</label>
+                                  <Textarea
+                                    value={typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps : ''}
+                                    className="min-h-[80px] text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                    placeholder="Zubereitungsschritte hier eingeben..."
+                                    onChange={(e) => {
+                                       const val = e.target.value;
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: val } : i));
+                                    }}
+                                  />
+                                </div>
+
+                                <div className="grid gap-2 mt-4">
+                                  <label className="text-xs font-medium text-[#1F2326]">Geräteeinstellungen</label>
+                                  <div className="space-y-2">
+                                    {deviceSettingsInput.map((setting, idx) => (
+                                      <div key={idx} className="flex gap-2 items-start">
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 flex-1">
+                                            <Input
+                                              placeholder="Menge (z.B. bis 1 Liter)"
+                                              value={setting.quantity}
+                                              className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                              onChange={(e) => {
+                                                const newSettings = [...deviceSettingsInput];
+                                                newSettings[idx] = { ...newSettings[idx], quantity: e.target.value };
+                                                setDeviceSettingsInput(newSettings);
+                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                              }}
+                                            />
+                                            <Input
+                                              placeholder="Gerät (z.B. KitchenAid)"
+                                              value={setting.device}
+                                              className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                              onChange={(e) => {
+                                                const newSettings = [...deviceSettingsInput];
+                                                newSettings[idx] = { ...newSettings[idx], device: e.target.value };
+                                                setDeviceSettingsInput(newSettings);
+                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                              }}
+                                            />
+                                            <Input
+                                              placeholder="Laufzeit (min)"
+                                              value={setting.runtime}
+                                              className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                              onChange={(e) => {
+                                                const newSettings = [...deviceSettingsInput];
+                                                newSettings[idx] = { ...newSettings[idx], runtime: e.target.value };
+                                                setDeviceSettingsInput(newSettings);
+                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                              }}
+                                            />
+                                            <Input
+                                              placeholder="Energie (Watt)"
+                                              value={setting.energy}
+                                              className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                              onChange={(e) => {
+                                                const newSettings = [...deviceSettingsInput];
+                                                newSettings[idx] = { ...newSettings[idx], energy: e.target.value };
+                                                setDeviceSettingsInput(newSettings);
+                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                              }}
+                                            />
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 shrink-0"
+                                          onClick={() => {
+                                            const newSettings = deviceSettingsInput.filter((_, i) => i !== idx);
+                                            setDeviceSettingsInput(newSettings);
+                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                          }}
+                                        >
+                                          <Minus className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full text-xs h-7 border-dashed"
+                                      onClick={() => {
+                                        const newSettings = [
+                                          ...deviceSettingsInput,
+                                          { quantity: "", device: "", runtime: "", energy: "" }
+                                        ];
+                                        setDeviceSettingsInput(newSettings);
+                                        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                      }}
+                                    >
+                                      <Plus className="h-3 w-3 mr-1" />
+                                      Zeile hinzufügen
+                                    </Button>
+                                  </div>
+                                </div>
 
                                {(selectedItem.type !== "eigenproduktion" || (activeSection as any) === "zutaten") && (
                                  <>
@@ -5262,7 +5359,8 @@ export function InventoryManager() {
                        <Button
                          type="button"
                          size="sm"
-                         className="bg-emerald-600 px-3 py-1 text-[11px] font-medium text-emerald-50 hover:bg-emerald-700"
+                         style={{ backgroundColor: 'var(--recetui-green)', color: 'white' }}
+                         className="px-3 py-1 text-[11px] font-medium hover:opacity-90"
                          disabled={isSaving}
                          onClick={() => {
                            void handleSaveAll();
@@ -5273,7 +5371,8 @@ export function InventoryManager() {
                        <Button
                          type="button"
                          size="sm"
-                         className="border border-red-500 bg-red-500/10 px-3 py-1 text-[11px] font-medium text-red-700 hover:bg-red-500/20"
+                         style={{ backgroundColor: 'var(--recetui-orange)', color: 'white' }}
+                         className="px-3 py-1 text-[11px] font-medium hover:opacity-90"
                          onClick={handleDelete}
                          disabled={isDeleting || isSaving}
                        >

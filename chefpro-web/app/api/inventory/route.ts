@@ -22,6 +22,13 @@ type StandardPreparation = {
   components: StandardPreparationComponent[];
 };
 
+type DeviceSetting = {
+  quantity: string;
+  device: string;
+  runtime: string;
+  energy: string;
+};
+
 type NutritionTotals = {
   energyKcal: number | null;
   fat: number | null;
@@ -85,6 +92,7 @@ type InventoryItem = {
   storageArea?: string | null;
   warengruppe?: string | null;
   bioControlNumber?: string | null;
+  deviceSettings?: DeviceSetting[] | null;
 };
 
 type SupabaseItemRow = {
@@ -134,6 +142,7 @@ type SupabaseItemRow = {
   storage_area: string | null;
   warengruppe: string | null;
   bio_control_number: string | null;
+  device_settings: DeviceSetting[] | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -252,6 +261,7 @@ export async function GET() {
         storageArea: row.storage_area,
         warengruppe: row.warengruppe,
         bioControlNumber: row.bio_control_number,
+        deviceSettings: row.device_settings,
       });
     }
 
@@ -350,6 +360,7 @@ export async function POST(request: Request) {
       storageArea?: string | null;
       warengruppe?: string | null;
       bioControlNumber?: string | null;
+      deviceSettings?: DeviceSetting[] | null;
     };
 
     const client = getSupabaseServerClient();
@@ -426,6 +437,7 @@ export async function POST(request: Request) {
         storage_area: body.storageArea ?? null,
         warengruppe: body.warengruppe ?? null,
         bio_control_number: body.bioControlNumber ?? null,
+        device_settings: body.deviceSettings ?? [],
       })
       .select("*")
       .single();
@@ -582,6 +594,7 @@ export async function POST(request: Request) {
       packshotX: createdItemRow.packshot_x,
       packshotY: createdItemRow.packshot_y,
       packshotZoom: createdItemRow.packshot_zoom,
+      deviceSettings: createdItemRow.device_settings,
       components,
     };
 

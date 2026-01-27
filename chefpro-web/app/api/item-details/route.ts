@@ -16,6 +16,13 @@ type StandardPreparation = {
   text?: string | null;
 };
 
+type DeviceSetting = {
+  quantity: string;
+  device: string;
+  runtime: string;
+  energy: string;
+};
+
 type NutritionTotals = {
   energyKcal: number | null;
   fat: number | null;
@@ -78,6 +85,7 @@ type SupabaseItemRow = {
   bio_control_number: string | null;
   file_url: string | null;
   image_url: string | null;
+  device_settings: DeviceSetting[] | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -142,6 +150,7 @@ type InventoryItem = {
   bioControlNumber?: string | null;
   imageUrl?: string | null;
   fileUrl?: string | null;
+  deviceSettings?: DeviceSetting[] | null;
 };
 
 export async function POST(request: Request) {
@@ -204,6 +213,7 @@ export async function POST(request: Request) {
       bioControlNumber?: string | null;
       imageUrl?: string | null;
       fileUrl?: string | null;
+      deviceSettings?: DeviceSetting[] | null;
     };
 
     if (!body || typeof body !== 'object') {
@@ -261,6 +271,7 @@ export async function POST(request: Request) {
     file_url?: string | null;
     image_url?: string | null;
     nutrition_per_unit?: NutritionTotals | null;
+    device_settings?: DeviceSetting[] | null;
   } = {};
 
   if (typeof body.name === "string") {
@@ -406,6 +417,10 @@ export async function POST(request: Request) {
     }
   }
 
+  if (body.deviceSettings) {
+    updates.device_settings = body.deviceSettings.length > 0 ? body.deviceSettings : [];
+  }
+
   if (typeof body.isBio === "boolean") {
     updates.is_bio = body.isBio;
   }
@@ -549,6 +564,7 @@ export async function POST(request: Request) {
     delete safeUpdates.ean;
     delete safeUpdates.file_url;
     delete safeUpdates.image_url;
+    delete safeUpdates.device_settings;
     
     // Remove all boolean flags
     delete safeUpdates.is_bio;
@@ -728,6 +744,7 @@ export async function POST(request: Request) {
     components,
     imageUrl: row.image_url,
     fileUrl: row.file_url,
+    deviceSettings: row.device_settings,
   };
 
   return NextResponse.json({ item });
