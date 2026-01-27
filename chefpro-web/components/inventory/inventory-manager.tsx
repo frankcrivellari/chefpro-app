@@ -31,6 +31,7 @@ import {
   Sparkles,
   Maximize2,
   X,
+  Trash2,
 } from "lucide-react";
 import { Accordion,
   AccordionContent,
@@ -461,14 +462,20 @@ function findExactRecipeMatchByName(
   return null;
 }
 
-export function InventoryManager() {
+export interface InventoryManagerProps {
+  mode?: "ingredients" | "recipes";
+}
+
+export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps) {
   const pathname = usePathname();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filterType, setFilterType] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
   type ActiveSection = "dashboard" | "zutaten" | "rezepte" | "lager";
   const [activeSection, setActiveSection] = useState<ActiveSection>(
-    pathname && pathname.startsWith("/lager")
+    mode === "recipes" 
+      ? "rezepte" 
+      : pathname && pathname.startsWith("/lager")
       ? "lager"
       : pathname && pathname.startsWith("/rezepte")
       ? "rezepte"
@@ -1102,8 +1109,10 @@ export function InventoryManager() {
     setIngredientCategoryFilter(null);
     if (activeSection === "zutaten") {
       setFilterType("zukauf");
+      setNewItemType("zukauf");
     } else if (activeSection === "rezepte") {
       setFilterType("eigenproduktion");
+      setNewItemType("eigenproduktion");
     } else {
       setFilterType("all");
     }
@@ -2643,6 +2652,71 @@ export function InventoryManager() {
     );
     setActiveTagStepId(null);
     setTagSearch("");
+  }
+
+  async function handleStepImageUpload(e: React.ChangeEvent<HTMLInputElement>, stepId: string) {
+    const file = e.target.files?.[0];
+    if (!file || !selectedItem) return;
+
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("itemId", selectedItem.id);
+        formData.append("filename", `step-${stepId}.jpg`);
+
+        const response = await fetch("/api/recipe-image-upload", {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!response.ok) throw new Error("Upload failed");
+        
+        const data = await response.json();
+        const imageUrl = data.imageUrl;
+
+        // Update the step with the new image URL
+        setPreparationStepsInput((steps) =>
+          steps.map((value) =>
+            value.id === stepId
+              ? {
+                  ...value,
+                  imageUrl,
+                }
+              : value
+          )
+        );
+        
+    } catch (error) {
+        console.error("Error uploading step image:", error);
+    }
+  }
+
+  async function handleStepImageDelete(stepId: string, imageUrl: string) {
+    if (!selectedItem) return;
+    try {
+        const response = await fetch("/api/recipe-image-upload", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ imageUrl }),
+        });
+
+        if (!response.ok) throw new Error("Delete failed");
+
+        // Update state to remove image URL
+        setPreparationStepsInput((steps) =>
+          steps.map((value) =>
+            value.id === stepId
+              ? {
+                  ...value,
+                  imageUrl: null,
+                }
+              : value
+          )
+        );
+
+    } catch (error) {
+        console.error("Error deleting step image:", error);
+    }
   }
 
   async function handleGenerateStepImage(stepId: string) {
@@ -8116,28 +8190,43 @@ export function InventoryManager() {
                                         </div>
                                       </div>
                                       {step.imageUrl && (
-                                        <div className="mt-1">
+                                        <div className="mt-1 relative group">
                                           <div className="text-[10px] text-muted-foreground">
                                             Vorschau
                                           </div>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setImageViewer({
-                                                stepId: step.id,
-                                                imageUrl: step.imageUrl as string,
-                                              })
-                                            }
-                                          >
-                                            <Image
-                                              unoptimized
-                                              src={step.imageUrl}
-                                              alt={`Schritt ${index + 1}`}
-                                              width={800}
-                                              height={600}
-                                              className="mt-1 max-h-40 w-full rounded-md object-cover"
-                                            />
-                                          </button>
+                                          <div className="relative inline-block w-full">
+                                            <button
+                                              type="button"
+                                              className="w-full"
+                                              onClick={() =>
+                                                setImageViewer({
+                                                  stepId: step.id,
+                                                  imageUrl: step.imageUrl as string,
+                                                })
+                                              }
+                                            >
+                                              <Image
+                                                unoptimized
+                                                src={step.imageUrl}
+                                                alt={`Schritt ${index + 1}`}
+                                                width={800}
+                                                height={600}
+                                                className="mt-1 max-h-40 w-full rounded-md object-cover"
+                                              />
+                                            </button>
+                                            <Button
+                                              type="button"
+                                              variant="destructive"
+                                              size="icon"
+                                              className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                              onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleStepImageDelete(step.id, step.imageUrl!);
+                                              }}
+                                            >
+                                              <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                          </div>
                                         </div>
                                       )}
                                       <div className="flex justify-end">
