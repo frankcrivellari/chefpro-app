@@ -25,8 +25,12 @@ type StandardPreparation = {
 type DeviceSetting = {
   quantity: string;
   device: string;
+  settings?: string;
   runtime: string;
   energy: string;
+  water?: string;
+  outputYield?: string;
+  cleaningEffort?: string;
 };
 
 type NutritionTotals = {

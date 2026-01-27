@@ -30,6 +30,7 @@ import {
   ChevronUp,
   Sparkles,
   Maximize2,
+  X,
 } from "lucide-react";
 import { Accordion,
   AccordionContent,
@@ -97,8 +98,12 @@ type StandardPreparation = {
 type DeviceSetting = {
   quantity: string;
   device: string;
+  settings?: string;
   runtime: string;
   energy: string;
+  water?: string;
+  outputYield?: string;
+  cleaningEffort?: string;
 };
 
 type PreparationStep = {
@@ -491,6 +496,9 @@ export function InventoryManager() {
   const [standardPreparationComponents, setStandardPreparationComponents] =
     useState<StandardPreparationComponent[]>([]);
   const [deviceSettingsInput, setDeviceSettingsInput] = useState<DeviceSetting[]>([]);
+  const [showProductionPanel, setShowProductionPanel] = useState(false);
+  const [isProductionAccordionOpen, setIsProductionAccordionOpen] = useState(false);
+  const [isPredictingProduction, setIsPredictingProduction] = useState(false);
   const [standardPreparationText, setStandardPreparationText] = useState("");
   const [editingComponents, setEditingComponents] = useState<
     InventoryComponent[]
@@ -805,6 +813,47 @@ export function InventoryManager() {
       alert(`Fehler beim Re-Scan: ${error.message}`);
     } finally {
       setIsReScanning(false);
+    }
+  };
+
+  const handleAiForecast = async () => {
+    if (!selectedItem) return;
+    setIsPredictingProduction(true);
+    try {
+      const res = await fetch('/api/ai-production-forecast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: selectedItem.name,
+          dosageInstructions: selectedItem.dosageInstructions,
+          standardPreparation: selectedItem.standardPreparation
+        })
+      });
+      
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      const newSetting: DeviceSetting = {
+        quantity: "KI-Vorschlag",
+        device: data.device || "",
+        settings: data.settings || "",
+        runtime: data.time || "",
+        energy: data.energy || "",
+        water: data.water || "",
+        outputYield: data.outputYield || "",
+        cleaningEffort: data.cleaningEffort || ""
+      };
+
+      const newSettings = [...deviceSettingsInput, newSetting];
+      setDeviceSettingsInput(newSettings);
+      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+      setShowProductionPanel(true);
+      setIsProductionAccordionOpen(true);
+    } catch (err) {
+      console.error(err);
+      setError("KI-Prognose fehlgeschlagen.");
+    } finally {
+      setIsPredictingProduction(false);
     }
   };
 
@@ -2067,6 +2116,13 @@ export function InventoryManager() {
     setEanInput(selectedItem.ean ?? "");
     setBrandInput(selectedItem.brand ?? "");
     setDeviceSettingsInput(selectedItem.deviceSettings || []);
+    
+    const hasDosage = (stdPrep?.components && stdPrep.components.length > 0) || 
+                      (typeof selectedItem.dosageInstructions === 'string' && selectedItem.dosageInstructions.length > 0);
+    const hasSettings = selectedItem.deviceSettings && selectedItem.deviceSettings.length > 0;
+    setShowProductionPanel(hasDosage || hasSettings || false);
+    setIsProductionAccordionOpen(hasSettings || false);
+
     setIsBioInput(selectedItem.isBio ?? false);
     setIsDeklarationsfreiInput(selectedItem.isDeklarationsfrei ?? false);
     setIsAllergenfreiInput(selectedItem.isAllergenfrei ?? false);
@@ -4763,91 +4819,209 @@ export function InventoryManager() {
                                   />
                                 </div>
 
-                                <div className="grid gap-2 mt-4">
-                                  <label className="text-xs font-medium text-[#1F2326]">Geräteeinstellungen</label>
-                                  <div className="space-y-2">
-                                    {deviceSettingsInput.map((setting, idx) => (
-                                      <div key={idx} className="flex gap-2 items-start">
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 flex-1">
-                                            <Input
-                                              placeholder="Menge (z.B. bis 1 Liter)"
-                                              value={setting.quantity}
-                                              className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                              onChange={(e) => {
-                                                const newSettings = [...deviceSettingsInput];
-                                                newSettings[idx] = { ...newSettings[idx], quantity: e.target.value };
-                                                setDeviceSettingsInput(newSettings);
-                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
-                                              }}
-                                            />
-                                            <Input
-                                              placeholder="Gerät (z.B. KitchenAid)"
-                                              value={setting.device}
-                                              className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                              onChange={(e) => {
-                                                const newSettings = [...deviceSettingsInput];
-                                                newSettings[idx] = { ...newSettings[idx], device: e.target.value };
-                                                setDeviceSettingsInput(newSettings);
-                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
-                                              }}
-                                            />
-                                            <Input
-                                              placeholder="Laufzeit (min)"
-                                              value={setting.runtime}
-                                              className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                              onChange={(e) => {
-                                                const newSettings = [...deviceSettingsInput];
-                                                newSettings[idx] = { ...newSettings[idx], runtime: e.target.value };
-                                                setDeviceSettingsInput(newSettings);
-                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
-                                              }}
-                                            />
-                                            <Input
-                                              placeholder="Energie (Watt)"
-                                              value={setting.energy}
-                                              className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                              onChange={(e) => {
-                                                const newSettings = [...deviceSettingsInput];
-                                                newSettings[idx] = { ...newSettings[idx], energy: e.target.value };
-                                                setDeviceSettingsInput(newSettings);
-                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
-                                              }}
-                                            />
-                                        </div>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 shrink-0"
-                                          onClick={() => {
-                                            const newSettings = deviceSettingsInput.filter((_, i) => i !== idx);
-                                            setDeviceSettingsInput(newSettings);
-                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
-                                          }}
-                                        >
-                                          <Minus className="h-3 w-3" />
-                                        </Button>
-                                      </div>
-                                    ))}
-                                    <Button
+                                {!showProductionPanel && (
+                                   <Button
                                       type="button"
                                       variant="outline"
                                       size="sm"
-                                      className="w-full text-xs h-7 border-dashed"
+                                      className="mt-4 w-full text-xs h-7 border-dashed text-muted-foreground"
                                       onClick={() => {
-                                        const newSettings = [
-                                          ...deviceSettingsInput,
-                                          { quantity: "", device: "", runtime: "", energy: "" }
-                                        ];
-                                        setDeviceSettingsInput(newSettings);
-                                        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                         setShowProductionPanel(true);
+                                         setIsProductionAccordionOpen(true);
                                       }}
-                                    >
+                                   >
                                       <Plus className="h-3 w-3 mr-1" />
-                                      Zeile hinzufügen
-                                    </Button>
+                                      Produktion & Ressourcen hinzufügen
+                                   </Button>
+                                 )}
+
+                                 {showProductionPanel && (
+                                  <div className="grid gap-2 mt-4 border rounded-md overflow-hidden">
+                                     <div 
+                                       className="flex items-center justify-between px-3 py-2 bg-[#6B7176] text-white cursor-pointer"
+                                       onClick={() => setIsProductionAccordionOpen(!isProductionAccordionOpen)}
+                                     >
+                                       <span className="text-xs font-medium">Produktion & Ressourcen</span>
+                                       {isProductionAccordionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                     </div>
+                                     
+                                     {isProductionAccordionOpen && (
+                                       <div className="p-3 bg-gray-50 space-y-3">
+                                          <div className="flex justify-end">
+                                             <Button 
+                                                type="button" 
+                                                variant="outline" 
+                                                size="sm" 
+                                                onClick={handleAiForecast}
+                                                disabled={isPredictingProduction}
+                                                className="text-xs h-7 bg-white border-[#4F8F4E] text-[#4F8F4E] hover:bg-[#4F8F4E] hover:text-white transition-colors"
+                                             >
+                                                {isPredictingProduction ? (
+                                                   <>
+                                                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                      Analysiere...
+                                                   </>
+                                                ) : (
+                                                   <>
+                                                      <Sparkles className="h-3 w-3 mr-1" />
+                                                      KI-Prognose generieren
+                                                   </>
+                                                )}
+                                             </Button>
+                                          </div>
+
+                                          <div className="space-y-4">
+                                            {deviceSettingsInput.map((setting, idx) => (
+                                              <div key={idx} className="p-3 bg-white rounded border border-gray-200 shadow-sm space-y-3 relative">
+                                                <Button
+                                                  type="button"
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  className="absolute top-1 right-1 h-6 w-6 p-0 text-gray-400 hover:text-destructive"
+                                                  onClick={() => {
+                                                    const newSettings = deviceSettingsInput.filter((_, i) => i !== idx);
+                                                    setDeviceSettingsInput(newSettings);
+                                                    setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                                  }}
+                                                >
+                                                  <X className="h-3 w-3" />
+                                                </Button>
+
+                                                {/* Geräte-Slot */}
+                                                <div className="grid gap-1">
+                                                   <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Gerät</label>
+                                                   <Input
+                                                      placeholder="z.B. Rational iCombi Pro"
+                                                      value={setting.device}
+                                                      className="h-7 text-xs border-[#E5E7EB]"
+                                                      onChange={(e) => {
+                                                        const newSettings = [...deviceSettingsInput];
+                                                        newSettings[idx] = { ...newSettings[idx], device: e.target.value };
+                                                        setDeviceSettingsInput(newSettings);
+                                                        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                                      }}
+                                                   />
+                                                </div>
+
+                                                {/* Parameter-Zeile - Aufgeteilt für bessere Übersicht */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                   <div className="space-y-1">
+                                                      <label className="text-[10px] text-gray-400">Programm/Stufe</label>
+                                                      <Input
+                                                         placeholder="Einstellungen"
+                                                         value={setting.settings || ""}
+                                                         className="h-7 text-xs border-[#E5E7EB]"
+                                                         onChange={(e) => {
+                                                            const newSettings = [...deviceSettingsInput];
+                                                            newSettings[idx] = { ...newSettings[idx], settings: e.target.value };
+                                                            setDeviceSettingsInput(newSettings);
+                                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                                         }}
+                                                      />
+                                                   </div>
+                                                   <div className="space-y-1">
+                                                      <label className="text-[10px] text-gray-400">Zeit</label>
+                                                      <Input
+                                                         placeholder="Minuten"
+                                                         value={setting.runtime}
+                                                         className="h-7 text-xs border-[#E5E7EB]"
+                                                         onChange={(e) => {
+                                                            const newSettings = [...deviceSettingsInput];
+                                                            newSettings[idx] = { ...newSettings[idx], runtime: e.target.value };
+                                                            setDeviceSettingsInput(newSettings);
+                                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                                         }}
+                                                      />
+                                                   </div>
+                                                </div>
+                                                
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                   <div className="space-y-1">
+                                                      <label className="text-[10px] text-gray-400">Energie</label>
+                                                      <Input
+                                                         placeholder="kWh"
+                                                         value={setting.energy}
+                                                         className="h-7 text-xs border-[#E5E7EB]"
+                                                         onChange={(e) => {
+                                                            const newSettings = [...deviceSettingsInput];
+                                                            newSettings[idx] = { ...newSettings[idx], energy: e.target.value };
+                                                            setDeviceSettingsInput(newSettings);
+                                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                                         }}
+                                                      />
+                                                   </div>
+                                                   <div className="space-y-1">
+                                                      <label className="text-[10px] text-gray-400">Wasser (l)</label>
+                                                      <Input
+                                                         placeholder="Liter"
+                                                         value={setting.water || ""}
+                                                         className="h-7 text-xs border-[#E5E7EB]"
+                                                         onChange={(e) => {
+                                                            const newSettings = [...deviceSettingsInput];
+                                                            newSettings[idx] = { ...newSettings[idx], water: e.target.value };
+                                                            setDeviceSettingsInput(newSettings);
+                                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                                         }}
+                                                      />
+                                                   </div>
+                                                </div>
+
+                                                {/* Output & Reinigung */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                                                   <div className="space-y-1">
+                                                      <label className="text-[10px] font-medium text-gray-500 uppercase">Output / Reichweite</label>
+                                                      <Input
+                                                         placeholder="z.B. 5 GN-Behälter"
+                                                         value={setting.outputYield || ""}
+                                                         className="h-7 text-xs border-[#E5E7EB]"
+                                                         onChange={(e) => {
+                                                            const newSettings = [...deviceSettingsInput];
+                                                            newSettings[idx] = { ...newSettings[idx], outputYield: e.target.value };
+                                                            setDeviceSettingsInput(newSettings);
+                                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                                         }}
+                                                      />
+                                                   </div>
+                                                   <div className="space-y-1">
+                                                      <label className="text-[10px] font-medium text-gray-500 uppercase">Reinigung</label>
+                                                      <Input
+                                                         placeholder="z.B. Spülmaschine"
+                                                         value={setting.cleaningEffort || ""}
+                                                         className="h-7 text-xs border-[#E5E7EB]"
+                                                         onChange={(e) => {
+                                                            const newSettings = [...deviceSettingsInput];
+                                                            newSettings[idx] = { ...newSettings[idx], cleaningEffort: e.target.value };
+                                                            setDeviceSettingsInput(newSettings);
+                                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                                         }}
+                                                      />
+                                                   </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                            
+                                            <Button
+                                              type="button"
+                                              variant="outline"
+                                              size="sm"
+                                              className="w-full text-xs h-7 border-dashed"
+                                              onClick={() => {
+                                                const newSettings = [
+                                                  ...deviceSettingsInput,
+                                                  { quantity: "", device: "", runtime: "", energy: "", settings: "", water: "", outputYield: "", cleaningEffort: "" }
+                                                ];
+                                                setDeviceSettingsInput(newSettings);
+                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                              }}
+                                            >
+                                              <Plus className="h-3 w-3 mr-1" />
+                                              Produktionsschritt hinzufügen
+                                            </Button>
+                                          </div>
+                                       </div>
+                                     )}
                                   </div>
-                                </div>
+                                )}
 
                                {(selectedItem.type !== "eigenproduktion" || (activeSection as any) === "zutaten") && (
                                  <>
