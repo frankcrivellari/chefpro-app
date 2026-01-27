@@ -834,7 +834,7 @@ export function InventoryManager() {
       if (data.error) throw new Error(data.error);
 
       const newSetting: DeviceSetting = {
-        quantity: "KI-Vorschlag",
+        quantity: data.quantity || "KI-Vorschlag",
         device: data.device || "",
         settings: data.settings || "",
         runtime: data.time || "",
@@ -4887,20 +4887,36 @@ export function InventoryManager() {
                                                   <X className="h-3 w-3" />
                                                 </Button>
 
-                                                {/* Geräte-Slot */}
-                                                <div className="grid gap-1">
-                                                   <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Gerät</label>
-                                                   <Input
-                                                      placeholder="z.B. Rational iCombi Pro"
-                                                      value={setting.device}
-                                                      className="h-7 text-xs border-[#E5E7EB]"
-                                                      onChange={(e) => {
-                                                        const newSettings = [...deviceSettingsInput];
-                                                        newSettings[idx] = { ...newSettings[idx], device: e.target.value };
-                                                        setDeviceSettingsInput(newSettings);
-                                                        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
-                                                      }}
-                                                   />
+                                                {/* Menge & Geräte-Slot */}
+                                                <div className="grid grid-cols-3 gap-2">
+                                                   <div className="col-span-1 space-y-1">
+                                                      <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Menge</label>
+                                                      <Input
+                                                         placeholder="bis 1 Liter"
+                                                         value={setting.quantity}
+                                                         className="h-7 text-xs border-[#E5E7EB]"
+                                                         onChange={(e) => {
+                                                            const newSettings = [...deviceSettingsInput];
+                                                            newSettings[idx] = { ...newSettings[idx], quantity: e.target.value };
+                                                            setDeviceSettingsInput(newSettings);
+                                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                                         }}
+                                                      />
+                                                   </div>
+                                                   <div className="col-span-2 space-y-1">
+                                                      <label className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Gerät</label>
+                                                      <Input
+                                                         placeholder="z.B. Rational iCombi Pro"
+                                                         value={setting.device}
+                                                         className="h-7 text-xs border-[#E5E7EB]"
+                                                         onChange={(e) => {
+                                                            const newSettings = [...deviceSettingsInput];
+                                                            newSettings[idx] = { ...newSettings[idx], device: e.target.value };
+                                                            setDeviceSettingsInput(newSettings);
+                                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, deviceSettings: newSettings } : i));
+                                                         }}
+                                                      />
+                                                   </div>
                                                 </div>
 
                                                 {/* Parameter-Zeile - Aufgeteilt für bessere Übersicht */}

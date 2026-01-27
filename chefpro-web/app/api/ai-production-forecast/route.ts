@@ -30,10 +30,11 @@ Du sollst folgende Werte für eine "Produktion & Ressourcen"-Matrix schätzen:
 3. time: Dauer in Minuten (als String, z.B. "15" oder "45-60").
 4. energy: Geschätzter Energieverbrauch in kWh (als String, z.B. "0.5" oder "2.4").
 5. water: Geschätzter Wasserverbrauch in Litern (als String, z.B. "0" oder "5").
-6. outputYield: Geschätzte Reichweite/Ausbeute (z.B. "5 GN-Behälter", "ca. 50 Portionen").
-7. cleaningEffort: Reinigungsaufwand (z.B. "Spülmaschine", "Manuelle Vorreinigung nötig").
-
-Gib realistische Durchschnittswerte an. Wenn keine genauen Daten vorliegen, schätze basierend auf Standard-Prozessen für dieses Produkt.`;
+6.33→6. outputYield: Geschätzte Reichweite/Ausbeute (z.B. "5 GN-Behälter", "ca. 50 Portionen").
+34→7. cleaningEffort: Reinigungsaufwand (z.B. "Spülmaschine", "Manuelle Vorreinigung nötig").
+35→8. quantity: Typische Zubereitungsmenge für diesen Prozess (z.B. "5 Liter", "1 GN 1/1", "10 kg").
+36→
+37→Gib realistische Durchschnittswerte an. Wenn keine genauen Daten vorliegen, schätze basierend auf Standard-Prozessen für dieses Produkt.`;
 
     const userPrompt = `Produkt: ${name}
 Dosierung: ${dosageInstructions || "Keine Angabe"}
