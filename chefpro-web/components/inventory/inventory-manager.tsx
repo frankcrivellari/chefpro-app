@@ -485,6 +485,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
   const [isDetailView, setIsDetailView] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const lastGenRef = useRef<string>("");
+  const lastInitializedPackshotId = useRef<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState("");
@@ -2066,6 +2067,25 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
     selectedItem,
   ]);
 
+  // Initialize Packshot Zoom/Pan only when switching items (ID changes)
+  // This prevents resetting the user's view when the item updates in the background (e.g. nutrition sync)
+  useEffect(() => {
+    if (!selectedItem) {
+      lastInitializedPackshotId.current = null;
+      return;
+    }
+
+    // Only initialize if we haven't initialized for this item ID yet
+    if (selectedItem.id !== lastInitializedPackshotId.current) {
+      setPackshotZoom(selectedItem.packshotZoom ?? 2.0);
+      setPackshotPan({
+        x: selectedItem.packshotX ?? 0,
+        y: selectedItem.packshotY ?? 0,
+      });
+      lastInitializedPackshotId.current = selectedItem.id;
+    }
+  }, [selectedItem]);
+
   useEffect(() => {
     setSpecItem(null);
     setIsRecipePresentationMode(false);
@@ -2164,7 +2184,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
         : "keine rezeptorisch enthaltenen Allergene"
     );
     if (selectedItem.nutritionPerUnit) {
-      console.log("Syncing nutrition to state:", selectedItem.nutritionPerUnit);
+      // console.log("Syncing nutrition to state:", selectedItem.nutritionPerUnit);
       const fmt = (val: number | null | undefined) =>
         val !== null && val !== undefined ? String(val) : "k.A.";
       
@@ -2359,11 +2379,6 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
         ? String(selectedItem.targetSalesPrice)
         : ""
     );
-    setPackshotZoom(selectedItem.packshotZoom ?? 2.0);
-    setPackshotPan({
-      x: selectedItem.packshotX ?? 0,
-      y: selectedItem.packshotY ?? 0,
-    });
   }, [selectedItem]);
 
   const componentSearchResults = useMemo(() => {
