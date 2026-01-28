@@ -7949,7 +7949,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                   </div>
                                 )}
                             </div>
-                            {selectedItem.type === "eigenproduktion" && activeSection !== "rezepte" && (
+                            {selectedItem.type === "eigenproduktion" && (
                               <div className="space-y-2 rounded-md border border-sky-300 bg-sky-50 px-3 py-3 text-[11px]">
                                 <div className="text-[11px] font-semibold text-sky-900">
                                   Nicht gefunden? Neue Zutat direkt hier anlegen
@@ -8036,6 +8036,8 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                               </div>
                             )}
                           </div>
+                          </>
+                          )}
                           {activeSection === "rezepte" ? (
                               <SmartIngredientMatrix
                                 components={editingComponents as SmartInventoryComponent[]}
@@ -8210,8 +8212,6 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                               );
                             })}
                           </div>
-                          )}
-                          </>
                           )}
                           <div className="flex justify-end gap-2">
                             <Button
