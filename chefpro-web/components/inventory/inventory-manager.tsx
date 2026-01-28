@@ -7631,7 +7631,8 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                   )}
 
                   {selectedItem.type === "eigenproduktion" && (
-                    <div className="space-y-3">
+                    <div className="space-y-3 border-2 border-blue-500 p-2 relative">
+                      <div className="absolute top-0 right-0 bg-blue-500 text-white text-[10px] px-1">EIGENPRODUKTION BLOCK</div>
                       {recipeCalculation && (
                         <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                           <div className="flex items-center justify-between gap-2">
