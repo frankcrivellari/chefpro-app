@@ -159,9 +159,17 @@ type PdfJsModule = {
   getDocument: (params: { data: ArrayBuffer }) => PdfJsLoadingTask;
 };
 
+type AlternativeItem = {
+  internalArticleNumber: string;
+  manufacturerArticleNumber: string;
+  name: string;
+  netWeight: string;
+};
+
 type InventoryItem = {
   id: string;
   internalId?: number | null;
+  internalArticleNumber?: string | null;
   name: string;
   type: InventoryType;
   unit: string;
@@ -210,6 +218,8 @@ type InventoryItem = {
   warengruppe?: string | null;
   bioControlNumber?: string | null;
   deviceSettings?: DeviceSetting[] | null;
+  supplier?: string | null;
+  alternativeItems?: AlternativeItem[] | null;
 };
 
 type ParsedAiItem = {
@@ -541,6 +551,10 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
   const manufacturerInput = manufacturerArticleNumberInput;
   const setManufacturerInput = setManufacturerArticleNumberInput;
   
+  const [internalArticleNumberInput, setInternalArticleNumberInput] = useState("");
+  const [supplierInput, setSupplierInput] = useState("");
+  const [alternativeItemsInput, setAlternativeItemsInput] = useState<AlternativeItem[]>([]);
+
   const [eanInput, setEanInput] = useState("");
   const [brandInput, setBrandInput] = useState("");
   const [nameInput, setNameInput] = useState("");
@@ -548,6 +562,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
   const [storageAreaInput, setStorageAreaInput] = useState("");
   const [warengruppeInput, setWarengruppeInput] = useState("");
   const [openSections, setOpenSections] = useState<string[]>(["Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe", "Unkategorisiert"]);
+  const [isAlternativeItemsOpen, setIsAlternativeItemsOpen] = useState(false);
   const [portionUnitInput, setPortionUnitInput] = useState("");
   const [nutritionTagsInput, setNutritionTagsInput] = useState<string[]>([]);
   const [targetPortionsInput, setTargetPortionsInput] = useState("");
@@ -2151,6 +2166,9 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
       setStandardPreparationText("");
       setTargetPortionsInput("");
       setTargetSalesPriceInput("");
+      setInternalArticleNumberInput("");
+      setSupplierInput("");
+      setAlternativeItemsInput([]);
       setIsBioInput(false);
       setBioControlNumberInput("");
       setIsDeklarationsfreiInput(false);
@@ -2195,6 +2213,9 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
     setManufacturerInput(selectedItem.manufacturerArticleNumber ?? "");
     setEanInput(selectedItem.ean ?? "");
     setBrandInput(selectedItem.brand ?? "");
+    setInternalArticleNumberInput(selectedItem.internalArticleNumber ?? "");
+    setSupplierInput(selectedItem.supplier ?? "");
+    setAlternativeItemsInput(selectedItem.alternativeItems ?? []);
     setDeviceSettingsInput(selectedItem.deviceSettings || []);
     
     const hasDosage = (stdPrep?.components && stdPrep.components.length > 0) || 
@@ -3759,6 +3780,9 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
           currency: selectedItem.currency,
           manufacturerArticleNumber: manufacturerInput.trim(),
           ean: eanInput.trim(),
+          internalArticleNumber: internalArticleNumberInput.trim(),
+          supplier: supplierInput.trim(),
+          alternativeItems: alternativeItemsInput,
           allergens: allergensArray,
           ingredients: proIngredientsInput.trim(),
           dosageInstructions:
@@ -4751,18 +4775,35 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                 </div>
                             </div>
                             <div className="grid gap-4">
-                               <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">
-                                    {activeSection === "rezepte" ? "Rezeptbezeichnung" : "Artikelbezeichnung"}
-                                  </label>
-                                  <Input 
-                                    value={selectedItem.name} 
-                                    className="border-[#E5E7EB] bg-white text-[#1F2326]"
-                                    onChange={(e) => {
-                                       const val = e.target.value;
-                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, name: val } : i));
-                                    }}
-                                  />
+                               <div className="flex gap-4">
+                                 <div className="grid gap-2 flex-1">
+                                    <label className="text-xs font-medium text-[#1F2326]">
+                                      {activeSection === "rezepte" ? "Rezeptbezeichnung" : "Artikelbezeichnung"}
+                                    </label>
+                                    <Input 
+                                      value={selectedItem.name} 
+                                      className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                      onChange={(e) => {
+                                         const val = e.target.value;
+                                         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, name: val } : i));
+                                         setNameInput(val);
+                                      }}
+                                    />
+                                 </div>
+                                 <div className="grid gap-2 w-32">
+                                    <label className="text-xs font-medium text-[#1F2326]">
+                                      Int. A.Nr.
+                                    </label>
+                                    <Input 
+                                      value={internalArticleNumberInput} 
+                                      className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                      onChange={(e) => {
+                                         const val = e.target.value;
+                                         setInternalArticleNumberInput(val);
+                                         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, internalArticleNumber: val } : i));
+                                      }}
+                                    />
+                                 </div>
                                </div>
                                <div className="grid grid-cols-3 gap-4">
                                 <div className="grid gap-2">
@@ -4823,24 +4864,37 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                 </select>
                               </div>
 
-                              <div className="grid gap-2">
-                                <label className="text-xs font-medium text-[#1F2326]">Lagerbereich (räumlich)</label>
-                                <select
-                                  value={selectedItem.storageArea || ""}
-                                   onChange={(e) => {
-                                     const val = e.target.value;
-                                     setStorageAreaInput(val);
-                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, storageArea: val } : i));
-                                   }}
-                                   className="flex h-9 w-full rounded-md border border-[#E5E7EB] bg-white px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-[#1F2326]"
-                                 >
-                                   <option value="">Bitte wählen...</option>
-                                   <option value="Frischwaren">Frischwaren</option>
-                                   <option value="Kühlwaren">Kühlwaren</option>
-                                   <option value="Tiefkühlwaren">Tiefkühlwaren</option>
-                                   <option value="Trockenwaren">Trockenwaren</option>
-                                   <option value="Non Food">Non Food</option>
-                                 </select>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                  <label className="text-xs font-medium text-[#1F2326]">Lagerbereich (räumlich)</label>
+                                  <select
+                                    value={selectedItem.storageArea || ""}
+                                     onChange={(e) => {
+                                       const val = e.target.value;
+                                       setStorageAreaInput(val);
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, storageArea: val } : i));
+                                     }}
+                                     className="flex h-9 w-full rounded-md border border-[#E5E7EB] bg-white px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-[#1F2326]"
+                                   >
+                                     <option value="">Bitte wählen...</option>
+                                     <option value="Frischwaren">Frischwaren</option>
+                                     <option value="Kühlwaren">Kühlwaren</option>
+                                     <option value="Tiefkühlwaren">Tiefkühlwaren</option>
+                                     <option value="Trockenwaren">Trockenwaren</option>
+                                     <option value="Non Food">Non Food</option>
+                                   </select>
+                                 </div>
+                                 <div className="grid gap-2">
+                                    <label className="text-xs font-medium text-[#1F2326]">Lieferant</label>
+                                    <Input 
+                                      value={selectedItem.supplier || ""} 
+                                      className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                      onChange={(e) => {
+                                         const val = e.target.value;
+                                         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, supplier: val } : i));
+                                      }}
+                                    />
+                                 </div>
                                </div>
 
                                <div className="grid grid-cols-2 gap-4">
@@ -4879,8 +4933,117 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                </div>
 
                                <div className="grid gap-2">
-                                 <div className="flex items-center justify-between">
-                                   <label className="text-xs font-medium text-[#1F2326]">Dosierungsangaben</label>
+                                <Accordion className="w-full">
+                                   <AccordionItem value="alternative-items" className="border-none">
+                                     <AccordionTrigger 
+                                        isOpen={isAlternativeItemsOpen} 
+                                        onToggle={() => setIsAlternativeItemsOpen(!isAlternativeItemsOpen)}
+                                        className="py-2 text-xs font-medium text-[#1F2326] hover:no-underline"
+                                     >
+                                       Alternative Artikel
+                                     </AccordionTrigger>
+                                     <AccordionContent isOpen={isAlternativeItemsOpen}>
+                                       <div className="space-y-4 pt-2">
+                                        {(selectedItem.alternativeItems || []).map((item, idx) => (
+                                          <div key={idx} className="grid gap-2 p-2 border rounded-md border-[#E5E7EB]">
+                                            <div className="flex justify-between items-center">
+                                              <span className="text-xs font-semibold">Alternative {idx + 1}</span>
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => {
+                                                  const newItems = (selectedItem.alternativeItems || []).filter((_, i) => i !== idx);
+                                                  setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, alternativeItems: newItems } : i));
+                                                }}
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <div className="grid gap-1">
+                                                <label className="text-[10px] text-gray-500">Int. Art.Nr.</label>
+                                                <Input
+                                                  value={item.internalArticleNumber}
+                                                  className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                                  onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    const newItems = [...(selectedItem.alternativeItems || [])];
+                                                    newItems[idx] = { ...newItems[idx], internalArticleNumber: val };
+                                                    setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, alternativeItems: newItems } : i));
+                                                  }}
+                                                />
+                                              </div>
+                                              <div className="grid gap-1">
+                                                <label className="text-[10px] text-gray-500">Herst. Art.Nr.</label>
+                                                <Input
+                                                  value={item.manufacturerArticleNumber}
+                                                  className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                                  onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    const newItems = [...(selectedItem.alternativeItems || [])];
+                                                    newItems[idx] = { ...newItems[idx], manufacturerArticleNumber: val };
+                                                    setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, alternativeItems: newItems } : i));
+                                                  }}
+                                                />
+                                              </div>
+                                              <div className="grid gap-1 col-span-2">
+                                                <label className="text-[10px] text-gray-500">Name</label>
+                                                <Input
+                                                  value={item.name}
+                                                  className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                                  onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    const newItems = [...(selectedItem.alternativeItems || [])];
+                                                    newItems[idx] = { ...newItems[idx], name: val };
+                                                    setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, alternativeItems: newItems } : i));
+                                                  }}
+                                                />
+                                              </div>
+                                              <div className="grid gap-1">
+                                                <label className="text-[10px] text-gray-500">Netto-Gewicht</label>
+                                                <Input
+                                                  value={item.netWeight}
+                                                  className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                                  onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    const newItems = [...(selectedItem.alternativeItems || [])];
+                                                    newItems[idx] = { ...newItems[idx], netWeight: val };
+                                                    setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, alternativeItems: newItems } : i));
+                                                  }}
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          className="w-full text-xs h-7 border-dashed"
+                                          onClick={() => {
+                                            const newItems = [...(selectedItem.alternativeItems || []), {
+                                              internalArticleNumber: "",
+                                              manufacturerArticleNumber: "",
+                                              name: "",
+                                              netWeight: ""
+                                            }];
+                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, alternativeItems: newItems } : i));
+                                          }}
+                                        >
+                                          <Plus className="h-3 w-3 mr-1" />
+                                          Alternative hinzufügen
+                                        </Button>
+                                      </div>
+                                    </AccordionContent>
+                                  </AccordionItem>
+                                </Accordion>
+                              </div>
+
+                              <div className="grid gap-2">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-medium text-[#1F2326]">Dosierungsangaben</label>
                                    <Button
                                      type="button"
                                      variant="ghost"

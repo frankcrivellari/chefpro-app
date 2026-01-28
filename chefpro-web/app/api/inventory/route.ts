@@ -47,9 +47,17 @@ type NutritionTotals = {
   cholesterol: number | null;
 };
 
+type AlternativeItem = {
+  internalArticleNumber: string;
+  manufacturerArticleNumber: string;
+  name: string;
+  netWeight: string;
+};
+
 type InventoryItem = {
   id: string;
   internalId?: number | null;
+  internalArticleNumber?: string | null;
   name: string;
   type: InventoryType;
   unit: string;
@@ -97,6 +105,8 @@ type InventoryItem = {
   warengruppe?: string | null;
   bioControlNumber?: string | null;
   deviceSettings?: DeviceSetting[] | null;
+  supplier?: string | null;
+  alternativeItems?: AlternativeItem[] | null;
 };
 
 type SupabaseItemRow = {
@@ -113,6 +123,7 @@ type SupabaseItemRow = {
   portion_unit: string | null;
   nutrition_tags: string[] | null;
   internal_id: number | null;
+  internal_article_number: string | null;
   manufacturer_article_number: string | null;
   ean: string | null;
   allergens: string[] | null;
@@ -147,6 +158,8 @@ type SupabaseItemRow = {
   warengruppe: string | null;
   bio_control_number: string | null;
   device_settings: DeviceSetting[] | null;
+  supplier: string | null;
+  alternative_items: AlternativeItem[] | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -232,6 +245,7 @@ export async function GET() {
         category: row.category,
         portionUnit: row.portion_unit,
         nutritionTags: row.nutrition_tags ?? undefined,
+        internalArticleNumber: row.internal_article_number,
         manufacturerArticleNumber: row.manufacturer_article_number,
         ean: row.ean,
         allergens: row.allergens ?? undefined,
@@ -266,6 +280,8 @@ export async function GET() {
         warengruppe: row.warengruppe,
         bioControlNumber: row.bio_control_number,
         deviceSettings: row.device_settings,
+        supplier: row.supplier,
+        alternativeItems: row.alternative_items,
       });
     }
 

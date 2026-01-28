@@ -41,6 +41,13 @@ type NutritionTotals = {
   cholesterol: number | null;
 };
 
+type AlternativeItem = {
+  internalArticleNumber: string;
+  manufacturerArticleNumber: string;
+  name: string;
+  netWeight: string;
+};
+
 type SupabaseItemRow = {
   id: string;
   name: string;
@@ -56,6 +63,7 @@ type SupabaseItemRow = {
   nutrition_tags: string[] | null;
   nutrition_per_unit: NutritionTotals | null;
   internal_id: number | null;
+  internal_article_number: string | null;
   manufacturer_article_number: string | null;
   ean: string | null;
   allergens: string[] | null;
@@ -90,6 +98,8 @@ type SupabaseItemRow = {
   file_url: string | null;
   image_url: string | null;
   device_settings: DeviceSetting[] | null;
+  supplier: string | null;
+  alternative_items: AlternativeItem[] | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -497,6 +507,20 @@ export async function POST(request: Request) {
   if (typeof body.bioControlNumber === "string") {
     const trimmed = body.bioControlNumber.trim();
     updates.bio_control_number = trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (typeof body.internalArticleNumber === "string") {
+    const trimmed = body.internalArticleNumber.trim();
+    updates.internal_article_number = trimmed.length > 0 ? trimmed : null;
+  }
+  
+  if (typeof body.supplier === "string") {
+    const trimmed = body.supplier.trim();
+    updates.supplier = trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (body.alternativeItems) {
+    updates.alternative_items = Array.isArray(body.alternativeItems) ? body.alternativeItems : [];
   }
 
   if (Object.prototype.hasOwnProperty.call(body, "standardPreparation")) {
