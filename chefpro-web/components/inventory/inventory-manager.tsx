@@ -2608,7 +2608,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
       setNewItemName("");
       setNewItemUnit("");
       setNewItemPrice("");
-      setNewItemType("zukauf");
+      setNewItemType(activeSection === "rezepte" ? "eigenproduktion" : "zukauf");
     } catch (error) {
       const message =
         error instanceof Error
@@ -4578,7 +4578,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                 <Card className="flex h-full flex-col overflow-hidden border-none bg-white shadow-sm">
                    <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
                       <div className="flex items-center gap-2">
-                         <CardTitle className="text-base text-[#1F2326]">Stammdaten</CardTitle>
+                         <CardTitle className="text-base text-[#1F2326]">{(activeSection as string) === "rezepte" ? "Rezept-Karte" : "Stammdaten"}</CardTitle>
                       </div>
 
                    </CardHeader>
@@ -4778,7 +4778,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                <div className="flex gap-4">
                                  <div className="grid gap-2 flex-1">
                                     <label className="text-xs font-medium text-[#1F2326]">
-                                      {activeSection === "rezepte" ? "Rezeptbezeichnung" : "Artikelbezeichnung"}
+                                      {(activeSection as string) === "rezepte" ? "Rezeptbezeichnung" : "Artikelbezeichnung"}
                                     </label>
                                     <Input 
                                       value={selectedItem.name} 
@@ -4792,7 +4792,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                  </div>
                                  <div className="grid gap-2 w-32">
                                     <label className="text-xs font-medium text-[#1F2326]">
-                                      Int. A.Nr.
+                                      {(activeSection as string) === "rezepte" ? "Rezept-Nr." : "Int. A.Nr."}
                                     </label>
                                     <Input 
                                       value={internalArticleNumberInput} 
@@ -4807,7 +4807,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                </div>
                                <div className="grid grid-cols-3 gap-4">
                                 <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">Marke (Brand)</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">{(activeSection as string) === "rezepte" ? "Autor / Quelle" : "Marke (Brand)"}</label>
                                   <Input 
                                     value={selectedItem.brand || ""} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -4819,7 +4819,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                   />
                                 </div>
                                 <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">Hersteller-Artikelnummer</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">{(activeSection as string) === "rezepte" ? "Internet-Link" : "Hersteller-Artikelnummer"}</label>
                                   <Input 
                                     value={selectedItem.manufacturerArticleNumber || ""} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -4831,7 +4831,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                   />
                                 </div>
                                 <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">EAN (GTIN)</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">{(activeSection as string) === "rezepte" ? "Portionen im Durchschnitt" : "EAN (GTIN)"}</label>
                                   <Input 
                                     value={selectedItem.ean || ""} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -4845,7 +4845,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                               </div>
                                
                                <div className="grid gap-2">
-                                <label className="text-xs font-medium text-[#1F2326]">Warengruppe (kulinarisch)</label>
+                                <label className="text-xs font-medium text-[#1F2326]">{(activeSection as string) === "rezepte" ? "Kategorien" : "Warengruppe (kulinarisch)"}</label>
                                 <select
                                   value={selectedItem.warengruppe || ""}
                                   onChange={(e) => {
