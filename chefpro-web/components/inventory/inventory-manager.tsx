@@ -6537,25 +6537,8 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
               )}
             </CardHeader>
             <CardContent className="flex flex-1 flex-col gap-4">
-              {/* DEBUG INFO - FIXED POSITION */}
-              <div className="fixed bottom-4 right-4 z-50 w-64 rounded-lg border-2 border-red-500 bg-white p-4 text-xs shadow-xl text-black">
-                <strong>DEBUG OVERLAY</strong><br/>
-                ActiveSection: {activeSection}<br/>
-                Mode Prop: {mode || "undefined"}<br/>
-                Pathname: {pathname}<br/>
-                SelectedID: {selectedItemId || "None"}<br/>
-                Type: {selectedItem?.type || "N/A"}<br/>
-                IsPresentation: {isRecipePresentationMode ? "YES" : "NO"}<br/>
-                IsEditing: {isEditingComponents ? "YES" : "NO"}<br/>
-                Matrix Visible: {selectedItem && selectedItem.type === "eigenproduktion" && !isRecipePresentationMode ? "SHOULD BE VISIBLE" : "HIDDEN"}<br/>
-                <button 
-                  className="mt-2 w-full rounded bg-blue-600 px-2 py-1 text-white hover:bg-blue-700"
-                  onClick={() => setIsRecipePresentationMode(false)}
-                >
-                  FORCE EDIT MODE
-                </button>
-              </div>
-
+              {/* DEBUG INFO - REMOVED */}
+              
               {!selectedItem && (
                 <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
                   Wähle links einen Artikel aus, um Details zu sehen.
