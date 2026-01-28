@@ -560,12 +560,14 @@ export async function POST(request: Request) {
         table: "items",
         error: insertItemResponse.error,
         data: insertItemResponse.data,
+        body: JSON.stringify(body)
       });
       return NextResponse.json(
         {
           error:
             insertItemResponse.error?.message ??
             'Fehler beim Speichern des Artikels in Tabelle "items"',
+          details: insertItemResponse.error
         },
         { status: 500 }
       );

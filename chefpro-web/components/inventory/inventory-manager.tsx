@@ -497,6 +497,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
   );
   // effectiveFilterType removed
   const [isDetailView, setIsDetailView] = useState(false);
+
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const lastGenRef = useRef<string>("");
   const lastInitializedPackshotId = useRef<string | null>(null);
@@ -4547,6 +4548,8 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                             unit: "Stück",
                                             purchasePrice: 0,
                                             components: [],
+                                            storageArea: "Trockenwaren",
+                                            warengruppe: "Trockensortiment",
                                         }),
                                     });
                                     
@@ -7646,14 +7649,6 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                       </div>
                     </div>
                   )}
-
-                  {/* PROBE BLOCK */}
-                  <div className="bg-purple-500 text-white p-2 font-bold text-lg my-4 border-4 border-yellow-500">
-                     PROBE: Type is '{selectedItem.type}' <br/>
-                     Is Eigen? {selectedItem.type === "eigenproduktion" ? "YES" : "NO"} <br/>
-                     Section: {activeSection}
-                  </div>
-                  {/* END PROBE BLOCK */}
 
                   {selectedItem.type === "eigenproduktion" && (
                   <div className="space-y-3 relative">
