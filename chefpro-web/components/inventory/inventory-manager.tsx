@@ -7240,14 +7240,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                     </div>
                   </div>
 
-                  {/* DEBUG OVERLAY */}
-                  {(activeSection === "zutaten" || activeSection === "rezepte") && (
-                    <div className="bg-red-100 p-2 border border-red-500 text-xs mb-2 text-red-900">
-                      DEBUG OVERLAY (INNER) <br/>
-                      PROBE 2: BEFORE ZUKAUF/EIGEN SWITCH <br/>
-                      Type: {selectedItem.type}
-                    </div>
-                  )}
+
 
                   {/* Show Zukauf-View if item is NOT Eigenproduktion (unless we are in Rezepte mode where we only expect Recipes, but if a Zukauf slips in, we should probably show it or show an error) OR if we are explicitly in Zutaten mode (where we treat everything as Ingredient/Zukauf) */}
                   {(selectedItem.type !== "eigenproduktion" || activeSection === "zutaten") && (
