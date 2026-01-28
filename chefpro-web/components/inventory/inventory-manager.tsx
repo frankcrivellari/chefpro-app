@@ -6494,18 +6494,18 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
               )}
             </CardHeader>
             <CardContent className="flex flex-1 flex-col gap-4">
-              {/* DEBUG HEADER FOR REZEPTE MODE */}
-              {activeSection === "rezepte" && (
-                 <div className="bg-blue-100 p-2 text-xs border border-blue-500 mb-2 rounded text-blue-900">
-                    <strong>DEBUG MODE:</strong><br/>
-                    ActiveSection: {activeSection}<br/>
-                    Mode Prop: {mode || "undefined"}<br/>
-                    SelectedItem: {selectedItem ? `${selectedItem.name} (${selectedItem.type})` : "None"}<br/>
-                    IsPresentation: {isRecipePresentationMode ? "YES" : "NO"}<br/>
-                    IsEditingComponents: {isEditingComponents ? "YES" : "NO"}<br/>
-                    EffectiveItems: {effectiveItems.length}<br/>
-                 </div>
-              )}
+              {/* DEBUG INFO - FIXED POSITION */}
+              <div className="fixed bottom-4 right-4 z-50 w-64 rounded-lg border-2 border-red-500 bg-white p-4 text-xs shadow-xl text-black">
+                <strong>DEBUG OVERLAY</strong><br/>
+                ActiveSection: {activeSection}<br/>
+                Mode Prop: {mode || "undefined"}<br/>
+                Pathname: {pathname}<br/>
+                SelectedID: {selectedItemId || "None"}<br/>
+                Type: {selectedItem?.type || "N/A"}<br/>
+                IsPresentation: {isRecipePresentationMode ? "YES" : "NO"}<br/>
+                IsEditing: {isEditingComponents ? "YES" : "NO"}<br/>
+                Matrix Visible: {selectedItem && selectedItem.type === "eigenproduktion" && !isRecipePresentationMode ? "SHOULD BE VISIBLE" : "HIDDEN"}<br/>
+              </div>
 
               {!selectedItem && (
                 <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
