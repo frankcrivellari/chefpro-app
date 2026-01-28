@@ -822,6 +822,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
               sodium: extracted.nutrition_per_100.sodium,
               breadUnits: extracted.nutrition_per_100.bread_units,
               cholesterol: extracted.nutrition_per_100.cholesterol,
+              co2: extracted.nutrition_per_100.co2 || null,
             } : item.nutritionPerUnit,
             
              standardPreparation: extracted.standard_preparation ? extracted.standard_preparation : item.standardPreparation,
@@ -2050,6 +2051,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
         sodium: (batchTotals.sodium ?? 0) / totalMass,
         breadUnits: (batchTotals.breadUnits ?? 0) / totalMass,
         cholesterol: (batchTotals.cholesterol ?? 0) / totalMass,
+        co2: (batchTotals.co2 ?? 0) / totalMass,
       };
 
       return { perGram, mass: totalMass, missing };
@@ -3590,6 +3592,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                 sodium: nutritionRaw.sodium,
                 breadUnits: nutritionRaw.bread_units,
                 cholesterol: nutritionRaw.cholesterol,
+                co2: nutritionRaw.co2 || null,
               } : item.nutritionPerUnit,
               
                standardPreparation: extracted.standard_preparation ? extracted.standard_preparation : item.standardPreparation,
@@ -3827,6 +3830,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
               sodium: parseNutrient(proSodiumInput),
               breadUnits: parseNutrient(proBreadUnitsInput),
               cholesterol: parseNutrient(proCholesterolInput),
+              co2: null,
             }
           : null;
 

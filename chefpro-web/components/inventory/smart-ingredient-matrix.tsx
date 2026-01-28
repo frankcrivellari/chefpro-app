@@ -53,7 +53,7 @@ export type AvailableItem = {
   name: string;
   unit: string;
   purchasePrice: number;
-  nutritionPerUnit?: Record<string, number | null> | null;
+  nutritionPerUnit?: Record<string, number | null> | null | any;
   isBio?: boolean;
   isVegan?: boolean;
 };
@@ -66,7 +66,15 @@ interface SmartIngredientMatrixProps {
   readOnly?: boolean;
 }
 
-// ... (SortableRowProps and calculateRowCost remain the same, but implicit type change handles it)
+interface SortableRowProps {
+  component: InventoryComponent;
+  index: number;
+  availableItems: AvailableItem[];
+  onChange: (index: number, field: keyof InventoryComponent, value: any) => void;
+  onRemove: (index: number) => void;
+  onQuickImport: (name: string) => void;
+  readOnly?: boolean;
+}
 
 // Helper to format labels
 const formatLabel = (key: string) => {
