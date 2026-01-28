@@ -1112,9 +1112,10 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
     if (!pathname) {
       return;
     }
-    const next = pathname.startsWith("/lager")
+    const path = pathname.toLowerCase();
+    const next = path.startsWith("/lager")
       ? "lager"
-      : pathname.startsWith("/rezepte")
+      : path.startsWith("/rezepte")
       ? "rezepte"
       : "zutaten";
     if (next !== activeSection) {
@@ -4646,7 +4647,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                 <Card className="flex h-full flex-col overflow-hidden border-none bg-white shadow-sm">
                    <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
                       <div className="flex items-center gap-2">
-                         <CardTitle className="text-base text-[#1F2326]">{(activeSection as string) === "rezepte" ? "Rezept-Karte" : "Stammdaten"}</CardTitle>
+                         <CardTitle className="text-base text-[#1F2326]">{(activeSection as string) === "rezepte" ? "Rezept-Karte" : "Artikel-Details"}</CardTitle>
                       </div>
 
                    </CardHeader>
