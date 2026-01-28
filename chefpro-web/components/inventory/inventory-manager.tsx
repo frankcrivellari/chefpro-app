@@ -4329,6 +4329,19 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
 
   return (
     <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
+      {/* DEBUG OVERLAY - TOP LEVEL */}
+      <div className="fixed bottom-4 right-4 z-[9999] w-64 rounded-lg border-2 border-red-500 bg-white p-4 text-xs shadow-xl text-black">
+        <strong>DEBUG OVERLAY (TOP LEVEL)</strong><br/>
+        ActiveSection: {activeSection}<br/>
+        Mode Prop: {mode || "undefined"}<br/>
+        Pathname: {pathname}<br/>
+        SelectedID: {selectedItemId || "None"}<br/>
+        Type: {selectedItem?.type || "N/A"}<br/>
+        IsPresentation: {isRecipePresentationMode ? "YES" : "NO"}<br/>
+        IsEditing: {isEditingComponents ? "YES" : "NO"}<br/>
+        Matrix Visible: {selectedItem && selectedItem.type === "eigenproduktion" && !isRecipePresentationMode ? "SHOULD BE VISIBLE" : "HIDDEN"}<br/>
+      </div>
+
       {["zutaten", "rezepte"].includes(activeSection) && (
         <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#6B7176] bg-[#1F2326]">
           <div className="flex flex-col gap-3 border-b border-[#6B7176] p-4">
