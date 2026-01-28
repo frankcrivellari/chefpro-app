@@ -6216,7 +6216,7 @@ export function RecipeManager() {
                   </div>
                 </form>
                 <div className="flex gap-3">
-                  {activeSection === "rezepte" && (
+                  {(activeSection as string) === "rezepte" && (
                     <div
                       className={cn(
                         "w-52 shrink-0 rounded-md border bg-card/80 p-3 text-[11px] transition-all",
