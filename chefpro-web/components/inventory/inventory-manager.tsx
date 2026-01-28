@@ -1289,12 +1289,16 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
           )
         );
 
-        // Update local state if this item is selected
+        // Update local state if this item is selected - REMOVED to prevent jumping
+        // The user might be zooming/panning manually. We shouldn't overwrite it.
+        // The new values are saved in 'items' (above) and will be used on next load/select.
+        /* 
         if (selectedItemId === itemId) {
             setPackshotPan({ x: finalPanX, y: finalPanY });
             setPackshotZoom(finalZoom);
             setIsAutoFit(false);
         }
+        */
       }
     } catch (err) {
       const message =
@@ -1591,6 +1595,53 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
       console.error("Failed to copy packshot URL:", err);
     }
   }, [packshotPreview]);
+
+  // Debounced Save of Packshot State
+  useEffect(() => {
+    if (!selectedItem) return;
+
+    const currentX = packshotPan.x;
+    const currentY = packshotPan.y;
+    const currentZoom = packshotZoom;
+
+    const savedX = selectedItem.packshotX ?? 0;
+    const savedY = selectedItem.packshotY ?? 0;
+    const savedZoom = selectedItem.packshotZoom ?? 2.0;
+
+    const isSame = 
+        Math.abs(currentX - savedX) < 0.001 &&
+        Math.abs(currentY - savedY) < 0.001 &&
+        Math.abs(currentZoom - savedZoom) < 0.001;
+
+    if (isSame) return;
+
+    const timer = setTimeout(async () => {
+        try {
+            // Update local items state first to reflect "saved" status and prevent further triggers
+            setItems(prev => prev.map(i => {
+                if (i.id === selectedItem.id) {
+                    return { ...i, packshotX: currentX, packshotY: currentY, packshotZoom: currentZoom };
+                }
+                return i;
+            }));
+
+            await fetch("/api/item-details", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: selectedItem.id,
+                    packshotX: currentX,
+                    packshotY: currentY,
+                    packshotZoom: currentZoom
+                })
+            });
+        } catch (err) {
+            console.error("Failed to save packshot state", err);
+        }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [packshotPan, packshotZoom, selectedItem]);
 
   // Sync Image URL Input when it changes in DB/State (e.g. after scan)
   useEffect(() => {
@@ -2049,8 +2100,10 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
   // Initialize Packshot Zoom/Pan only when switching items (ID changes)
   // This prevents resetting the user's view when the item updates in the background (e.g. nutrition sync)
   useEffect(() => {
+    // If no item is selected, we don't necessarily want to reset the lock immediately
+    // to avoid flickering if the selection is lost momentarily during updates.
     if (!selectedItem) {
-      lastInitializedPackshotId.current = null;
+      // lastInitializedPackshotId.current = null; // Removed to prevent reset on flicker
       return;
     }
 
