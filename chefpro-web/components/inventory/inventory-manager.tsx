@@ -6494,6 +6494,19 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
               )}
             </CardHeader>
             <CardContent className="flex flex-1 flex-col gap-4">
+              {/* DEBUG HEADER FOR REZEPTE MODE */}
+              {activeSection === "rezepte" && (
+                 <div className="bg-blue-100 p-2 text-xs border border-blue-500 mb-2 rounded text-blue-900">
+                    <strong>DEBUG MODE:</strong><br/>
+                    ActiveSection: {activeSection}<br/>
+                    Mode Prop: {mode || "undefined"}<br/>
+                    SelectedItem: {selectedItem ? `${selectedItem.name} (${selectedItem.type})` : "None"}<br/>
+                    IsPresentation: {isRecipePresentationMode ? "YES" : "NO"}<br/>
+                    IsEditingComponents: {isEditingComponents ? "YES" : "NO"}<br/>
+                    EffectiveItems: {effectiveItems.length}<br/>
+                 </div>
+              )}
+
               {!selectedItem && (
                 <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
                   Wähle links einen Artikel aus, um Details zu sehen.
@@ -7184,16 +7197,18 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                   </div>
 
                   {/* DEBUG OVERLAY */}
-                  {(activeSection as any) === "zutaten" && (
+                  {(activeSection === "zutaten" || activeSection === "rezepte") && (
                     <div className="bg-red-100 p-2 border border-red-500 text-xs mb-2 text-red-900">
                       DEBUG INFO: <br/>
                       Type: {selectedItem.type} <br/>
+                      Section: {activeSection} <br/>
                       Nutrition Present: {selectedItem.nutritionPerUnit ? "Yes" : "No"} <br/>
                       Nutrition State: kcal={proEnergyKcalInput}
                     </div>
                   )}
 
-                  {(selectedItem.type !== "eigenproduktion" || (activeSection as any) === "zutaten") && (
+                  {/* Show Zukauf-View if item is NOT Eigenproduktion (unless we are in Rezepte mode where we only expect Recipes, but if a Zukauf slips in, we should probably show it or show an error) OR if we are explicitly in Zutaten mode (where we treat everything as Ingredient/Zukauf) */}
+                  {(selectedItem.type !== "eigenproduktion" || activeSection === "zutaten") && (
                     <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
                       <div>
                         Dieser Artikel wird als Zukauf geführt. Du kannst ihn
