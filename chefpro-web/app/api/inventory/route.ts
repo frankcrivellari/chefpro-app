@@ -356,6 +356,7 @@ export async function POST(request: Request) {
       dosageInstructions?: string | null;
       ingredients?: string | null;
       yieldInfo?: string | null;
+      internalArticleNumber?: string | null;
       manufacturerArticleNumber?: string | null;
       ean?: string | null;
       allergens?: string[] | null;
@@ -398,6 +399,35 @@ export async function POST(request: Request) {
       );
     }
 
+    let internalArticleNumber = body.internalArticleNumber;
+
+    if (!internalArticleNumber && body.type === "eigenproduktion") {
+      const { data: existingRecipes, error: fetchError } = await client
+        .from("items")
+        .select("internal_article_number")
+        .ilike("internal_article_number", "R-%");
+
+      if (!fetchError && existingRecipes) {
+        const numbers = existingRecipes
+          .map((r) => {
+            const match = r.internal_article_number?.match(/^R-(\d+)$/);
+            return match ? parseInt(match[1], 10) : null;
+          })
+          .filter((n): n is number => n !== null)
+          .sort((a, b) => a - b);
+
+        let nextNum = 1;
+        for (const num of numbers) {
+          if (num === nextNum) {
+            nextNum++;
+          } else if (num > nextNum) {
+            break;
+          }
+        }
+        internalArticleNumber = `R-${nextNum}`;
+      }
+    }
+
     let insertItemResponse = await client
       .from("items")
       .insert({
@@ -409,6 +439,7 @@ export async function POST(request: Request) {
         purchase_price: body.purchasePrice,
         category: body.category ?? null,
         portion_unit: body.portionUnit ?? null,
+        internal_article_number: internalArticleNumber ?? null,
         nutrition_tags:
           body.nutritionTags && body.nutritionTags.length > 0
             ? body.nutritionTags
@@ -485,6 +516,7 @@ export async function POST(request: Request) {
           purchase_price: body.purchasePrice,
           category: body.category ?? null,
           portion_unit: body.portionUnit ?? null,
+          internal_article_number: internalArticleNumber ?? null,
           nutrition_tags:
             body.nutritionTags && body.nutritionTags.length > 0
               ? body.nutritionTags

@@ -1402,6 +1402,11 @@ export function RecipeManager() {
            return false;
          }
       }
+      if (activeSection === "rezepte") {
+        if (item.type !== "eigenproduktion") {
+          return false;
+        }
+      }
       if (filterType !== "all" && item.type !== filterType && activeSection !== "zutaten") {
         return false;
       }
@@ -4260,7 +4265,7 @@ export function RecipeManager() {
 
   return (
     <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
-      {activeSection === "zutaten" && (
+      {(activeSection === "zutaten" || activeSection === "rezepte") && (
         <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#6B7176] bg-[#1F2326]">
           <div className="flex flex-col gap-3 border-b border-[#6B7176] p-4">
             <div className="relative">
@@ -4272,26 +4277,28 @@ export function RecipeManager() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="flex flex-wrap gap-1">
-              <Badge
-                variant="outline"
-                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
-              >
-                Trockenlager
-              </Badge>
-              <Badge
-                variant="outline"
-                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
-              >
-                Kühlung
-              </Badge>
-              <Badge
-                variant="outline"
-                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
-              >
-                Obst/Gemüse
-              </Badge>
-            </div>
+            {activeSection === "zutaten" && (
+              <div className="flex flex-wrap gap-1">
+                <Badge
+                  variant="outline"
+                  className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
+                >
+                  Trockenlager
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
+                >
+                  Kühlung
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
+                >
+                  Obst/Gemüse
+                </Badge>
+              </div>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             <div className="flex flex-col">
@@ -4301,15 +4308,23 @@ export function RecipeManager() {
                 </div>
               )}
               <Accordion className="w-full">
-                {["Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe", "Unkategorisiert"].map((group) => {
-                  const groupItems = filteredItems.filter((item) =>
-                    group === "Unkategorisiert"
+                {(activeSection === "rezepte" 
+                  ? ["Vorspeise", "Hauptgang", "Dessert", "Unkategorisiert"] 
+                  : ["Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe", "Unkategorisiert"]
+                ).map((group) => {
+                  const groupItems = filteredItems.filter((item) => {
+                    if (activeSection === "rezepte") {
+                       return group === "Unkategorisiert" 
+                         ? !item.category || !["Vorspeise", "Hauptgang", "Dessert"].includes(item.category)
+                         : item.category === group;
+                    }
+                    return group === "Unkategorisiert"
                       ? !item.warengruppe ||
                         !["Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe"].includes(
                           item.warengruppe
                         )
-                      : item.warengruppe === group
-                  );
+                      : item.warengruppe === group;
+                  });
                   
                   // Sort items alphabetically within the group
                   groupItems.sort((a, b) => a.name.localeCompare(b.name));
@@ -4437,12 +4452,14 @@ export function RecipeManager() {
             </Card>
           )}
 
-          {activeSection === "zutaten" ? (
+          {(activeSection === "zutaten" || activeSection === "rezepte") ? (
             <div className="flex h-full flex-col gap-4 overflow-hidden bg-[#F6F7F5] p-6">
               <div className="grid flex-1 min-h-0 grid-cols-[280px_1fr] grid-rows-[minmax(0,1fr)] gap-4">
                 <Card className="flex h-full flex-col overflow-hidden border-none bg-white shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
-                    <CardTitle className="text-base text-[#1F2326]">Rezept-Import</CardTitle>
+                    <CardTitle className="text-base text-[#1F2326]">
+                      {activeSection === "rezepte" ? "Rezept-Import" : "Artikel-Import"}
+                    </CardTitle>
 
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto p-0">
@@ -4456,15 +4473,15 @@ export function RecipeManager() {
                           try {
                             setIsSaving(true);
                             setError(null);
-                            const isRecipe = false;
+                            const isRecipe = activeSection === "rezepte";
                             const response = await fetch("/api/inventory", {
                               method: "POST",
                               headers: {
                                 "Content-Type": "application/json",
                               },
                               body: JSON.stringify({
-                                name: "Neuer Artikel",
-                                type: "zukauf",
+                                name: isRecipe ? "Neues Rezept" : "Neuer Artikel",
+                                type: isRecipe ? "eigenproduktion" : "zukauf",
                                 unit: "Stück",
                                 purchasePrice: 0,
                                 components: [],
@@ -4493,7 +4510,7 @@ export function RecipeManager() {
                           }
                         }}
                       >
-                        {isSaving ? "Erstelle..." : "Neuen Artikel anlegen"}
+                        {isSaving ? "Erstelle..." : activeSection === "rezepte" ? "Neues Rezept anlegen" : "Neuen Artikel anlegen"}
                       </Button>
                     </div>
                     <div className="space-y-2 rounded-md border border-[#E5E7EB] bg-[#F6F7F5]/50 p-3 text-xs">
@@ -4577,7 +4594,7 @@ export function RecipeManager() {
                 <Card className="flex h-full flex-col overflow-hidden border-none bg-white shadow-sm">
                    <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
                       <div className="flex items-center gap-2">
-                         <CardTitle className="text-base text-[#1F2326]">Stammdaten</CardTitle>
+                         <CardTitle className="text-base text-[#1F2326]">{activeSection === "rezepte" ? "Rezept-Karte" : "Stammdaten"}</CardTitle>
                       </div>
 
                    </CardHeader>
@@ -4774,20 +4791,35 @@ export function RecipeManager() {
                                 </div>
                             </div>
                             <div className="grid gap-4">
-                               <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">Artikelbezeichnung</label>
-                                  <Input 
-                                    value={selectedItem.name} 
-                                    className="border-[#E5E7EB] bg-white text-[#1F2326]"
-                                    onChange={(e) => {
-                                       const val = e.target.value;
-                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, name: val } : i));
-                                    }}
-                                  />
+                               <div className="flex gap-4">
+                                 <div className="grid gap-2 flex-1">
+                                    <label className="text-xs font-medium text-[#1F2326]">Artikelbezeichnung</label>
+                                    <Input 
+                                      value={selectedItem.name} 
+                                      className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                      onChange={(e) => {
+                                         const val = e.target.value;
+                                         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, name: val } : i));
+                                      }}
+                                    />
+                                 </div>
+                                 <div className="grid gap-2 w-32">
+                                    <label className="text-xs font-medium text-[#1F2326]">
+                                      {activeSection === "rezepte" ? "Rezept-Nr." : "Int. A.Nr."}
+                                    </label>
+                                    <Input 
+                                      value={selectedItem.internalArticleNumber || ""} 
+                                      className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                      onChange={(e) => {
+                                         const val = e.target.value;
+                                         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, internalArticleNumber: val } : i));
+                                      }}
+                                    />
+                                 </div>
                                </div>
                                <div className="grid grid-cols-3 gap-4">
                                 <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">Marke (Brand)</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">{activeSection === "rezepte" ? "Autor / Quelle" : "Marke (Brand)"}</label>
                                   <Input 
                                     value={selectedItem.brand || ""} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -4799,7 +4831,7 @@ export function RecipeManager() {
                                   />
                                 </div>
                                 <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">Hersteller-Artikelnummer</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">{activeSection === "rezepte" ? "Internet-Link" : "Hersteller-Artikelnummer"}</label>
                                   <Input 
                                     value={selectedItem.manufacturerArticleNumber || ""} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -4811,7 +4843,7 @@ export function RecipeManager() {
                                   />
                                 </div>
                                 <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">EAN (GTIN)</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">{activeSection === "rezepte" ? "Portionen im Durchschnitt" : "EAN (GTIN)"}</label>
                                   <Input 
                                     value={selectedItem.ean || ""} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -4825,7 +4857,7 @@ export function RecipeManager() {
                               </div>
                                
                                <div className="grid gap-2">
-                                <label className="text-xs font-medium text-[#1F2326]">Warengruppe (kulinarisch)</label>
+                                <label className="text-xs font-medium text-[#1F2326]">{activeSection === "rezepte" ? "Kategorien" : "Warengruppe (kulinarisch)"}</label>
                                 <select
                                   value={selectedItem.warengruppe || ""}
                                   onChange={(e) => {
@@ -5955,39 +5987,7 @@ export function RecipeManager() {
                     <CardTitle>Rezept-Import</CardTitle>
                   </div>
 
-                {activeSection === "rezepte" && (
-                  <div className="inline-flex rounded-md border bg-muted/40 p-1 text-[11px]">
-                    <Button
-                      type="button"
-                      variant={recipeViewMode === "list" ? "default" : "outline"}
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={() => setRecipeViewMode("list")}
-                    >
-                      List View
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={recipeViewMode === "grid" ? "default" : "outline"}
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={() => setRecipeViewMode("grid")}
-                    >
-                      Grid View
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={
-                        recipeViewMode === "detailed" ? "default" : "outline"
-                      }
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={() => setRecipeViewMode("detailed")}
-                    >
-                      Detailed List
-                    </Button>
-                  </div>
-                )}
+
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 {error && (

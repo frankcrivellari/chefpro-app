@@ -216,9 +216,9 @@ export async function POST(request: Request) {
       isLactoseFree?: boolean;
       isGlutenFree?: boolean;
       isVegan?: boolean;
-  isVegetarian?: boolean;
-  isFairtrade?: boolean;
-  isPowder?: boolean;
+      isVegetarian?: boolean;
+      isFairtrade?: boolean;
+      isPowder?: boolean;
       isGranulate?: boolean;
       isPaste?: boolean;
       isLiquid?: boolean;
