@@ -33,6 +33,7 @@ import {
   X,
   Trash2,
 } from "lucide-react";
+import { SmartIngredientMatrix, type InventoryComponent as SmartInventoryComponent } from "@/components/inventory/smart-ingredient-matrix";
 import { Accordion,
   AccordionContent,
   AccordionItem,
@@ -83,6 +84,8 @@ type InventoryComponent = {
   quantity: number;
   unit: string;
   deletedItemName?: string | null;
+  customName?: string | null;
+  tempId?: string;
 };
 
 type StandardPreparationComponent = {
@@ -127,6 +130,7 @@ type NutritionTotals = {
   sodium: number | null;
   breadUnits: number | null;
   cholesterol: number | null;
+  co2: number | null;
 };
 
 type RecipeCalculation = {
@@ -1959,6 +1963,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
           sodium: (base.sodium ?? 0) / 100,
           breadUnits: (base.breadUnits ?? 0) / 100,
           cholesterol: (base.cholesterol ?? 0) / 100,
+          co2: (base.co2 ?? 0) / 100,
         };
         return { perGram, mass: 100, missing: false };
       }
@@ -1976,6 +1981,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
         sodium: 0,
         breadUnits: 0,
         cholesterol: 0,
+        co2: 0,
       };
       let missing = false;
 
@@ -2025,6 +2031,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
         batchTotals.sodium = (batchTotals.sodium ?? 0) + (child.perGram.sodium ?? 0) * mass;
         batchTotals.breadUnits = (batchTotals.breadUnits ?? 0) + (child.perGram.breadUnits ?? 0) * mass;
         batchTotals.cholesterol = (batchTotals.cholesterol ?? 0) + (child.perGram.cholesterol ?? 0) * mass;
+        batchTotals.co2 = (batchTotals.co2 ?? 0) + (child.perGram.co2 ?? 0) * mass;
       }
 
       if (!Number.isFinite(totalMass) || totalMass <= 0) {
@@ -2074,6 +2081,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
       sodium: (perGram.sodium ?? 0) * recipeMass,
       breadUnits: (perGram.breadUnits ?? 0) * recipeMass,
       cholesterol: (perGram.cholesterol ?? 0) * recipeMass,
+      co2: (perGram.co2 ?? 0) * recipeMass,
     };
 
     const portions = selectedItem.targetPortions ?? null;
@@ -2096,6 +2104,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
             sodium: (perRecipe.sodium ?? 0) / validPortions,
             breadUnits: (perRecipe.breadUnits ?? 0) / validPortions,
             cholesterol: (perRecipe.cholesterol ?? 0) / validPortions,
+            co2: (perRecipe.co2 ?? 0) / validPortions,
           }
         : null;
 
@@ -2615,6 +2624,60 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
           ? error.message
           : "Fehler beim Speichern des Artikels.";
       setError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleQuickImport(name: string) {
+    if (!name.trim()) return;
+
+    try {
+      setIsSaving(true);
+      // setError(null); // Optional: don't clear global error for inline action
+
+      // Default values for quick import
+      const unit = "kg";
+      const type = "zukauf";
+      const purchasePrice = 0;
+
+      const response = await fetch("/api/inventory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          type,
+          unit,
+          purchasePrice,
+          components: [],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Fehler beim Quick-Import.");
+      }
+
+      const created = (await response.json()) as InventoryItem;
+      setItems((prev) => [...prev, created]);
+      
+      // Update the current editing components to use the new item ID instead of custom name
+      setEditingComponents(prev => prev.map(comp => {
+        if (comp.customName === name) {
+            return {
+                ...comp,
+                itemId: created.id,
+                customName: null,
+                unit: created.unit
+            };
+        }
+        return comp;
+      }));
+      
+    } catch (error) {
+      console.error(error);
+      setError("Fehler beim Quick-Import: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsSaving(false);
     }
@@ -3296,6 +3359,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
             sodium: nutritionRaw.sodium || 0,
             breadUnits: nutritionRaw.bread_units || 0,
             cholesterol: nutritionRaw.cholesterol || 0,
+            co2: nutritionRaw.co2 || 0,
           } : created.nutritionPerUnit,
           manufacturerArticleNumber:
             (payload.extracted &&
@@ -7866,7 +7930,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                   </div>
                                 )}
                             </div>
-                            {selectedItem.type === "eigenproduktion" && (
+                            {selectedItem.type === "eigenproduktion" && activeSection !== "rezepte" && (
                               <div className="space-y-2 rounded-md border border-sky-300 bg-sky-50 px-3 py-3 text-[11px]">
                                 <div className="text-[11px] font-semibold text-sky-900">
                                   Nicht gefunden? Neue Zutat direkt hier anlegen
@@ -7953,6 +8017,15 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                               </div>
                             )}
                           </div>
+                          {activeSection === "rezepte" ? (
+                              <SmartIngredientMatrix
+                                components={editingComponents as SmartInventoryComponent[]}
+                                availableItems={effectiveItems.filter(i => i.id !== selectedItem?.id)}
+                                onUpdate={(comps) => setEditingComponents(comps as InventoryComponent[])}
+                                onQuickImport={handleQuickImport}
+                                readOnly={false}
+                              />
+                          ) : (
                           <div className="space-y-2">
                             <div className="flex items-center justify-between gap-2">
                               <h4 className="text-xs font-semibold">
@@ -8118,6 +8191,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                               );
                             })}
                           </div>
+                          )}
                           <div className="flex justify-end gap-2">
                             <Button
                               type="button"

@@ -39,6 +39,7 @@ type NutritionTotals = {
   sodium: number | null;
   breadUnits: number | null;
   cholesterol: number | null;
+  co2: number | null;
 };
 
 type AlternativeItem = {
@@ -109,6 +110,7 @@ type SupabaseRecipeStructureRow = {
   quantity: number;
   unit: string;
   deleted_item_name: string | null;
+  custom_name: string | null;
 };
 
 type InventoryComponent = {
@@ -116,6 +118,7 @@ type InventoryComponent = {
   quantity: number;
   unit: string;
   deletedItemName?: string | null;
+  customName?: string | null;
 };
 
 type InventoryItem = {
@@ -435,6 +438,7 @@ export async function POST(request: Request) {
         sodium: typeof value.sodium === 'number' ? value.sodium : null,
         breadUnits: typeof value.breadUnits === 'number' ? value.breadUnits : null,
         cholesterol: typeof value.cholesterol === 'number' ? value.cholesterol : null,
+        co2: typeof value.co2 === 'number' ? value.co2 : null,
       };
       updates.nutrition_per_unit = safeNutrition;
     }
@@ -725,6 +729,7 @@ export async function POST(request: Request) {
       quantity: rel.quantity,
       unit: rel.unit,
       deletedItemName: rel.deleted_item_name,
+      customName: rel.custom_name,
     }));
 
     hasGhostComponents = relations.some(

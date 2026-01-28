@@ -14,6 +14,7 @@ type VisionNutritionPer100 = {
   sodium?: number;
   bread_units?: number;
   cholesterol?: number;
+  co2?: number;
 };
 
 type VisionExtracted = {
@@ -571,6 +572,7 @@ export async function POST(request: Request) {
             sugar: Number(parsed.nutrition_per_100.sugar) || 0,
             protein: Number(parsed.nutrition_per_100.protein) || 0,
             salt: Number(parsed.nutrition_per_100.salt) || 0,
+            co2: Number(parsed.nutrition_per_100.co2) || 0,
           }
         : null;
 

@@ -10,6 +10,7 @@ type InventoryComponent = {
   quantity: number;
   unit: string;
   deletedItemName?: string | null;
+  customName?: string | null;
 };
 
 type StandardPreparationComponent = {
@@ -45,6 +46,7 @@ type NutritionTotals = {
   sodium: number | null;
   breadUnits: number | null;
   cholesterol: number | null;
+  co2: number | null;
 };
 
 type AlternativeItem = {
@@ -169,6 +171,7 @@ type SupabaseRecipeStructureRow = {
   quantity: number;
   unit: string;
   deleted_item_name: string | null;
+  custom_name: string | null;
 };
 
 export async function GET() {
@@ -294,6 +297,7 @@ export async function GET() {
         quantity: rel.quantity,
         unit: rel.unit,
         deletedItemName: rel.deleted_item_name,
+        customName: rel.custom_name,
       });
       componentsByParent.set(rel.parent_item_id, existing);
     }
@@ -580,6 +584,7 @@ export async function POST(request: Request) {
             component_item_id: component.itemId,
             quantity: component.quantity,
             unit: component.unit,
+            custom_name: component.customName,
           }))
         )
         .select("*");
@@ -606,6 +611,7 @@ export async function POST(request: Request) {
         itemId: rel.component_item_id,
         quantity: rel.quantity,
         unit: rel.unit,
+        customName: rel.custom_name,
       }));
     }
 
