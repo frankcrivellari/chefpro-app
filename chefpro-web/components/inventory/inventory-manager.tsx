@@ -6518,6 +6518,12 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                 IsPresentation: {isRecipePresentationMode ? "YES" : "NO"}<br/>
                 IsEditing: {isEditingComponents ? "YES" : "NO"}<br/>
                 Matrix Visible: {selectedItem && selectedItem.type === "eigenproduktion" && !isRecipePresentationMode ? "SHOULD BE VISIBLE" : "HIDDEN"}<br/>
+                <button 
+                  className="mt-2 w-full rounded bg-blue-600 px-2 py-1 text-white hover:bg-blue-700"
+                  onClick={() => setIsRecipePresentationMode(false)}
+                >
+                  FORCE EDIT MODE
+                </button>
               </div>
 
               {!selectedItem && (
