@@ -4529,6 +4529,47 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                             setIsSaving(true);
                             setError(null);
                             const isRecipe = activeSection === "rezepte";
+                            
+                            // For recipes, we need to create a new item AND open it
+                            if (isRecipe) {
+                                try {
+                                    setIsSaving(true);
+                                    setError(null);
+                                    
+                                    const response = await fetch("/api/inventory", {
+                                        method: "POST",
+                                        headers: {
+                                            "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                            name: "Neues Rezept",
+                                            type: "eigenproduktion",
+                                            unit: "Stück",
+                                            purchasePrice: 0,
+                                            components: [],
+                                        }),
+                                    });
+                                    
+                                    if (!response.ok) {
+                                        throw new Error("Fehler beim Erstellen des Rezepts");
+                                    }
+                                    
+                                    const created = await response.json();
+                                    setItems(prev => [...prev, created]);
+                                    setSelectedItemId(created.id);
+                                    // FORCE EDIT MODE for new recipes
+                                    setIsRecipePresentationMode(false);
+                                    
+                                } catch (err) {
+                                    console.error(err);
+                                    setError("Konnte Rezept nicht erstellen");
+                                } finally {
+                                    setIsSaving(false);
+                                }
+                                return;
+                            }
+
+                            // Original logic for items...
                             const response = await fetch("/api/inventory", {
                               method: "POST",
                               headers: {
