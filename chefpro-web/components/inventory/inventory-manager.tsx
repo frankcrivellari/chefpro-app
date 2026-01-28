@@ -7630,6 +7630,14 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                     </div>
                   )}
 
+                  {/* PROBE BLOCK */}
+                  <div className="bg-purple-500 text-white p-2 font-bold text-lg my-4 border-4 border-yellow-500">
+                     PROBE: Type is '{selectedItem.type}' <br/>
+                     Is Eigen? {selectedItem.type === "eigenproduktion" ? "YES" : "NO"} <br/>
+                     Section: {activeSection}
+                  </div>
+                  {/* END PROBE BLOCK */}
+
                   {selectedItem.type === "eigenproduktion" && (
                     <div className="space-y-3 border-2 border-blue-500 p-2 relative">
                       <div className="absolute top-0 right-0 bg-blue-500 text-white text-[10px] px-1">EIGENPRODUKTION BLOCK</div>
