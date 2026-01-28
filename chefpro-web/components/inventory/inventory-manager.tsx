@@ -4864,7 +4864,8 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                 </select>
                               </div>
 
-                              <div className="grid grid-cols-2 gap-4">
+                              {(activeSection as string) !== "rezepte" && (
+                                <div className="grid grid-cols-2 gap-4">
                                 <div className="grid gap-2">
                                   <label className="text-xs font-medium text-[#1F2326]">Lagerbereich (räumlich)</label>
                                   <select
@@ -4896,7 +4897,9 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                     />
                                  </div>
                                </div>
+                               )}
 
+                               {(activeSection as string) !== "rezepte" && (
                                <div className="grid grid-cols-2 gap-4">
                                   <div className="grid gap-2">
                                     <label className="text-xs font-medium text-[#1F2326]">Gewicht (netto)/Abtropfgewicht</label>
@@ -4931,8 +4934,10 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                     </div>
                                   </div>
                                </div>
+                               )}
 
-                               <div className="grid gap-2">
+                               {(activeSection as string) !== "rezepte" && (
+                              <div className="grid gap-2">
                                 <Accordion className="w-full">
                                    <AccordionItem value="alternative-items" className="border-none">
                                      <AccordionTrigger 
@@ -5040,7 +5045,10 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                   </AccordionItem>
                                 </Accordion>
                               </div>
+                              )}
 
+                              {(activeSection as string) !== "rezepte" && (
+                              <>
                               <div className="grid gap-2">
                                 <div className="flex items-center justify-between">
                                   <label className="text-xs font-medium text-[#1F2326]">Dosierungsangaben</label>
@@ -5131,6 +5139,8 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                     }}
                                   />
                                 </div>
+                                </>
+                                )}
 
                                 {!showProductionPanel && (
                                    <Button
