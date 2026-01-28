@@ -4554,7 +4554,13 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                     });
                                     
                                     if (!response.ok) {
-                                        throw new Error("Fehler beim Erstellen des Rezepts");
+                                        let msg = "Fehler beim Erstellen des Rezepts";
+                                        try {
+                                            const errData = await response.json();
+                                            if (errData.error) msg = errData.error;
+                                            if (errData.details) console.error("API Error Details:", errData.details);
+                                        } catch (e) {}
+                                        throw new Error(msg);
                                     }
                                     
                                     const created = await response.json();
@@ -4565,7 +4571,8 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                     
                                 } catch (err) {
                                     console.error(err);
-                                    setError("Konnte Rezept nicht erstellen");
+                                    const message = err instanceof Error ? err.message : "Konnte Rezept nicht erstellen";
+                                    setError(message);
                                 } finally {
                                     setIsSaving(false);
                                 }
@@ -6712,10 +6719,12 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             Zutatenstruktur
                           </h3>
-                          <ComponentTree
-                            rootItem={selectedItem}
-                            itemsById={itemsById}
-                            onSelectItem={setSpecItem}
+                          <SmartIngredientMatrix
+                            components={selectedItem.components as SmartInventoryComponent[]}
+                            availableItems={items.filter(i => i.id !== selectedItem?.id)}
+                            onUpdate={() => {}}
+                            onQuickImport={() => {}}
+                            readOnly={true}
                           />
                         </div>
                       )}
