@@ -162,6 +162,9 @@ type InventoryItem = {
   storageArea?: string | null;
   warengruppe?: string | null;
   bioControlNumber?: string | null;
+  internalArticleNumber?: string | null;
+  supplier?: string | null;
+  alternativeItems?: AlternativeItem[] | null;
   imageUrl?: string | null;
   fileUrl?: string | null;
   deviceSettings?: DeviceSetting[] | null;
@@ -225,6 +228,9 @@ export async function POST(request: Request) {
       storageArea?: string | null;
       warengruppe?: string | null;
       bioControlNumber?: string | null;
+      internalArticleNumber?: string | null;
+      supplier?: string | null;
+      alternativeItems?: AlternativeItem[] | null;
       imageUrl?: string | null;
       fileUrl?: string | null;
       deviceSettings?: DeviceSetting[] | null;
@@ -282,6 +288,9 @@ export async function POST(request: Request) {
     storage_area?: string | null;
     warengruppe?: string | null;
     bio_control_number?: string | null;
+    internal_article_number?: string | null;
+    supplier?: string | null;
+    alternative_items?: AlternativeItem[] | null;
     file_url?: string | null;
     image_url?: string | null;
     nutrition_per_unit?: NutritionTotals | null;
