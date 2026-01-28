@@ -7212,11 +7212,9 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                   {/* DEBUG OVERLAY */}
                   {(activeSection === "zutaten" || activeSection === "rezepte") && (
                     <div className="bg-red-100 p-2 border border-red-500 text-xs mb-2 text-red-900">
-                      DEBUG INFO: <br/>
-                      Type: {selectedItem.type} <br/>
-                      Section: {activeSection} <br/>
-                      Nutrition Present: {selectedItem.nutritionPerUnit ? "Yes" : "No"} <br/>
-                      Nutrition State: kcal={proEnergyKcalInput}
+                      DEBUG OVERLAY (INNER) <br/>
+                      PROBE 2: BEFORE ZUKAUF/EIGEN SWITCH <br/>
+                      Type: {selectedItem.type}
                     </div>
                   )}
 
