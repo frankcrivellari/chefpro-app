@@ -5427,9 +5427,9 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                             </Button>
                                           </div>
                                        </div>
-                                     )}
-                                  </div>
-                                )}
+                           )}
+                           </div>
+                           )}
 
                                {(selectedItem.type !== "eigenproduktion" || (activeSection as any) === "zutaten") && (
                                  <>
@@ -7763,25 +7763,39 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                             : "Zutaten bearbeiten"}
                         </Button>
                       </div>
-                      {selectedItem.components &&
-                      selectedItem.components.length > 0 ? (
-                        <ComponentTree
-                          rootItem={selectedItem}
-                          itemsById={itemsById}
-                          onSelectItem={setSpecItem}
+                      {activeSection === "rezepte" ? (
+                        <SmartIngredientMatrix
+                          components={isEditingComponents ? (editingComponents as SmartInventoryComponent[]) : (selectedItem.components as SmartInventoryComponent[] ?? [])}
+                          availableItems={effectiveItems.filter(i => i.id !== selectedItem?.id)}
+                          onUpdate={(comps) => setEditingComponents(comps as InventoryComponent[])}
+                          onQuickImport={handleQuickImport}
+                          readOnly={!isEditingComponents}
                         />
-                      ) : isSaving ? (
-                        <div className="rounded-md border bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-                          Komponenten werden aktualisiert...
-                        </div>
                       ) : (
-                        <div className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-                          Für diese Eigenproduktion sind noch keine Komponenten
-                          hinterlegt.
-                        </div>
+                        <>
+                        {selectedItem.components &&
+                        selectedItem.components.length > 0 ? (
+                          <ComponentTree
+                            rootItem={selectedItem}
+                            itemsById={itemsById}
+                            onSelectItem={setSpecItem}
+                          />
+                        ) : isSaving ? (
+                          <div className="rounded-md border bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
+                            Komponenten werden aktualisiert...
+                          </div>
+                        ) : (
+                          <div className="rounded-md border border-dashed bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
+                            Für diese Eigenproduktion sind noch keine Komponenten
+                            hinterlegt.
+                          </div>
+                        )}
+                        </>
                       )}
                       {isEditingComponents && (
                         <div className="space-y-3 rounded-md border bg-muted/40 p-3 text-xs">
+                          {activeSection !== "rezepte" && (
+                          <>
                           <div className="space-y-3">
                             <div className="space-y-2">
                               <div className="grid gap-2 md:grid-cols-[80px_100px_minmax(0,1fr)]">
@@ -8196,6 +8210,8 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                               );
                             })}
                           </div>
+                          )}
+                          </>
                           )}
                           <div className="flex justify-end gap-2">
                             <Button
