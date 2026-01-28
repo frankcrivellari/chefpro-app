@@ -163,6 +163,7 @@ type PdfJsModule = {
 type InventoryItem = {
   id: string;
   internalId?: number | null;
+  internalArticleNumber?: string | null;
   name: string;
   type: InventoryType;
   unit: string;
