@@ -5484,7 +5484,9 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                            </div>
                            )}
 
-                               {(selectedItem.type !== "eigenproduktion" || (activeSection as any) === "zutaten") && (
+             
+
+                  {(selectedItem.type !== "eigenproduktion") && (
                                  <>
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
