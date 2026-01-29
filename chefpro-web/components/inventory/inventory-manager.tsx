@@ -6525,7 +6525,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                   <CardTitle>Artikeldetails</CardTitle>
                 </div>
               </div>
-              {selectedItem && selectedItem.type === "eigenproduktion" && (
+              {selectedItem && selectedItem.type === "eigenproduktion" && activeSection === "rezepte" && (
                 <div className="inline-flex rounded-md border bg-muted/40 p-1 text-[11px]">
                   <Button
                     type="button"
@@ -6558,7 +6558,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
               )}
               {selectedItem &&
                 selectedItem.type === "eigenproduktion" &&
-                isRecipePresentationMode && (
+                isRecipePresentationMode && activeSection === "rezepte" && (
                     <div className="space-y-6 text-xs">
                     <div className="flex flex-col gap-6 lg:flex-row">
                       <div className="w-full max-w-md lg:max-w-sm">
@@ -7651,7 +7651,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                     </div>
                   )}
 
-                  {selectedItem.type === "eigenproduktion" && (activeSection === "rezepte" || activeSection === "zutaten") && (
+                  {selectedItem.type === "eigenproduktion" && (
                   <div className="space-y-3 relative">
                     {recipeCalculation && (
                         <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
