@@ -7249,145 +7249,6 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                         als Komponente in Eigenproduktionen verwenden.
                       </div>
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Dosierung / Mischverhältnis (Text)
-                          </div>
-                          <textarea
-                            rows={2}
-                            value={proDosageInput}
-                            onChange={(event) =>
-                              setProDosageInput(event.target.value)
-                            }
-                            className="w-full rounded-md border border-input px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                            style={{ backgroundColor: "#F6F7F5" }}
-                            placeholder="Mischverhältnisse und Basismengen (z.B. 100g auf 1l)"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <div className="text-[11px] text-muted-foreground">
-                              Dosierung (Strukturiert)
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 px-2 text-[10px]"
-                              onClick={() => {
-                                setStandardPreparationComponents([
-                                  ...standardPreparationComponents,
-                                  { name: "", quantity: 0, unit: "" },
-                                ]);
-                              }}
-                            >
-                              <Plus className="mr-1 h-3 w-3" />
-                              Zeile
-                            </Button>
-                          </div>
-                          <div className="space-y-1 rounded-md border border-dashed p-2">
-                            {standardPreparationComponents.map((comp, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center gap-2"
-                              >
-                                <Input
-                                  type="number"
-                                  className="h-7 w-20 px-2 py-1 text-[11px]"
-                                  placeholder="Menge"
-                                  value={comp.quantity || ""}
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value);
-                                    const newComps = [
-                                      ...standardPreparationComponents,
-                                    ];
-                                    newComps[idx] = {
-                                      ...newComps[idx],
-                                      quantity: isNaN(val) ? 0 : val,
-                                    };
-                                    setStandardPreparationComponents(newComps);
-                                  }}
-                                />
-                                <Input
-                                  className="h-7 w-20 px-2 py-1 text-[11px]"
-                                  placeholder="Einheit"
-                                  value={comp.unit}
-                                  onChange={(e) => {
-                                    const newComps = [
-                                      ...standardPreparationComponents,
-                                    ];
-                                    newComps[idx] = {
-                                      ...newComps[idx],
-                                      unit: e.target.value,
-                                    };
-                                    setStandardPreparationComponents(newComps);
-                                  }}
-                                />
-                                <Input
-                                  className="h-7 flex-1 px-2 py-1 text-[11px]"
-                                  placeholder="Komponente"
-                                  value={comp.name}
-                                  onChange={(e) => {
-                                    const newComps = [
-                                      ...standardPreparationComponents,
-                                    ];
-                                    newComps[idx] = {
-                                      ...newComps[idx],
-                                      name: e.target.value,
-                                    };
-                                    setStandardPreparationComponents(newComps);
-                                  }}
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                  onClick={() => {
-                                    const newComps =
-                                      standardPreparationComponents.filter(
-                                        (_, i) => i !== idx
-                                      );
-                                    setStandardPreparationComponents(newComps);
-                                  }}
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ))}
-                            {standardPreparationComponents.length === 0 && (
-                              <div className="text-[10px] italic text-muted-foreground">
-                                Keine strukturierten Daten.
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Zubereitungsanweisung
-                          </div>
-                          <textarea
-                            rows={3}
-                            value={proPreparationInput}
-                            onChange={(event) =>
-                              setProPreparationInput(event.target.value)
-                            }
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Zutatenliste (Deklaration)
-                          </div>
-                          <textarea
-                            rows={3}
-                            value={proIngredientsInput}
-                            onChange={(event) =>
-                              setProIngredientsInput(event.target.value)
-                            }
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                          />
-                        </div>
-
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <div className="text-[11px] text-muted-foreground">
@@ -7750,47 +7611,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                               </span>
                             </div>
                           )}
-                          <div className="mt-3 grid gap-2 md:grid-cols-2">
-                            <div className="space-y-1">
-                              <div className="text-[11px] text-muted-foreground">
-                                Allergene (kommagetrennt)
-                              </div>
-                              <textarea
-                                rows={2}
-                                value={proAllergensInput}
-                                onChange={(event) =>
-                                  setProAllergensInput(event.target.value)
-                                }
-                                className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                                Ergiebigkeit / Gebinde
-                              </div>
-                              <textarea
-                                rows={2}
-                                value={proYieldWeightInput}
-                                onChange={(event) =>
-                                  setProYieldWeightInput(event.target.value)
-                                }
-                                className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <div className="text-[11px] text-muted-foreground">
-                              Volumen-Ergiebigkeit
-                            </div>
-                              <textarea
-                                rows={2}
-                                value={proYieldVolumeInput}
-                                onChange={(event) =>
-                                  setProYieldVolumeInput(event.target.value)
-                                }
-                                className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                              />
-                            </div>
-                          </div>
+
                         </div>
                       )}
                       <div className="flex items-center justify-between gap-2">
@@ -7848,6 +7669,117 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                         </div>
                       )}
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                        <div className="grid grid-cols-2 gap-2 rounded-md border p-2 text-[10px] md:grid-cols-3 bg-background/50">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isBioInput}
+                              onChange={(e) => setIsBioInput(e.target.checked)}
+                              id="check-bio-recipe"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-bio-recipe">Bio</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isDeklarationsfreiInput}
+                              onChange={(e) =>
+                                setIsDeklarationsfreiInput(e.target.checked)
+                              }
+                              id="check-dekla-recipe"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-dekla-recipe">
+                              Deklarationsfrei
+                            </label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isAllergenfreiInput}
+                              onChange={(e) =>
+                                setIsAllergenfreiInput(e.target.checked)
+                              }
+                              id="check-allergen-recipe"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-allergen-recipe">Allergenfrei</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isCookChillInput}
+                              onChange={(e) =>
+                                setIsCookChillInput(e.target.checked)
+                              }
+                              id="check-cookchill-recipe"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-cookchill-recipe">Cook & Chill</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isFreezeThawStableInput}
+                              onChange={(e) =>
+                                setIsFreezeThawStableInput(e.target.checked)
+                              }
+                              id="check-freeze-recipe"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-freeze-recipe">TK-stabil</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isPalmOilFreeInput}
+                              onChange={(e) =>
+                                setIsPalmOilFreeInput(e.target.checked)
+                              }
+                              id="check-palm-recipe"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-palm-recipe">Palmölfrei</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isYeastFreeInput}
+                              onChange={(e) =>
+                                setIsYeastFreeInput(e.target.checked)
+                              }
+                              id="check-yeast-recipe"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-yeast-recipe">Hefefrei</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isLactoseFreeInput}
+                              onChange={(e) =>
+                                setIsLactoseFreeInput(e.target.checked)
+                              }
+                              id="check-lactose-recipe"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-lactose-recipe">Laktosefrei</label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="checkbox"
+                              checked={isGlutenFreeInput}
+                              onChange={(e) =>
+                                setIsGlutenFreeInput(e.target.checked)
+                              }
+                              id="check-gluten-recipe"
+                              className="h-3 w-3 rounded border-gray-300"
+                            />
+                            <label htmlFor="check-gluten-recipe">Glutenfrei</label>
+                          </div>
+                        </div>
+
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
                             Dosierung / Mischverhältnis
@@ -7876,6 +7808,21 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                             className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                           />
                         </div>
+
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Zutatenliste (Deklaration)
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={proIngredientsInput}
+                            onChange={(event) =>
+                              setProIngredientsInput(event.target.value)
+                            }
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          />
+                        </div>
+
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
                             Allergene (kommagetrennt)
@@ -7888,6 +7835,128 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                             }
                             className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                           />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <div className="text-[11px] text-muted-foreground">
+                              Ergiebigkeit / Gebinde
+                            </div>
+                            <Input
+                              type="text"
+                              value={proYieldWeightInput}
+                              onChange={(event) =>
+                                setProYieldWeightInput(event.target.value)
+                              }
+                              className="h-7 w-full px-2 py-1 text-[11px]"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="text-[11px] text-muted-foreground">
+                              Volumen-Ergiebigkeit
+                            </div>
+                            <Input
+                              type="text"
+                              value={proYieldVolumeInput}
+                              onChange={(event) =>
+                                setProYieldVolumeInput(event.target.value)
+                              }
+                              className="h-7 w-full px-2 py-1 text-[11px]"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1 pt-2">
+                          <div className="text-[11px] font-medium text-muted-foreground">
+                            Nährwerte (pro 100g/ml)
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Energie (kcal)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proEnergyKcalInput}
+                                onChange={(e) =>
+                                  setProEnergyKcalInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Fett (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proFatInput}
+                                onChange={(e) => setProFatInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Ges. Fettsäuren (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proSaturatedFatInput}
+                                onChange={(e) =>
+                                  setProSaturatedFatInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Kohlenhydrate (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proCarbsInput}
+                                onChange={(e) =>
+                                  setProCarbsInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Zucker (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proSugarInput}
+                                onChange={(e) => setProSugarInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Eiweiß (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proProteinInput}
+                                onChange={(e) =>
+                                  setProProteinInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Salz (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proSaltInput}
+                                onChange={(e) => setProSaltInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
