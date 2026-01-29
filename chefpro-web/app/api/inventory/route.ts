@@ -403,8 +403,10 @@ export async function POST(request: Request) {
       );
     }
 
-    let internalArticleNumber = body.internalArticleNumber;
+    // internal_article_number removed due to schema cache error
+    // let internalArticleNumber = body.internalArticleNumber;
 
+    /*
     if (!internalArticleNumber && body.type === "eigenproduktion") {
       const { data: existingRecipes, error: fetchError } = await client
         .from("items")
@@ -431,6 +433,7 @@ export async function POST(request: Request) {
         internalArticleNumber = `R-${nextNum}`;
       }
     }
+    */
 
     let insertItemResponse = await client
       .from("items")
@@ -443,7 +446,6 @@ export async function POST(request: Request) {
         purchase_price: body.purchasePrice,
         category: body.category ?? null,
         portion_unit: body.portionUnit ?? null,
-        internal_article_number: internalArticleNumber ?? null,
         nutrition_tags:
           body.nutritionTags && body.nutritionTags.length > 0
             ? body.nutritionTags
@@ -520,7 +522,7 @@ export async function POST(request: Request) {
           purchase_price: body.purchasePrice,
           category: body.category ?? null,
           portion_unit: body.portionUnit ?? null,
-          internal_article_number: internalArticleNumber ?? null,
+          // internal_article_number removed due to schema cache error
           nutrition_tags:
             body.nutritionTags && body.nutritionTags.length > 0
               ? body.nutritionTags

@@ -6713,21 +6713,18 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                         )}
                       </div>
                     </div>
-                    {selectedItem.components &&
-                      selectedItem.components.length > 0 && (
-                        <div className="space-y-2">
-                          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Zutatenstruktur
-                          </h3>
-                          <SmartIngredientMatrix
-                            components={selectedItem.components as SmartInventoryComponent[]}
-                            availableItems={items.filter(i => i.id !== selectedItem?.id)}
-                            onUpdate={() => {}}
-                            onQuickImport={() => {}}
-                            readOnly={true}
-                          />
-                        </div>
-                      )}
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Zutatenstruktur
+                      </h3>
+                      <SmartIngredientMatrix
+                        components={selectedItem.components as SmartInventoryComponent[] ?? []}
+                        availableItems={items.filter(i => i.id !== selectedItem?.id)}
+                        onUpdate={() => {}}
+                        onQuickImport={() => {}}
+                        readOnly={true}
+                      />
+                    </div>
                     {preparationStepsInput.length > 0 && (
                       <div className="space-y-2">
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -7652,7 +7649,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                     </div>
                   )}
 
-                  {selectedItem.type === "eigenproduktion" && (
+                  {selectedItem.type === "eigenproduktion" && (activeSection === "rezepte" || activeSection === "zutaten") && (
                   <div className="space-y-3 relative">
                     {recipeCalculation && (
                         <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
