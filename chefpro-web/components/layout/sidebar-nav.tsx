@@ -27,7 +27,7 @@ export function SidebarNav() {
       >
         Rezepte
       </Link>
-      <Link
+      {/* <Link
         href="/lager"
         className={cn(
           "rounded-md px-3 py-2 text-left hover:bg-white/20 hover:text-white transition-colors",
@@ -36,7 +36,7 @@ export function SidebarNav() {
         )}
       >
         Lager
-      </Link>
+      </Link> */}
     </nav>
   );
 }

@@ -1,5 +1,5 @@
-import { InventoryManager } from "@/components/inventory/inventory-manager";
+import { Warehouse } from "@/components/inventory/warehouse";
 
 export default function LagerPage() {
-  return <InventoryManager />;
+  return <Warehouse />;
 }

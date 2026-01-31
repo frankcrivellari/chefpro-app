@@ -457,44 +457,14 @@ function findBestInventoryMatchByName(
   return best.item;
 }
 
-function findExactRecipeMatchByName(
-  targetName: string,
-  items: Iterable<InventoryItem>
-) {
-  const normalized = targetName.trim().toLowerCase();
-  if (!normalized) {
-    return null;
-  }
-  for (const item of items) {
-    if (item.type !== "eigenproduktion") {
-      continue;
-    }
-    if (item.name.trim().toLowerCase() === normalized) {
-      return item;
-    }
-  }
-  return null;
-}
 
-export interface InventoryManagerProps {
-  mode?: "ingredients" | "recipes";
-}
 
-export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps) {
+export function RecipeEditor() {
   const pathname = usePathname();
   const [items, setItems] = useState<InventoryItem[]>([]);
-  const [filterType, setFilterType] = useState<FilterType>("all");
+  const [filterType, setFilterType] = useState<FilterType>("eigenproduktion");
   const [search, setSearch] = useState("");
-  type ActiveSection = "dashboard" | "zutaten" | "rezepte" | "lager";
-  const [activeSection, setActiveSection] = useState<ActiveSection>(
-    mode === "recipes" 
-      ? "rezepte" 
-      : pathname && pathname.startsWith("/lager")
-      ? "lager"
-      : pathname && pathname.startsWith("/rezepte")
-      ? "rezepte"
-      : "zutaten"
-  );
+  const activeSection = "rezepte";
   // effectiveFilterType removed
   const [isDetailView, setIsDetailView] = useState(false);
 
@@ -504,7 +474,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState("");
-  const [newItemType, setNewItemType] = useState<InventoryType>("zukauf");
+  const newItemType = "eigenproduktion";
   const [newItemUnit, setNewItemUnit] = useState("");
   const [purchasePriceInput, setPurchasePriceInput] = useState("");
   // Legacy alias for compatibility with existing code
@@ -1110,37 +1080,14 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
   };
 
   useEffect(() => {
-    if (!pathname) {
-      return;
-    }
-    const path = pathname.toLowerCase();
-    const next = path.startsWith("/lager")
-      ? "lager"
-      : path.startsWith("/rezepte")
-      ? "rezepte"
-      : "zutaten";
-    if (next !== activeSection) {
-      setActiveSection(next);
-    }
-  }, [pathname, activeSection]);
-
-  useEffect(() => {
     setSelectedItemId(null);
     setIsDetailView(false);
     setSearch("");
     setRecipeCategoryFilter(null);
     setRecipeProFilter(null);
     setIngredientCategoryFilter(null);
-    if (activeSection === "zutaten") {
-      setFilterType("zukauf");
-      setNewItemType("zukauf");
-    } else if (activeSection === "rezepte") {
-      setFilterType("eigenproduktion");
-      setNewItemType("eigenproduktion");
-    } else {
-      setFilterType("all");
-    }
-  }, [activeSection]);
+    setFilterType("eigenproduktion");
+  }, []);
 
   const effectiveItems = isLoading ? [] : items;
 
@@ -2621,7 +2568,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
       setNewItemName("");
       setNewItemUnit("");
       setNewItemPrice("");
-      setNewItemType(activeSection === "rezepte" ? "eigenproduktion" : "zukauf");
+
     } catch (error) {
       const message =
         error instanceof Error
@@ -5264,6 +5211,24 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                                 </>
                                 )}
 
+                                {/* Smart Ingredient Matrix Integration */}
+                                {selectedItem.type === "eigenproduktion" && (
+                                  <div className="mt-6 mb-6">
+                                    <label className="text-xs font-medium text-[#1F2326] mb-2 block">Rezeptur & Zutaten</label>
+                                    <SmartIngredientMatrix
+                                      components={selectedItem.components || []}
+                                      availableItems={items}
+                                      onUpdate={(newComponents) => {
+                                        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, components: newComponents } : i));
+                                      }}
+                                      onQuickImport={(name) => {
+                                        setAiText(name);
+                                        // Optional: Scroll to AI panel or highlight it
+                                      }}
+                                    />
+                                  </div>
+                                )}
+
                                 {!showProductionPanel && (
                                    <Button
                                       type="button"
@@ -6268,16 +6233,10 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                     onChange={(event) => setNewItemPrice(event.target.value)}
                   />
                   <div className="flex items-center gap-2">
-                    <select
-                      value={newItemType}
-                      onChange={(event) =>
-                        setNewItemType(event.target.value as InventoryType)
-                      }
-                      className="h-9 rounded-md border border-input bg-background px-2 text-xs text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                    >
-                      <option value="zukauf">Zukauf</option>
-                      <option value="eigenproduktion">Eigenproduktion</option>
-                    </select>
+                    {/* Type is always Eigenproduktion in RecipeEditor */}
+                    <div className="hidden">
+                      <input type="hidden" value="eigenproduktion" />
+                    </div>
                     <Button
                       type="submit"
                       size="sm"
@@ -6285,7 +6244,7 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                         isSaving || !newItemName.trim() || !newItemUnit.trim()
                       }
                     >
-                      {isSaving ? "Speichern..." : "Anlegen"}
+                      {isSaving ? "Speichern..." : "Rezept anlegen"}
                     </Button>
                   </div>
                 </form>
@@ -7242,278 +7201,65 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
 
 
                   {/* Show Zukauf-View if item is NOT Eigenproduktion (unless we are in Rezepte mode where we only expect Recipes, but if a Zukauf slips in, we should probably show it or show an error) OR if we are explicitly in Zutaten mode (where we treat everything as Ingredient/Zukauf) */}
-                  {(selectedItem.type !== "eigenproduktion" || activeSection === "zutaten") && (
-                    <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
-                      <div>
-                        Dieser Artikel wird als Zukauf geführt. Du kannst ihn
-                        als Komponente in Eigenproduktionen verwenden.
-                      </div>
-                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <div className="text-[11px] text-muted-foreground">
-                              Ergiebigkeit / Gebinde
-                            </div>
-                            <Input
-                              type="text"
-                              value={proYieldWeightInput}
-                              onChange={(event) =>
-                                setProYieldWeightInput(event.target.value)
-                              }
-                              className="h-7 w-full px-2 py-1 text-[11px]"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="text-[11px] text-muted-foreground">
-                              Volumen-Ergiebigkeit
-                            </div>
-                            <Input
-                              type="text"
-                              value={proYieldVolumeInput}
-                              onChange={(event) =>
-                                setProYieldVolumeInput(event.target.value)
-                              }
-                              className="h-7 w-full px-2 py-1 text-[11px]"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Hersteller-Artikelnummer
-                          </div>
-                          <Input
-                            type="text"
-                            value={manufacturerInput}
-                            onChange={(event) =>
-                              setManufacturerInput(event.target.value)
-                            }
-                            className="h-7 w-full px-2 py-1 text-[11px]"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 rounded-md border p-2 text-[10px] md:grid-cols-3">
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={isBioInput}
-                              onChange={(e) => setIsBioInput(e.target.checked)}
-                              id="check-bio"
-                              className="h-3 w-3 rounded border-gray-300"
-                            />
-                            <label htmlFor="check-bio">Bio</label>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={isDeklarationsfreiInput}
-                              onChange={(e) =>
-                                setIsDeklarationsfreiInput(e.target.checked)
-                              }
-                              id="check-dekla"
-                              className="h-3 w-3 rounded border-gray-300"
-                            />
-                            <label htmlFor="check-dekla">
-                              Deklarationsfrei
-                            </label>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={isAllergenfreiInput}
-                              onChange={(e) =>
-                                setIsAllergenfreiInput(e.target.checked)
-                              }
-                              id="check-allergen"
-                              className="h-3 w-3 rounded border-gray-300"
-                            />
-                            <label htmlFor="check-allergen">Allergenfrei</label>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={isCookChillInput}
-                              onChange={(e) =>
-                                setIsCookChillInput(e.target.checked)
-                              }
-                              id="check-cookchill"
-                              className="h-3 w-3 rounded border-gray-300"
-                            />
-                            <label htmlFor="check-cookchill">Cook & Chill</label>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={isFreezeThawStableInput}
-                              onChange={(e) =>
-                                setIsFreezeThawStableInput(e.target.checked)
-                              }
-                              id="check-freeze"
-                              className="h-3 w-3 rounded border-gray-300"
-                            />
-                            <label htmlFor="check-freeze">TK-stabil</label>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={isPalmOilFreeInput}
-                              onChange={(e) =>
-                                setIsPalmOilFreeInput(e.target.checked)
-                              }
-                              id="check-palm"
-                              className="h-3 w-3 rounded border-gray-300"
-                            />
-                            <label htmlFor="check-palm">Palmölfrei</label>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={isYeastFreeInput}
-                              onChange={(e) =>
-                                setIsYeastFreeInput(e.target.checked)
-                              }
-                              id="check-yeast"
-                              className="h-3 w-3 rounded border-gray-300"
-                            />
-                            <label htmlFor="check-yeast">Hefefrei</label>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={isLactoseFreeInput}
-                              onChange={(e) =>
-                                setIsLactoseFreeInput(e.target.checked)
-                              }
-                              id="check-lactose"
-                              className="h-3 w-3 rounded border-gray-300"
-                            />
-                            <label htmlFor="check-lactose">Laktosefrei</label>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="checkbox"
-                              checked={isGlutenFreeInput}
-                              onChange={(e) =>
-                                setIsGlutenFreeInput(e.target.checked)
-                              }
-                              id="check-gluten"
-                              className="h-3 w-3 rounded border-gray-300"
-                            />
-                            <label htmlFor="check-gluten">Glutenfrei</label>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Allergene (kommagetrennt)
-                          </div>
-                          <textarea
-                            rows={2}
-                            value={proAllergensInput}
-                            onChange={(event) =>
-                              setProAllergensInput(event.target.value)
-                            }
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                          />
-                        </div>
-                        <div className="space-y-1 pt-2">
-                          <div className="text-[11px] font-medium text-muted-foreground">
-                            Nährwerte (pro 100g/ml)
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Energie (kcal)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proEnergyKcalInput}
-                                onChange={(e) =>
-                                  setProEnergyKcalInput(e.target.value)
-                                }
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Fett (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proFatInput}
-                                onChange={(e) => setProFatInput(e.target.value)}
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                ges. Fettsäuren (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proSaturatedFatInput}
-                                onChange={(e) =>
-                                  setProSaturatedFatInput(e.target.value)
-                                }
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Kohlenhydrate (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proCarbsInput}
-                                onChange={(e) =>
-                                  setProCarbsInput(e.target.value)
-                                }
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Zucker (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proSugarInput}
-                                onChange={(e) => setProSugarInput(e.target.value)}
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Eiweiß (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proProteinInput}
-                                onChange={(e) =>
-                                  setProProteinInput(e.target.value)
-                                }
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Salz (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proSaltInput}
-                                onChange={(e) => setProSaltInput(e.target.value)}
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {/* Zukauf-View removed from RecipeEditor */}
 
                   {selectedItem.type === "eigenproduktion" && (
                   <div className="space-y-3 relative">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold">Zutaten</h3>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setIsEditingComponents((value) => !value);
+                            setComponentSearch("");
+                            setEditingComponents(
+                              selectedItem.components ?? []
+                            );
+                          }}
+                        >
+                          {isEditingComponents
+                            ? "Bearbeitung schließen"
+                            : "Zutaten bearbeiten"}
+                        </Button>
+                      </div>
+                        <SmartIngredientMatrix
+                          components={isEditingComponents ? (editingComponents as SmartInventoryComponent[]) : (selectedItem.components as SmartInventoryComponent[] ?? [])}
+                          availableItems={effectiveItems.filter(i => i.id !== selectedItem?.id)}
+                          onUpdate={(comps) => setEditingComponents(comps as InventoryComponent[])}
+                          onQuickImport={handleQuickImport}
+                          readOnly={!isEditingComponents}
+                        />
+                      {isEditingComponents && (
+                        <div className="space-y-3 rounded-md border bg-muted/40 p-3 text-xs">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setIsEditingComponents(false);
+                                setComponentSearch("");
+                                setEditingComponents(
+                                  selectedItem.components ?? []
+                                );
+                              }}
+                            >
+                              Abbrechen
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={isSaving}
+                              onClick={handleSaveComponents}
+                            >
+                              {isSaving ? "Speichern..." : "Komponenten speichern"}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
                     {recipeCalculation && (
                         <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                           <div className="flex items-center justify-between gap-2">
@@ -7611,63 +7357,123 @@ export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps
                               </span>
                             </div>
                           )}
+                        </div>
+                      )}
 
+                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Produktion & Ressourcen
+                          </h3>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setDeviceSettingsInput([
+                                ...deviceSettingsInput,
+                                {
+                                  quantity: "1",
+                                  device: "",
+                                  runtime: "",
+                                  energy: "",
+                                },
+                              ]);
+                            }}
+                          >
+                            Gerät hinzufügen
+                          </Button>
                         </div>
-                      )}
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-semibold">Zutaten</h3>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setIsEditingComponents((value) => !value);
-                            setComponentSearch("");
-                            setEditingComponents(
-                              selectedItem.components ?? []
-                            );
-                          }}
-                        >
-                          {isEditingComponents
-                            ? "Bearbeitung schließen"
-                            : "Zutaten bearbeiten"}
-                        </Button>
-                      </div>
-                        <SmartIngredientMatrix
-                          components={isEditingComponents ? (editingComponents as SmartInventoryComponent[]) : (selectedItem.components as SmartInventoryComponent[] ?? [])}
-                          availableItems={effectiveItems.filter(i => i.id !== selectedItem?.id)}
-                          onUpdate={(comps) => setEditingComponents(comps as InventoryComponent[])}
-                          onQuickImport={handleQuickImport}
-                          readOnly={!isEditingComponents}
-                        />
-                      {isEditingComponents && (
-                        <div className="space-y-3 rounded-md border bg-muted/40 p-3 text-xs">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setIsEditingComponents(false);
-                                setComponentSearch("");
-                                setEditingComponents(
-                                  selectedItem.components ?? []
-                                );
-                              }}
-                            >
-                              Abbrechen
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled={isSaving}
-                              onClick={handleSaveComponents}
-                            >
-                              {isSaving ? "Speichern..." : "Komponenten speichern"}
-                            </Button>
+                        {deviceSettingsInput.length === 0 ? (
+                          <div className="rounded-md border border-dashed bg-background/60 px-3 py-2 text-[11px] text-muted-foreground">
+                            Keine Geräte oder Ressourcen hinterlegt.
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="space-y-2">
+                            {deviceSettingsInput.map((setting, index) => (
+                              <div
+                                key={index}
+                                className="grid gap-2 rounded-md border bg-background/60 p-2 md:grid-cols-6"
+                              >
+                                <div className="space-y-1">
+                                  <label className="text-[10px] text-muted-foreground">
+                                    Anzahl
+                                  </label>
+                                  <Input
+                                    value={setting.quantity}
+                                    onChange={(e) => {
+                                      const next = [...deviceSettingsInput];
+                                      next[index] = { ...next[index], quantity: e.target.value };
+                                      setDeviceSettingsInput(next);
+                                    }}
+                                    className="h-7 px-2 text-[11px]"
+                                  />
+                                </div>
+                                <div className="col-span-2 space-y-1">
+                                  <label className="text-[10px] text-muted-foreground">
+                                    Gerät / Ressource
+                                  </label>
+                                  <Input
+                                    value={setting.device}
+                                    onChange={(e) => {
+                                      const next = [...deviceSettingsInput];
+                                      next[index] = { ...next[index], device: e.target.value };
+                                      setDeviceSettingsInput(next);
+                                    }}
+                                    className="h-7 px-2 text-[11px]"
+                                    placeholder="z.B. Kombidämpfer"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] text-muted-foreground">
+                                    Laufzeit
+                                  </label>
+                                  <Input
+                                    value={setting.runtime}
+                                    onChange={(e) => {
+                                      const next = [...deviceSettingsInput];
+                                      next[index] = { ...next[index], runtime: e.target.value };
+                                      setDeviceSettingsInput(next);
+                                    }}
+                                    className="h-7 px-2 text-[11px]"
+                                    placeholder="Min/Std"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[10px] text-muted-foreground">
+                                    Energie (kWh)
+                                  </label>
+                                  <Input
+                                    value={setting.energy}
+                                    onChange={(e) => {
+                                      const next = [...deviceSettingsInput];
+                                      next[index] = { ...next[index], energy: e.target.value };
+                                      setDeviceSettingsInput(next);
+                                    }}
+                                    className="h-7 px-2 text-[11px]"
+                                  />
+                                </div>
+                                <div className="flex items-end justify-end">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive"
+                                    onClick={() => {
+                                      const next = [...deviceSettingsInput];
+                                      next.splice(index, 1);
+                                      setDeviceSettingsInput(next);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                         <div className="grid grid-cols-2 gap-2 rounded-md border p-2 text-[10px] md:grid-cols-3 bg-background/50">
                           <div className="flex items-center gap-1.5">
@@ -9133,10 +8939,7 @@ function ComponentTree({ rootItem, itemsById, onSelectItem }: ComponentTreeProps
           "";
 
         const linkedRecipe =
-          (item && item.type === "eigenproduktion" ? item : null) ||
-          (nameFallback
-            ? findExactRecipeMatchByName(nameFallback, itemsById.values())
-            : null);
+          (item && item.type === "eigenproduktion" ? item : null);
 
         if (!item && linkedRecipe) {
           item = linkedRecipe;
