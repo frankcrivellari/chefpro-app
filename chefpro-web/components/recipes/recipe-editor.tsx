@@ -4329,7 +4329,10 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
 
 
   return (
-    <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]" style={{ backgroundColor: 'red' }}>
+    <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
+      {activeSection === "rezepte" && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: 'red', color: 'white', textAlign: 'center', fontWeight: 'bold' }}>REZEPT-MANAGER AKTIV</div>
+      )}
       {/* DEBUG OVERLAY - REMOVED AS REQUESTED */}
 
       {["zutaten", "rezepte"].includes(activeSection) && (
