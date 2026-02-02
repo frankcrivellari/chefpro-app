@@ -6925,9 +6925,9 @@ export function InventoryManager() {
                           </div>
                           <textarea
                             rows={3}
-                            value={proPreparationInput}
+                            value={standardPreparationText}
                             onChange={(event) =>
-                              setProPreparationInput(event.target.value)
+                              setStandardPreparationText(event.target.value)
                             }
                             className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                           />
@@ -6946,7 +6946,11 @@ export function InventoryManager() {
                             className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                           />
                         </div>
+                      </div>
+                    </div>
+                  )}
 
+                  <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                         <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
                             <div className="text-[11px] text-muted-foreground">
@@ -7206,152 +7210,108 @@ export function InventoryManager() {
                             </div>
                           </div>
                         </div>
-                      </div>
+
                     </div>
-                  )}
 
                   {selectedItem.type === "eigenproduktion" && (
                     <div className="space-y-3">
-                      {recipeCalculation && (
-                        <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
-                          <div className="flex items-center justify-between gap-2">
-                            <h3 className="text-xs font-semibold">
-                              Kalkulation
-                            </h3>
-                            <div className="flex gap-2 text-[11px] text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <span>Portionen:</span>
-                                <Input
-                                  type="text"
-                                  value={targetPortionsInput}
-                                  onChange={(event) =>
-                                    setTargetPortionsInput(event.target.value)
-                                  }
-                                  className="h-7 w-16 px-2 py-1 text-[11px]"
-                                />
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <span>Einheit:</span>
-                                <Input
-                                  type="text"
-                                  value={portionUnitInput}
-                                  onChange={(event) =>
-                                    setPortionUnitInput(event.target.value)
-                                  }
-                                  className="h-7 w-20 px-2 py-1 text-[11px]"
-                                />
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <span>VK/Portion (€):</span>
-                                <Input
-                                  type="text"
-                                  value={targetSalesPriceInput}
-                                  onChange={(event) =>
-                                    setTargetSalesPriceInput(event.target.value)
-                                  }
-                                  className="h-7 w-24 px-2 py-1 text-[11px]"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                          <div className="grid gap-1 text-[11px] md:grid-cols-2">
-                            <div className="flex justify-between gap-2">
-                              <span className="text-muted-foreground">
-                                Gesamtkosten Rezept
-                              </span>
-                              <span className="font-medium">
-                                {recipeCalculation.totalCost.toFixed(2)} €
-                              </span>
-                            </div>
-                            <div className="flex justify-between gap-2">
-                              <span className="text-muted-foreground">
-                                Kosten pro Portion
-                              </span>
-                              <span className="font-medium">
-                                {recipeCalculation.costPerPortion != null
-                                  ? `${recipeCalculation.costPerPortion.toFixed(
-                                      2
-                                    )} €`
-                                  : "—"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between gap-2">
-                              <span className="text-muted-foreground">
-                                Marge pro Portion
-                              </span>
-                              <span className="font-medium">
-                                {recipeCalculation.marginPerPortion != null
-                                  ? `${recipeCalculation.marginPerPortion.toFixed(
-                                      2
-                                    )} €`
-                                  : "—"}
-                              </span>
-                            </div>
-                            <div className="flex justify-between gap-2">
-                              <span className="text-muted-foreground">
-                                Wareneinsatz
-                              </span>
-                              <span className="font-medium">
-                                {recipeCalculation.goodsSharePercent != null
-                                  ? `${recipeCalculation.goodsSharePercent.toFixed(
-                                      1
-                                    )} %`
-                                  : "—"}
-                              </span>
-                            </div>
-                          </div>
-                          {recipeCalculation.hasMissingPrices && (
-                            <div className="mt-1 flex items-center gap-1 text-[11px] text-red-600">
-                              <AlertTriangle className="h-3 w-3" />
-                              <span>
-                                Achtung: Mindestens eine Komponente hat keinen
-                                EK-Preis. Die Kalkulation ist unvollständig.
-                              </span>
-                            </div>
-                          )}
-                          <div className="mt-3 grid gap-2 md:grid-cols-2">
-                            <div className="space-y-1">
-                              <div className="text-[11px] text-muted-foreground">
-                                Allergene (kommagetrennt)
-                              </div>
-                              <textarea
-                                rows={2}
-                                value={proAllergensInput}
+                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-semibold">
+                            Kalkulation
+                          </h3>
+                          <div className="flex gap-2 text-[11px] text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <span>Portionen:</span>
+                              <Input
+                                type="text"
+                                value={targetPortionsInput}
                                 onChange={(event) =>
-                                  setProAllergensInput(event.target.value)
+                                  setTargetPortionsInput(event.target.value)
                                 }
-                                className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                className="h-7 w-16 px-2 py-1 text-[11px]"
                               />
                             </div>
-                            <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                                Ergiebigkeit / Gebinde
-                              </div>
-                              <textarea
-                                rows={2}
-                                value={proYieldWeightInput}
+                            <div className="flex items-center gap-1">
+                              <span>Einheit:</span>
+                              <Input
+                                type="text"
+                                value={portionUnitInput}
                                 onChange={(event) =>
-                                  setProYieldWeightInput(event.target.value)
+                                  setPortionUnitInput(event.target.value)
                                 }
-                                className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                className="h-7 w-20 px-2 py-1 text-[11px]"
                               />
                             </div>
-                            <div className="space-y-1">
-                              <div className="text-[11px] text-muted-foreground">
-                              Volumen-Ergiebigkeit
-                            </div>
-                              <textarea
-                                rows={2}
-                                value={proYieldVolumeInput}
+                            <div className="flex items-center gap-1">
+                              <span>VK/Portion (€):</span>
+                              <Input
+                                type="text"
+                                value={targetSalesPriceInput}
                                 onChange={(event) =>
-                                  setProYieldVolumeInput(event.target.value)
+                                  setTargetSalesPriceInput(event.target.value)
                                 }
-                                className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                className="h-7 w-24 px-2 py-1 text-[11px]"
                               />
                             </div>
                           </div>
                         </div>
-                      )}
+                        <div className="grid gap-1 text-[11px] md:grid-cols-2">
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Gesamtkosten Rezept
+                            </span>
+                            <span className="font-medium">
+                              {(recipeCalculation?.totalCost ?? 0).toFixed(2)} €
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Kosten pro Portion
+                            </span>
+                            <span className="font-medium">
+                              {recipeCalculation?.costPerPortion != null
+                                ? `${recipeCalculation.costPerPortion.toFixed(
+                                    2
+                                  )} €`
+                                : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Marge pro Portion
+                            </span>
+                            <span className="font-medium">
+                              {recipeCalculation?.marginPerPortion != null
+                                ? `${recipeCalculation.marginPerPortion.toFixed(
+                                    2
+                                  )} €`
+                                : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">
+                              Wareneinsatz
+                            </span>
+                            <span className="font-medium">
+                              {recipeCalculation?.goodsSharePercent != null
+                                ? `${recipeCalculation.goodsSharePercent.toFixed(
+                                    1
+                                  )} %`
+                                : "—"}
+                            </span>
+                          </div>
+                        </div>
+                        {recipeCalculation?.hasMissingPrices && (
+                          <div className="mt-1 flex items-center gap-1 text-[11px] text-red-600">
+                            <AlertTriangle className="h-3 w-3" />
+                            <span>
+                              Achtung: Mindestens eine Komponente hat keinen
+                              EK-Preis. Die Kalkulation ist unvollständig.
+                            </span>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="text-sm font-semibold">Zutaten</h3>
                         <Button

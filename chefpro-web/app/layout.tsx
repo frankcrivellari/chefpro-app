@@ -27,7 +27,6 @@ export default function RootLayout({
     <html lang="de">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        style={{ border: '10px solid blue' }}
       >
         <div className="flex h-screen w-full max-w-[100vw] overflow-hidden bg-gradient-to-b from-background to-muted">
           <aside className="hidden w-52 shrink-0 flex-col border-r bg-background/90 px-4 py-6 text-sm text-foreground md:flex">
@@ -42,7 +41,7 @@ export default function RootLayout({
                 <img src="/recetui-logo-header-frei.png" alt="Recetui" className="h-24 w-auto object-contain" />
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-card-foreground shadow-sm">
+                <div className="flex items-center gap-2 rounded-md bg-card px-3 py-1.5 text-sm font-medium text-card-foreground shadow-sm">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
                     MM
                   </div>
