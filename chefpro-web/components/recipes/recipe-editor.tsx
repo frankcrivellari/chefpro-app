@@ -550,7 +550,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
   const [proDosageInput, setProDosageInput] = useState("");
   const [proYieldWeightInput, setProYieldWeightInput] = useState("");
   const [proYieldVolumeInput, setProYieldVolumeInput] = useState("");
-  const [proPreparationInput, setProPreparationInput] = useState("");
+
   const [manufacturerArticleNumberInput, setManufacturerArticleNumberInput] = useState("");
   // Legacy alias for compatibility with existing code
   const manufacturerInput = manufacturerArticleNumberInput;
@@ -2168,7 +2168,6 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
       setProDosageInput("");
       setProYieldWeightInput("");
       setProYieldVolumeInput("");
-      setProPreparationInput("");
       setNameInput("");
       setCategoryInput("");
       setStorageAreaInput("");
@@ -2306,90 +2305,66 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
       setProYieldWeightInput(yieldText);
       setProYieldVolumeInput("");
     }
-    if (selectedItem.type === "eigenproduktion") {
-      const raw = selectedItem.preparationSteps;
-      let source: unknown = raw;
-      if (typeof raw === "string") {
-        const trimmed = raw.trim();
-        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-          try {
-            source = JSON.parse(trimmed) as PreparationStep[];
-          } catch {
-            source = trimmed;
-          }
-        } else {
+
+    // Unified preparation steps initialization for both types
+    const raw = selectedItem.preparationSteps;
+    let source: unknown = raw;
+    if (typeof raw === "string") {
+      const trimmed = raw.trim();
+      if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+          source = JSON.parse(trimmed) as PreparationStep[];
+        } catch {
           source = trimmed;
-          if (trimmed.length > 0) {
-            setProPreparationInput(trimmed);
-          } else {
-            setProPreparationInput("");
-          }
         }
       } else {
-        setProPreparationInput("");
+        source = trimmed;
       }
-      if (Array.isArray(source)) {
-        const steps = source
-          .map((step, index) => ({
-            id:
-              typeof step.id === "string" && step.id.trim().length > 0
-                ? step.id
-                : `step-${index}-${createPreparationStepId()}`,
-            text: typeof step.text === "string" ? step.text : "",
-            duration:
-              typeof step.duration === "string" &&
-              step.duration.trim().length > 0
-                ? step.duration.trim()
-                : null,
-            imageUrl:
-              typeof step.imageUrl === "string" &&
-              step.imageUrl.trim().length > 0
-                ? step.imageUrl.trim()
-                : null,
-            videoUrl:
-              typeof step.videoUrl === "string" &&
-              step.videoUrl.trim().length > 0
-                ? step.videoUrl.trim()
-                : null,
-          }))
-          .filter((step) => step.text.trim().length > 0);
-        setPreparationStepsInput(steps);
-        setEditingStepId(null);
-      } else if (typeof source === "string" && source.length > 0) {
-        setPreparationStepsInput([
-          {
-            id: createPreparationStepId(),
-            text: source,
-            duration: null,
-            imageUrl: null,
-            videoUrl: null,
-          },
-        ]);
-        setEditingStepId(null);
-      } else {
-        setPreparationStepsInput([]);
-        setEditingStepId(null);
-      }
+    }
+
+    if (Array.isArray(source)) {
+      const steps = source
+        .map((step, index) => ({
+          id:
+            typeof step.id === "string" && step.id.trim().length > 0
+              ? step.id
+              : `step-${index}-${createPreparationStepId()}`,
+          text: typeof step.text === "string" ? step.text : "",
+          duration:
+            typeof step.duration === "string" &&
+            step.duration.trim().length > 0
+              ? step.duration.trim()
+              : null,
+          imageUrl:
+            typeof step.imageUrl === "string" &&
+            step.imageUrl.trim().length > 0
+              ? step.imageUrl.trim()
+              : null,
+          videoUrl:
+            typeof step.videoUrl === "string" &&
+            step.videoUrl.trim().length > 0
+              ? step.videoUrl.trim()
+              : null,
+        }))
+        .filter((step) => step.text.trim().length > 0);
+      setPreparationStepsInput(steps);
+      setEditingStepId(null);
+    } else if (typeof source === "string" && source.length > 0) {
+      setPreparationStepsInput([
+        {
+          id: createPreparationStepId(),
+          text: source,
+          duration: null,
+          imageUrl: null,
+          videoUrl: null,
+        },
+      ]);
+      setEditingStepId(null);
     } else {
-      // Logic for Zukauf: preparationSteps is usually a string
-      const raw = selectedItem.preparationSteps;
-      if (typeof raw === "string" && raw.trim().length > 0) {
-        setProPreparationInput(raw);
-      } else if (Array.isArray(raw) && raw.length > 0) {
-        // Fallback if it somehow got saved as array
-        const combined = raw
-          .map((step) => step.text)
-          .filter(
-            (value) => typeof value === "string" && value.trim().length > 0
-          )
-          .join("\n\n");
-        setProPreparationInput(combined);
-      } else {
-        setProPreparationInput("");
-      }
       setPreparationStepsInput([]);
       setEditingStepId(null);
     }
+
     if (stdPrep && Array.isArray(stdPrep.components)) {
       setStandardPreparationComponents(
         stdPrep.components
@@ -3529,15 +3504,41 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
         if (typeof payload.extracted.brand === "string") {
           setBrandInput(payload.extracted.brand);
         }
-        if (typeof payload.extracted.preparation_steps === "string") {
-           setProPreparationInput(payload.extracted.preparation_steps);
+        
+        // Handle preparation steps from AI
+        const prepRaw = payload.extracted.preparation_steps;
+        let prepSource: unknown = prepRaw;
+        if (typeof prepRaw === "string") {
+          const trimmed = prepRaw.trim();
+          if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+             try {
+               prepSource = JSON.parse(trimmed);
+             } catch {
+               prepSource = trimmed;
+             }
+          } else {
+             prepSource = trimmed;
+          }
         }
-        setProPreparationInput(
-          typeof payload.extracted.preparation_steps ===
-            "string"
-            ? payload.extracted.preparation_steps
-            : ""
-        );
+
+        if (Array.isArray(prepSource)) {
+             const steps = prepSource.map((step, index) => ({
+                 id: typeof step.id === "string" ? step.id : `step-${index}-${createPreparationStepId()}`,
+                 text: typeof step.text === "string" ? step.text : "",
+                 duration: typeof step.duration === "string" ? step.duration : null,
+                 imageUrl: typeof step.imageUrl === "string" ? step.imageUrl : null,
+                 videoUrl: typeof step.videoUrl === "string" ? step.videoUrl : null,
+             })).filter(s => s.text.trim().length > 0);
+             setPreparationStepsInput(steps);
+        } else if (typeof prepSource === "string" && prepSource.length > 0) {
+             setPreparationStepsInput([{
+                 id: createPreparationStepId(),
+                 text: prepSource,
+                 duration: null,
+                 imageUrl: null,
+                 videoUrl: null
+             }]);
+        }
 
         // Update selected item with extracted data to ensure UI updates immediately
         setItems((prev) =>
@@ -3770,36 +3771,32 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
       }
 
       let preparationStepsValue: string | undefined;
-      if (selectedItem.type === "eigenproduktion") {
-        const cleanedSteps = preparationStepsInput
-          .map((step) => {
-            const text = step.text.trim();
-            const duration =
-              step.duration && step.duration.trim().length > 0
-                ? step.duration.trim()
-                : null;
-            const imageUrl =
-              step.imageUrl && step.imageUrl.trim().length > 0
-                ? step.imageUrl.trim()
-                : null;
-            const videoUrl =
-              step.videoUrl && step.videoUrl.trim().length > 0
-                ? step.videoUrl.trim()
-                : null;
-            return {
-              id: step.id,
-              text,
-              duration,
-              imageUrl,
-              videoUrl,
-            };
-          })
-          .filter((step) => step.text.length > 0);
-        preparationStepsValue =
-          cleanedSteps.length > 0 ? JSON.stringify(cleanedSteps) : "";
-      } else {
-        preparationStepsValue = typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps.trim() : "";
-      }
+      const cleanedSteps = preparationStepsInput
+        .map((step) => {
+          const text = step.text.trim();
+          const duration =
+            step.duration && step.duration.trim().length > 0
+              ? step.duration.trim()
+              : null;
+          const imageUrl =
+            step.imageUrl && step.imageUrl.trim().length > 0
+              ? step.imageUrl.trim()
+              : null;
+          const videoUrl =
+            step.videoUrl && step.videoUrl.trim().length > 0
+              ? step.videoUrl.trim()
+              : null;
+          return {
+            id: step.id,
+            text,
+            duration,
+            imageUrl,
+            videoUrl,
+          };
+        })
+        .filter((step) => step.text.length > 0);
+      preparationStepsValue =
+        cleanedSteps.length > 0 ? JSON.stringify(cleanedSteps) : "";
 
       const parseNutrient = (val: string) => {
         const trimmed = val.trim();
@@ -7881,19 +7878,50 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                             placeholder="Mischverhältnisse und Basismengen (z.B. 100g auf 1l)"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Zubereitungsanweisung
-                          </div>
-                          <textarea
-                            rows={3}
-                            value={proPreparationInput}
-                            onChange={(event) =>
-                              setProPreparationInput(event.target.value)
-                            }
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                          />
+                        <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-[11px] font-medium text-foreground">
+                          Zubereitung
                         </div>
+                      </div>
+                      <div className="space-y-2">
+                        {preparationStepsInput.map((step, index) => (
+                          <div key={step.id} className="flex gap-2 items-start group">
+                            <div className="pt-2 text-[10px] text-muted-foreground w-4 text-right">
+                              {index + 1}.
+                            </div>
+                            <textarea
+                              rows={2}
+                              value={step.text}
+                              onChange={(e) => {
+                                const newText = e.target.value;
+                                setPreparationStepsInput((prev) =>
+                                  prev.map((s) =>
+                                    s.id === step.id ? { ...s, text: newText } : s
+                                  )
+                                );
+                              }}
+                              className="flex-1 min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              placeholder={`Schritt ${index + 1} beschreiben...`}
+                            />
+                            <button
+                              onClick={() => handleRemovePreparationStep(step.id)}
+                              className="p-2 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                              title="Schritt löschen"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={handleAddPreparationStep}
+                          className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors mt-2"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Schritt hinzufügen
+                        </button>
+                      </div>
+                    </div>
 
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
@@ -8712,18 +8740,49 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                             placeholder="Mischverhältnisse und Basismengen (z.B. 100g auf 1l)"
                           />
                         </div>
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Zubereitung
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="text-[11px] font-medium text-foreground">
+                              Zubereitung
+                            </div>
                           </div>
-                          <textarea
-                            rows={3}
-                            value={proPreparationInput}
-                            onChange={(event) =>
-                              setProPreparationInput(event.target.value)
-                            }
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                          />
+                          <div className="space-y-2">
+                            {preparationStepsInput.map((step, index) => (
+                              <div key={step.id} className="flex gap-2 items-start group">
+                                <div className="pt-2 text-[10px] text-muted-foreground w-4 text-right">
+                                  {index + 1}.
+                                </div>
+                                <textarea
+                                  rows={2}
+                                  value={step.text}
+                                  onChange={(e) => {
+                                    const newText = e.target.value;
+                                    setPreparationStepsInput((prev) =>
+                                      prev.map((s) =>
+                                        s.id === step.id ? { ...s, text: newText } : s
+                                      )
+                                    );
+                                  }}
+                                  className="flex-1 min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  placeholder={`Schritt ${index + 1} beschreiben...`}
+                                />
+                                <button
+                                  onClick={() => handleRemovePreparationStep(step.id)}
+                                  className="p-2 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                  title="Schritt löschen"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              onClick={handleAddPreparationStep}
+                              className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors mt-2"
+                            >
+                              <Plus className="h-3 w-3" />
+                              Schritt hinzufügen
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
