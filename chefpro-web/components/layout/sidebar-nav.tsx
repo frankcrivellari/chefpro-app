@@ -27,16 +27,7 @@ export function SidebarNav() {
       >
         Rezepte
       </Link>
-      <Link
-        href="/lager"
-        className={cn(
-          "rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground",
-          pathname.startsWith("/lager") &&
-            "bg-primary text-primary-foreground font-semibold"
-        )}
-      >
-        Lager
-      </Link>
+
     </nav>
   );
 }
