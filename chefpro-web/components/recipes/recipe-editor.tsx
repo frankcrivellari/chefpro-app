@@ -2664,8 +2664,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
 
   function handleAddPreparationStep() {
     const id = createPreparationStepId();
-    setPreparationStepsInput((steps) => [
-      ...steps,
+    const newSteps = [
+      ...preparationStepsInput,
       {
         id,
         text: "",
@@ -2673,8 +2673,14 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
         imageUrl: null,
         videoUrl: null,
       },
-    ]);
+    ];
+    setPreparationStepsInput(newSteps);
     setEditingStepId(id);
+    
+    // Sync to selectedItem immediately
+    if (selectedItem) {
+        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: JSON.stringify(newSteps) } : i));
+    }
   }
 
   function handlePreparationStepTextChange(
@@ -2749,9 +2755,11 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
   }
 
   function handleRemovePreparationStep(stepId: string) {
+    let newSteps: PreparationStep[] = [];
     setPreparationStepsInput((steps) => {
       const index = steps.findIndex((step) => step.id === stepId);
       const next = steps.filter((step) => step.id !== stepId);
+      newSteps = next;
       if (editingStepId === stepId) {
         const fallback =
           index > 0 ? next[index - 1]?.id ?? null : next[0]?.id ?? null;
@@ -2762,6 +2770,11 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
     if (activeTagStepId === stepId) {
       setActiveTagStepId(null);
       setTagSearch("");
+    }
+    
+    // Sync to selectedItem immediately
+    if (selectedItem) {
+        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: JSON.stringify(newSteps) } : i));
     }
   }
 
@@ -4327,9 +4340,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
 
   return (
     <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
-      {(activeSection === "rezepte" || mode === "recipes") && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: 'red', color: 'white', textAlign: 'center', fontWeight: 'bold' }}>REZEPT-MANAGER AKTIV</div>
-      )}
+
       
       {["zutaten", "rezepte"].includes(activeSection) && (
         <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#6B7176] bg-[#1F2326]">
@@ -5010,6 +5021,51 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                 />
                               </div>
 
+                              {(activeSection as string) === "rezepte" && (
+                                <div className="mt-6 space-y-2">
+                                  <h3 className="mb-2 text-sm font-semibold">Zubereitung</h3>
+                                  <div className="space-y-2">
+                                    {preparationStepsInput.map((step, index) => (
+                                      <div key={step.id} className="flex gap-2 items-start group">
+                                        <div className="pt-2 text-[10px] text-muted-foreground w-4 text-right">
+                                          {index + 1}.
+                                        </div>
+                                        <textarea
+                                          rows={2}
+                                          value={step.text}
+                                          onChange={(e) => {
+                                            const newText = e.target.value;
+                                            const newSteps = preparationStepsInput.map((s) =>
+                                              s.id === step.id ? { ...s, text: newText } : s
+                                            );
+                                            setPreparationStepsInput(newSteps);
+                                            if (selectedItem) {
+                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: JSON.stringify(newSteps) } : i));
+                                            }
+                                          }}
+                                          className="flex-1 min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                          placeholder={`Schritt ${index + 1} beschreiben...`}
+                                        />
+                                        <button
+                                          onClick={() => handleRemovePreparationStep(step.id)}
+                                          className="p-2 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
+                                          title="Schritt löschen"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                    <button
+                                      onClick={handleAddPreparationStep}
+                                      className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors mt-2"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                      Schritt hinzufügen
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
                               {(activeSection as string) !== "rezepte" && (
                                 <div className="grid grid-cols-2 gap-4">
                                 <div className="grid gap-2">
@@ -5196,82 +5252,18 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                               {(activeSection as string) !== "rezepte" && (
                               <>
                               <div className="grid gap-2">
-                                <div className="flex items-center justify-between">
-                                  <label className="text-xs font-medium text-[#1F2326]">Dosierungsangaben</label>
-                                   <Button
-                                     type="button"
-                                     variant="ghost"
-                                     size="sm"
-                                     className="h-6 w-6 p-0"
-                                     onClick={() => {
-                                       const currentPrep = selectedItem.standardPreparation || { components: [], text: "" };
-                                       const newComponents = [...(currentPrep.components || []), { name: "", quantity: 0, unit: "" }];
-                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                     }}
-                                   >
-                                     <Plus className="h-3 w-3" />
-                                   </Button>
-                                 </div>
-                                 <div className="space-y-2">
-                                   {(selectedItem.standardPreparation?.components || []).map((comp, idx) => (
-                                     <div key={idx} className="flex gap-2">
-                                        <Input
-                                          type="number"
-                                          placeholder="Menge"
-                                          value={comp.quantity}
-                                          className="h-7 w-20 text-xs border-[#E5E7EB] bg-white text-[#1F2326] shrink-0"
-                                          onChange={(e) => {
-                                             const val = parseFloat(e.target.value) || 0;
-                                             const currentPrep = selectedItem.standardPreparation!;
-                                             const newComponents = [...currentPrep.components];
-                                             newComponents[idx] = { ...newComponents[idx], quantity: val };
-                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                          }}
-                                        />
-                                        <Input
-                                          placeholder="Einheit"
-                                          value={comp.unit}
-                                          className="h-7 w-20 text-xs border-[#E5E7EB] bg-white text-[#1F2326] shrink-0"
-                                          onChange={(e) => {
-                                             const val = e.target.value;
-                                             const currentPrep = selectedItem.standardPreparation!;
-                                             const newComponents = [...currentPrep.components];
-                                             newComponents[idx] = { ...newComponents[idx], unit: val };
-                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                          }}
-                                        />
-                                        <Input
-                                          placeholder="Zutat"
-                                          value={comp.name}
-                                          className="h-7 text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                          onChange={(e) => {
-                                             const val = e.target.value;
-                                             const currentPrep = selectedItem.standardPreparation!;
-                                             const newComponents = [...currentPrep.components];
-                                             newComponents[idx] = { ...newComponents[idx], name: val };
-                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                          }}
-                                        />
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                                          onClick={() => {
-                                             const currentPrep = selectedItem.standardPreparation!;
-                                             const newComponents = currentPrep.components.filter((_, i) => i !== idx);
-                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                                          }}
-                                        >
-                                          <Minus className="h-3 w-3" />
-                                        </Button>
-                                     </div>
-                                   ))}
-                                   {(!selectedItem.standardPreparation?.components || selectedItem.standardPreparation.components.length === 0) && (
-                                      <div className="text-[10px] text-muted-foreground italic">Keine Dosierung hinterlegt.</div>
-                                   )}
-                                 </div>
-                               </div>
+                                <label className="text-xs font-medium text-[#1F2326]">Dosierungsangaben</label>
+                                <Textarea
+                                  value={selectedItem.standardPreparation?.text || ""}
+                                  className="min-h-[80px] text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                  placeholder="Dosierungsanleitung..."
+                                  onChange={(e) => {
+                                     const val = e.target.value;
+                                     const currentPrep = selectedItem.standardPreparation || { components: [], text: "" };
+                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, text: val } } : i));
+                                  }}
+                                />
+                              </div>
 
                                <div className="grid gap-2">
                                   <label className="text-xs font-medium text-[#1F2326]">Zubereitungsempfehlung</label>
@@ -5790,88 +5782,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                           />
                         </div>
 
-                        {/* Standard-Zubereitung Panel */}
-                        <div className="space-y-2 pt-4 border-t border-border/50">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-medium text-[#1F2326]">Standard-Zubereitung (Basis)</label>
-                             <Button
-                               type="button"
-                               variant="ghost"
-                               size="sm"
-                               className="h-6 w-6 p-0"
-                               onClick={() => {
-                                 const currentPrep = selectedItem.standardPreparation || { components: [], text: "" };
-                                 const newComponents = [...(currentPrep.components || []), { name: "", quantity: 0, unit: "" }];
-                                 setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
-                               }}
-                             >
-                               <Plus className="h-3 w-3" />
-                             </Button>
-                           </div>
-                           
-                           {/* Text Instructions */}
-                           <Textarea
-                             placeholder="Zubereitungsanweisung..."
-                             className="min-h-[80px] text-xs resize-y"
-                             value={selectedItem.standardPreparation?.text || ""}
-                             onChange={(e) => {
-                               const currentPrep = selectedItem.standardPreparation || { components: [], text: "" };
-                               setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, text: e.target.value } } : i));
-                             }}
-                           />
 
-                           {/* Components List */}
-                           <div className="space-y-2">
-                             {(selectedItem.standardPreparation?.components || []).map((comp, idx) => (
-                               <div key={idx} className="flex gap-2 items-center">
-                                 <Input
-                                   className="h-7 w-16 px-2 text-xs"
-                                   placeholder="Menge"
-                                   type="number"
-                                   value={comp.quantity || ""}
-                                   onChange={(e) => {
-                                     const val = parseFloat(e.target.value);
-                                     const newComps = [...(selectedItem.standardPreparation?.components || [])];
-                                     newComps[idx] = { ...comp, quantity: isNaN(val) ? 0 : val };
-                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...i.standardPreparation, components: newComps } } : i));
-                                   }}
-                                 />
-                                 <Input
-                                   className="h-7 w-16 px-2 text-xs"
-                                   placeholder="Einheit"
-                                   value={comp.unit}
-                                   onChange={(e) => {
-                                     const newComps = [...(selectedItem.standardPreparation?.components || [])];
-                                     newComps[idx] = { ...comp, unit: e.target.value };
-                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...i.standardPreparation, components: newComps } } : i));
-                                   }}
-                                 />
-                                 <Input
-                                   className="h-7 flex-1 px-2 text-xs"
-                                   placeholder="Zutat"
-                                   value={comp.name}
-                                   onChange={(e) => {
-                                     const newComps = [...(selectedItem.standardPreparation?.components || [])];
-                                     newComps[idx] = { ...comp, name: e.target.value };
-                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...i.standardPreparation, components: newComps } } : i));
-                                   }}
-                                 />
-                                 <Button
-                                   type="button"
-                                   variant="ghost"
-                                   size="sm"
-                                   className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                                   onClick={() => {
-                                     const newComps = (selectedItem.standardPreparation?.components || []).filter((_, i) => i !== idx);
-                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...i.standardPreparation, components: newComps } } : i));
-                                   }}
-                                 >
-                                   <Trash2 className="h-3 w-3" />
-                                 </Button>
-                               </div>
-                             ))}
-                           </div>
-                        </div>
 
                         <div className="space-y-1 pt-2">
                           <div className="text-[11px] font-medium text-muted-foreground">
@@ -7878,50 +7789,22 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                             placeholder="Mischverhältnisse und Basismengen (z.B. 100g auf 1l)"
                           />
                         </div>
-                        <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="text-[11px] font-medium text-foreground">
-                          Zubereitung
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        {preparationStepsInput.map((step, index) => (
-                          <div key={step.id} className="flex gap-2 items-start group">
-                            <div className="pt-2 text-[10px] text-muted-foreground w-4 text-right">
-                              {index + 1}.
-                            </div>
-                            <textarea
-                              rows={2}
-                              value={step.text}
-                              onChange={(e) => {
-                                const newText = e.target.value;
-                                setPreparationStepsInput((prev) =>
-                                  prev.map((s) =>
-                                    s.id === step.id ? { ...s, text: newText } : s
-                                  )
-                                );
-                              }}
-                              className="flex-1 min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                              placeholder={`Schritt ${index + 1} beschreiben...`}
-                            />
-                            <button
-                              onClick={() => handleRemovePreparationStep(step.id)}
-                              className="p-2 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                              title="Schritt löschen"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                        <div className="space-y-1">
+                          <div className="text-[11px] text-muted-foreground">
+                            Zubereitungsempfehlung
                           </div>
-                        ))}
-                        <button
-                          onClick={handleAddPreparationStep}
-                          className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors mt-2"
-                        >
-                          <Plus className="h-3 w-3" />
-                          Schritt hinzufügen
-                        </button>
-                      </div>
-                    </div>
+                          <textarea
+                            rows={3}
+                            value={selectedItem.standardPreparation?.text || ""}
+                            onChange={(e) => {
+                               const val = e.target.value;
+                               const currentPrep = selectedItem.standardPreparation || { components: [], text: "" };
+                               setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, text: val } } : i));
+                            }}
+                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                            placeholder="Zubereitungsempfehlung..."
+                          />
+                        </div>
 
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
