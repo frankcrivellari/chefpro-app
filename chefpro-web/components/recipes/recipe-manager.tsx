@@ -4089,6 +4089,7 @@ export function InventoryManager() {
 
   return (
     <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: 'red', color: 'white', textAlign: 'center', fontWeight: 'bold' }}>REZEPT-MANAGER AKTIV</div>
       {activeSection === "zutaten" && (
         <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#6B7176] bg-[#1F2326]">
           <div className="flex flex-col gap-3 border-b border-[#6B7176] p-4">
@@ -5715,8 +5716,6 @@ export function InventoryManager() {
                            })()
                         )}
                       </div>
-
-
                     </div>
                   )}
                 </div>
@@ -6801,16 +6800,17 @@ export function InventoryManager() {
                     </div>
                   )}
 
-                  {(selectedItem.type !== "eigenproduktion" || (activeSection as any) === "zutaten") && (
-                    <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+                  <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs text-muted-foreground">
+                    {selectedItem.type === "zukauf" && (
                       <div>
                         Dieser Artikel wird als Zukauf geführt. Du kannst ihn
                         als Komponente in Eigenproduktionen verwenden.
                       </div>
-                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Dosierung / Mischverhältnis (Text)
+                    )}
+                    <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-muted-foreground">
+                          Dosierung / Mischverhältnis (Text)
                           </div>
                           <textarea
                             rows={2}
@@ -6919,19 +6919,7 @@ export function InventoryManager() {
                             )}
                           </div>
                         </div>
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Zubereitungsanweisung
-                          </div>
-                          <textarea
-                            rows={3}
-                            value={standardPreparationText}
-                            onChange={(event) =>
-                              setStandardPreparationText(event.target.value)
-                            }
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                          />
-                        </div>
+
 
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
@@ -6948,7 +6936,6 @@ export function InventoryManager() {
                         </div>
                       </div>
                     </div>
-                  )}
 
                   <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                         <div className="grid grid-cols-2 gap-2">
@@ -7105,115 +7092,10 @@ export function InventoryManager() {
                           </div>
                         </div>
 
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Allergene (kommagetrennt)
-                          </div>
-                          <textarea
-                            rows={2}
-                            value={proAllergensInput}
-                            onChange={(event) =>
-                              setProAllergensInput(event.target.value)
-                            }
-                            className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                          />
-                        </div>
-                        <div className="space-y-1 pt-2">
-                          <div className="text-[11px] font-medium text-muted-foreground">
-                            Nährwerte (pro 100g/ml)
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Energie (kcal)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proEnergyKcalInput}
-                                onChange={(e) =>
-                                  setProEnergyKcalInput(e.target.value)
-                                }
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Fett (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proFatInput}
-                                onChange={(e) => setProFatInput(e.target.value)}
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                ges. Fettsäuren (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proSaturatedFatInput}
-                                onChange={(e) =>
-                                  setProSaturatedFatInput(e.target.value)
-                                }
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Kohlenhydrate (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proCarbsInput}
-                                onChange={(e) =>
-                                  setProCarbsInput(e.target.value)
-                                }
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Zucker (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proSugarInput}
-                                onChange={(e) => setProSugarInput(e.target.value)}
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Eiweiß (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proProteinInput}
-                                onChange={(e) =>
-                                  setProProteinInput(e.target.value)
-                                }
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                            <div className="space-y-0.5">
-                              <label className="text-[10px] text-muted-foreground">
-                                Salz (g)
-                              </label>
-                              <Input
-                                type="text"
-                                value={proSaltInput}
-                                onChange={(e) => setProSaltInput(e.target.value)}
-                                className="h-7 px-2 py-1 text-[11px]"
-                              />
-                            </div>
-                          </div>
-                        </div>
+
 
                     </div>
 
-                  {selectedItem.type === "eigenproduktion" && (
                     <div className="space-y-3">
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                         <div className="flex items-center justify-between gap-2">
@@ -7781,35 +7663,25 @@ export function InventoryManager() {
                           </div>
                         </div>
                       )}
+                      {/* ZUBEREITUNG (Moved from top) */}
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
-                            Dosierung / Mischverhältnis
+                            Zubereitung
                           </div>
                           <textarea
-                            rows={2}
-                            value={proDosageInput}
+                            rows={10}
+                            value={standardPreparationText}
                             onChange={(event) =>
-                              setProDosageInput(event.target.value)
-                            }
-                            className="w-full rounded-md border border-input px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                            style={{ backgroundColor: "#F6F7F5" }}
-                            placeholder="Mischverhältnisse und Basismengen (z.B. 100g auf 1l)"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="text-[11px] text-muted-foreground">
-                            Zubereitungsanweisung
-                          </div>
-                          <textarea
-                            rows={3}
-                            value={proPreparationInput}
-                            onChange={(event) =>
-                              setProPreparationInput(event.target.value)
+                              setStandardPreparationText(event.target.value)
                             }
                             className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                           />
                         </div>
+                      </div>
+
+                      {/* ALLERGENE (Moved from top) */}
+                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
                         <div className="space-y-1">
                           <div className="text-[11px] text-muted-foreground">
                             Allergene (kommagetrennt)
@@ -7822,6 +7694,102 @@ export function InventoryManager() {
                             }
                             className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                           />
+                        </div>
+                      </div>
+
+                      {/* NÄHRWERTE (Moved from top) */}
+                      <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
+                        <div className="space-y-1 pt-2">
+                          <div className="text-[11px] font-medium text-muted-foreground">
+                            Nährwerte (pro 100g/ml)
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Energie (kcal)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proEnergyKcalInput}
+                                onChange={(e) =>
+                                  setProEnergyKcalInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Fett (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proFatInput}
+                                onChange={(e) => setProFatInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                ges. Fettsäuren (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proSaturatedFatInput}
+                                onChange={(e) =>
+                                  setProSaturatedFatInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Kohlenhydrate (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proCarbsInput}
+                                onChange={(e) =>
+                                  setProCarbsInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Zucker (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proSugarInput}
+                                onChange={(e) => setProSugarInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Eiweiß (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proProteinInput}
+                                onChange={(e) =>
+                                  setProProteinInput(e.target.value)
+                                }
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                            <div className="space-y-0.5">
+                              <label className="text-[10px] text-muted-foreground">
+                                Salz (g)
+                              </label>
+                              <Input
+                                type="text"
+                                value={proSaltInput}
+                                onChange={(e) => setProSaltInput(e.target.value)}
+                                className="h-7 px-2 py-1 text-[11px]"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
@@ -8374,12 +8342,11 @@ export function InventoryManager() {
                         </div>
                       )}
                     </div>
-                  )}
+                  
                   <div className="text-xs text-muted-foreground">
                     Diese Ansicht zeigt alle IDs und Produktspezifikationen für den Artikel.
                   </div>
-                  {selectedItem.type !== "eigenproduktion" && (
-                    <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-xs">
+                  <div className="space-y-2 rounded-md border bg-muted/40 p-3 text-xs">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="text-xs font-semibold">
                           Produktspezifikationen
@@ -8491,7 +8458,6 @@ export function InventoryManager() {
                         </div>
                       </div>
                     </div>
-                  )}
                   {selectedItem.type === "eigenproduktion" && (
                     <div className="mt-4 space-y-2 rounded-md border border-red-500/40 bg-red-500/5 p-3 text-xs">
                       <div className="font-semibold text-red-700">
