@@ -1,5 +1,5 @@
-import { Warehouse } from "@/components/inventory/warehouse";
+// import { Warehouse } from "@/components/inventory/warehouse";
 
 export default function LagerPage() {
-  return <Warehouse />;
+  return null; // <Warehouse />;
 }

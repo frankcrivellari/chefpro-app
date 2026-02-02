@@ -476,11 +476,11 @@ function findExactRecipeMatchByName(
   return null;
 }
 
-export interface InventoryManagerProps {
+export interface RecipeEditorProps {
   mode?: "ingredients" | "recipes";
 }
 
-export function InventoryManager({ mode = "ingredients" }: InventoryManagerProps) {
+export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
   const pathname = usePathname();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filterType, setFilterType] = useState<FilterType>("all");
