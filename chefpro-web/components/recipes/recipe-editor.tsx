@@ -4986,6 +4986,31 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                 </select>
                               </div>
 
+                              <div className="mt-6">
+                                <h3 className="mb-2 text-sm font-semibold">Zutaten & Ressourcen (Matrix)</h3>
+                                <SmartIngredientMatrix
+                                  components={selectedItem.components || []}
+                                  availableItems={effectiveItems.map(item => ({
+                                    id: item.id,
+                                    name: item.name,
+                                    unit: item.unit,
+                                    purchasePrice: item.purchasePrice,
+                                    nutritionPerUnit: item.nutritionPerUnit,
+                                    isBio: item.isBio,
+                                    isVegan: item.isVegan
+                                  }))}
+                                  onUpdate={(updatedComponents) => {
+                                    setItems(prev => prev.map(i => 
+                                      i.id === selectedItem.id ? { ...i, components: updatedComponents } : i
+                                    ));
+                                  }}
+                                  onQuickImport={(name) => {
+                                    console.log("Quick import:", name);
+                                  }}
+                                  readOnly={false}
+                                />
+                              </div>
+
                               {(activeSection as string) !== "rezepte" && (
                                 <div className="grid grid-cols-2 gap-4">
                                 <div className="grid gap-2">
@@ -7512,7 +7537,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                     </div>
                   )}
 
-                  {selectedItem.type === "eigenproduktion" && (
+                  {true && (
                   <div className="space-y-3 relative">
                     {recipeCalculation && (
                         <div className="space-y-2 rounded-md border bg-muted/40 px-3 py-3 text-xs">
