@@ -7639,25 +7639,29 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
 
                         </div>
                       )}
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-semibold">Zutaten</h3>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setIsEditingComponents((value) => !value);
-                            setComponentSearch("");
-                            setEditingComponents(
-                              selectedItem.components ?? []
-                            );
-                          }}
-                        >
-                          {isEditingComponents
-                            ? "Bearbeitung schließen"
-                            : "Zutaten bearbeiten"}
-                        </Button>
-                      </div>
+                      <div className="border-2 border-red-500 p-2 rounded-lg relative mt-4">
+                        <div className="absolute -top-3 left-4 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+                          ZUM LÖSCHEN VORGEMERKT
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-semibold">Zutaten</h3>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setIsEditingComponents((value) => !value);
+                              setComponentSearch("");
+                              setEditingComponents(
+                                selectedItem.components ?? []
+                              );
+                            }}
+                          >
+                            {isEditingComponents
+                              ? "Bearbeitung schließen"
+                              : "Zutaten bearbeiten"}
+                          </Button>
+                        </div>
                         <SmartIngredientMatrix
                           components={isEditingComponents ? (editingComponents as SmartInventoryComponent[]) : (selectedItem.components as SmartInventoryComponent[] ?? [])}
                           availableItems={effectiveItems.filter(i => i.id !== selectedItem?.id)}
@@ -7665,6 +7669,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                           onQuickImport={handleQuickImport}
                           readOnly={!isEditingComponents}
                         />
+                      </div>
                       {isEditingComponents && (
                         <div className="space-y-3 rounded-md border bg-muted/40 p-3 text-xs">
                           <div className="flex justify-end gap-2">
