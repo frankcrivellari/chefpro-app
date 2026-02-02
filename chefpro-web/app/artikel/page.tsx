@@ -1,6 +1,6 @@
-import { Warehouse } from "@/components/inventory/warehouse";
+import { InventoryManager } from "@/components/inventory/inventory-manager";
 
 export default function ArtikelPage() {
-  return <Warehouse />;
+  return <InventoryManager />;
 }
 

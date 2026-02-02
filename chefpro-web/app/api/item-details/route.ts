@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 
-export const dynamic = 'force-dynamic';
-
 type InventoryType = "zukauf" | "eigenproduktion";
 
 type StandardPreparationComponent = {
@@ -13,18 +11,6 @@ type StandardPreparationComponent = {
 
 type StandardPreparation = {
   components: StandardPreparationComponent[];
-  text?: string | null;
-};
-
-type DeviceSetting = {
-  quantity: string;
-  device: string;
-  settings?: string;
-  runtime: string;
-  energy: string;
-  water?: string;
-  outputYield?: string;
-  cleaningEffort?: string;
 };
 
 type NutritionTotals = {
@@ -39,14 +25,6 @@ type NutritionTotals = {
   sodium: number | null;
   breadUnits: number | null;
   cholesterol: number | null;
-  co2: number | null;
-};
-
-type AlternativeItem = {
-  internalArticleNumber: string;
-  manufacturerArticleNumber: string;
-  name: string;
-  netWeight: string;
 };
 
 type SupabaseItemRow = {
@@ -64,7 +42,6 @@ type SupabaseItemRow = {
   nutrition_tags: string[] | null;
   nutrition_per_unit: NutritionTotals | null;
   internal_id: number | null;
-  internal_article_number: string | null;
   manufacturer_article_number: string | null;
   ean: string | null;
   allergens: string[] | null;
@@ -85,22 +62,11 @@ type SupabaseItemRow = {
   is_gluten_free: boolean | null;
   is_vegan: boolean | null;
   is_vegetarian: boolean | null;
-  is_fairtrade: boolean | null;
-  is_powder: boolean | null;
-  is_granulate: boolean | null;
-  is_paste: boolean | null;
-  is_liquid: boolean | null;
   packshot_x: number | null;
   packshot_y: number | null;
   packshot_zoom: number | null;
-  storage_area: string | null;
-  warengruppe: string | null;
-  bio_control_number: string | null;
   file_url: string | null;
   image_url: string | null;
-  device_settings: DeviceSetting[] | null;
-  supplier: string | null;
-  alternative_items: AlternativeItem[] | null;
 };
 
 type SupabaseRecipeStructureRow = {
@@ -110,7 +76,6 @@ type SupabaseRecipeStructureRow = {
   quantity: number;
   unit: string;
   deleted_item_name: string | null;
-  custom_name: string | null;
 };
 
 type InventoryComponent = {
@@ -118,7 +83,6 @@ type InventoryComponent = {
   quantity: number;
   unit: string;
   deletedItemName?: string | null;
-  customName?: string | null;
 };
 
 type InventoryItem = {
@@ -156,106 +120,78 @@ type InventoryItem = {
   isGlutenFree?: boolean;
   isVegan?: boolean;
   isVegetarian?: boolean;
-  isFairtrade?: boolean;
   hasGhostComponents?: boolean;
   components?: InventoryComponent[];
   packshotX?: number | null;
   packshotY?: number | null;
   packshotZoom?: number | null;
-  storageArea?: string | null;
-  warengruppe?: string | null;
-  bioControlNumber?: string | null;
-  internalArticleNumber?: string | null;
-  supplier?: string | null;
-  alternativeItems?: AlternativeItem[] | null;
   imageUrl?: string | null;
   fileUrl?: string | null;
-  deviceSettings?: DeviceSetting[] | null;
 };
 
 export async function POST(request: Request) {
-  try {
-    const client = getSupabaseServerClient();
+  const client = getSupabaseServerClient();
 
-    if (!client) {
-      console.error("Supabase client init failed");
-      return NextResponse.json(
-        {
-          error:
-            'Supabase ist nicht konfiguriert (Bitte env-Variablen prüfen: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY oder NEXT_PUBLIC_SUPABASE_ANON_KEY)',
-        },
-        { status: 500 }
-      );
-    }
+  if (!client) {
+    return NextResponse.json(
+      {
+        error:
+          'Supabase ist nicht konfiguriert (Bitte env-Variablen prüfen: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY oder NEXT_PUBLIC_SUPABASE_ANON_KEY)',
+      },
+      { status: 500 }
+    );
+  }
 
-    const body = (await request.json()) as {
-      id: string;
-      name?: string;
-      brand?: string;
-      currency?: string;
-      manufacturerArticleNumber?: string;
-      ean?: string;
-      allergens?: string[];
-      ingredients?: string;
-      dosageInstructions?: string;
-      yieldInfo?: string;
-      preparationSteps?: string;
-      targetPortions?: number | null;
-      targetSalesPrice?: number | null;
-      category?: string | null;
-      portionUnit?: string | null;
-      purchasePrice?: number;
-      unit?: string;
-      nutritionTags?: string[];
-      nutritionPerUnit?: NutritionTotals | null;
-      standardPreparation?: StandardPreparation | null;
-      isBio?: boolean;
-      isDeklarationsfrei?: boolean;
-      isAllergenfrei?: boolean;
-      isCookChill?: boolean;
-      isFreezeThawStable?: boolean;
-      isPalmOilFree?: boolean;
-      isYeastFree?: boolean;
-      isLactoseFree?: boolean;
-      isGlutenFree?: boolean;
-      isVegan?: boolean;
-      isVegetarian?: boolean;
-      isFairtrade?: boolean;
-      isPowder?: boolean;
-      isGranulate?: boolean;
-      isPaste?: boolean;
-      isLiquid?: boolean;
-      packshotX?: number | null;
-      packshotY?: number | null;
-      packshotZoom?: number | null;
-      storageArea?: string | null;
-      warengruppe?: string | null;
-      bioControlNumber?: string | null;
-      internalArticleNumber?: string | null;
-      supplier?: string | null;
-      alternativeItems?: AlternativeItem[] | null;
-      imageUrl?: string | null;
-      fileUrl?: string | null;
-      deviceSettings?: DeviceSetting[] | null;
-    };
+  const body = (await request.json()) as {
+    id: string;
+    name?: string;
+    brand?: string;
+    currency?: string;
+    manufacturerArticleNumber?: string;
+    allergens?: string[];
+    ingredients?: string;
+    dosageInstructions?: string;
+    yieldInfo?: string;
+    preparationSteps?: string;
+    targetPortions?: number | null;
+    targetSalesPrice?: number | null;
+    category?: string | null;
+    portionUnit?: string | null;
+    purchasePrice?: number;
+    unit?: string;
+    nutritionTags?: string[];
+    nutritionPerUnit?: NutritionTotals | null;
+    standardPreparation?: StandardPreparation | null;
+    isBio?: boolean;
+    isDeklarationsfrei?: boolean;
+    isAllergenfrei?: boolean;
+    isCookChill?: boolean;
+    isFreezeThawStable?: boolean;
+    isPalmOilFree?: boolean;
+    isYeastFree?: boolean;
+    isLactoseFree?: boolean;
+    isGlutenFree?: boolean;
+    isVegan?: boolean;
+    isVegetarian?: boolean;
+    packshotX?: number | null;
+    packshotY?: number | null;
+    packshotZoom?: number | null;
+    imageUrl?: string | null;
+    fileUrl?: string | null;
+  };
 
-    if (!body || typeof body !== 'object') {
-       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
-
-    if (!body.id) {
-      return NextResponse.json(
-        { error: "id ist erforderlich" },
-        { status: 400 }
-      );
-    }
+  if (!body.id) {
+    return NextResponse.json(
+      { error: "id ist erforderlich" },
+      { status: 400 }
+    );
+  }
 
   const updates: {
     name?: string;
     brand?: string | null;
     currency?: string;
     manufacturer_article_number?: string | null;
-    ean?: string | null;
     allergens?: string[] | null;
     ingredients?: string | null;
     dosage_instructions?: string | null;
@@ -280,24 +216,12 @@ export async function POST(request: Request) {
     is_gluten_free?: boolean;
     is_vegan?: boolean;
     is_vegetarian?: boolean;
-    is_fairtrade?: boolean;
-    is_powder?: boolean;
-    is_granulate?: boolean;
-    is_paste?: boolean;
-    is_liquid?: boolean;
     packshot_x?: number | null;
     packshot_y?: number | null;
     packshot_zoom?: number | null;
-    storage_area?: string | null;
-    warengruppe?: string | null;
-    bio_control_number?: string | null;
-    internal_article_number?: string | null;
-    supplier?: string | null;
-    alternative_items?: AlternativeItem[] | null;
     file_url?: string | null;
     image_url?: string | null;
     nutrition_per_unit?: NutritionTotals | null;
-    device_settings?: DeviceSetting[] | null;
   } = {};
 
   if (typeof body.name === "string") {
@@ -323,13 +247,6 @@ export async function POST(request: Request) {
     updates.manufacturer_article_number =
       body.manufacturerArticleNumber.trim().length > 0
         ? body.manufacturerArticleNumber.trim()
-        : null;
-  }
-
-  if (typeof body.ean === "string") {
-    updates.ean =
-      body.ean.trim().length > 0
-        ? body.ean.trim()
         : null;
   }
 
@@ -387,20 +304,16 @@ export async function POST(request: Request) {
     updates.file_url = trimmed.length > 0 ? trimmed : null;
   }
 
-  if (body.targetPortions === null || typeof body.targetPortions === "number") {
+  if (typeof body.targetPortions === "number") {
     updates.target_portions =
-      typeof body.targetPortions === "number" &&
-      Number.isFinite(body.targetPortions) &&
-      body.targetPortions > 0
+      Number.isFinite(body.targetPortions) && body.targetPortions > 0
         ? body.targetPortions
         : null;
   }
 
-  if (body.targetSalesPrice === null || typeof body.targetSalesPrice === "number") {
+  if (typeof body.targetSalesPrice === "number") {
     updates.target_sales_price =
-      typeof body.targetSalesPrice === "number" &&
-      Number.isFinite(body.targetSalesPrice) &&
-      body.targetSalesPrice > 0
+      Number.isFinite(body.targetSalesPrice) && body.targetSalesPrice > 0
         ? body.targetSalesPrice
         : null;
   }
@@ -425,27 +338,8 @@ export async function POST(request: Request) {
     if (value === null) {
       updates.nutrition_per_unit = null;
     } else if (value && typeof value === "object") {
-      // Validate and clean structure to ensure DB compatibility
-      const safeNutrition: NutritionTotals = {
-        energyKcal: typeof value.energyKcal === 'number' ? value.energyKcal : null,
-        fat: typeof value.fat === 'number' ? value.fat : null,
-        saturatedFat: typeof value.saturatedFat === 'number' ? value.saturatedFat : null,
-        carbs: typeof value.carbs === 'number' ? value.carbs : null,
-        sugar: typeof value.sugar === 'number' ? value.sugar : null,
-        protein: typeof value.protein === 'number' ? value.protein : null,
-        salt: typeof value.salt === 'number' ? value.salt : null,
-        fiber: typeof value.fiber === 'number' ? value.fiber : null,
-        sodium: typeof value.sodium === 'number' ? value.sodium : null,
-        breadUnits: typeof value.breadUnits === 'number' ? value.breadUnits : null,
-        cholesterol: typeof value.cholesterol === 'number' ? value.cholesterol : null,
-        co2: typeof value.co2 === 'number' ? value.co2 : null,
-      };
-      updates.nutrition_per_unit = safeNutrition;
+      updates.nutrition_per_unit = value as NutritionTotals;
     }
-  }
-
-  if (body.deviceSettings) {
-    updates.device_settings = body.deviceSettings.length > 0 ? body.deviceSettings : [];
   }
 
   if (typeof body.isBio === "boolean") {
@@ -481,21 +375,6 @@ export async function POST(request: Request) {
   if (typeof body.isVegetarian === "boolean") {
     updates.is_vegetarian = body.isVegetarian;
   }
-  if (typeof body.isFairtrade === "boolean") {
-    updates.is_fairtrade = body.isFairtrade;
-  }
-  if (typeof body.isPowder === "boolean") {
-    updates.is_powder = body.isPowder;
-  }
-  if (typeof body.isGranulate === "boolean") {
-    updates.is_granulate = body.isGranulate;
-  }
-  if (typeof body.isPaste === "boolean") {
-    updates.is_paste = body.isPaste;
-  }
-  if (typeof body.isLiquid === "boolean") {
-    updates.is_liquid = body.isLiquid;
-  }
 
   if (typeof body.packshotX === "number") {
     updates.packshot_x = body.packshotX;
@@ -507,35 +386,6 @@ export async function POST(request: Request) {
     updates.packshot_zoom = body.packshotZoom;
   }
 
-  if (typeof body.storageArea === "string") {
-    const trimmed = body.storageArea.trim();
-    updates.storage_area = trimmed.length > 0 ? trimmed : null;
-  }
-
-  if (typeof body.warengruppe === "string") {
-    const trimmed = body.warengruppe.trim();
-    updates.warengruppe = trimmed.length > 0 ? trimmed : null;
-  }
-
-  if (typeof body.bioControlNumber === "string") {
-    const trimmed = body.bioControlNumber.trim();
-    updates.bio_control_number = trimmed.length > 0 ? trimmed : null;
-  }
-
-  if (typeof body.internalArticleNumber === "string") {
-    const trimmed = body.internalArticleNumber.trim();
-    updates.internal_article_number = trimmed.length > 0 ? trimmed : null;
-  }
-  
-  if (typeof body.supplier === "string") {
-    const trimmed = body.supplier.trim();
-    updates.supplier = trimmed.length > 0 ? trimmed : null;
-  }
-
-  if (body.alternativeItems) {
-    updates.alternative_items = Array.isArray(body.alternativeItems) ? body.alternativeItems : [];
-  }
-
   if (Object.prototype.hasOwnProperty.call(body, "standardPreparation")) {
     const value = body.standardPreparation;
     if (value === null) {
@@ -545,124 +395,25 @@ export async function POST(request: Request) {
     }
   }
 
-  // Check if ID is a valid UUID
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.id);
+  const updateResponse = await client
+    .from("items")
+    .update(updates)
+    .eq("id", body.id)
+    .select("*")
+    .single();
 
-  let updateResponse;
-
-  if (!isUUID) {
-    console.log(`Creating new item for virtual ID: ${body.id}`);
-    // This is a virtual item (e.g. "staple-0"), so we INSERT instead of UPDATE
-    // We must ensure all mandatory fields for INSERT are present
-    const insertData = {
-      ...updates,
-      item_type: 'zukauf', // Staple items are always 'zukauf'
-      // Ensure mandatory fields have defaults if missing in updates
-      name: updates.name ?? 'Unbenannt',
-      unit: updates.unit ?? 'stk',
-      purchase_price: updates.purchase_price ?? 0,
-    };
-
-    updateResponse = await client
-      .from("items")
-      .insert(insertData)
-      .select("*");
-  } else {
-    updateResponse = await client
-      .from("items")
-      .update(updates)
-      .eq("id", body.id)
-      .select("*");
-  }
-
-  // Retry logic for missing columns (schema mismatch)
-  if (
-    updateResponse.error &&
-    (updateResponse.error.code === "42703" || // undefined_column
-      updateResponse.error.message.includes("column") ||
-      updateResponse.error.message.includes("does not exist"))
-  ) {
-    console.warn(
-      "Operation failed with column error, retrying with legacy schema",
-      updateResponse.error
-    );
-
-    const safeUpdates = { ...updates };
-    // Remove potentially missing columns (recently added)
-    delete safeUpdates.is_powder;
-    delete safeUpdates.is_granulate;
-    delete safeUpdates.is_paste;
-    delete safeUpdates.is_liquid;
-    delete safeUpdates.storage_area;
-    delete safeUpdates.warengruppe;
-    delete safeUpdates.bio_control_number;
-    delete safeUpdates.nutrition_per_unit;
-    delete safeUpdates.brand;
-    delete safeUpdates.currency;
-    delete safeUpdates.ean;
-    delete safeUpdates.file_url;
-    delete safeUpdates.image_url;
-    delete safeUpdates.device_settings;
-    
-    // Remove all boolean flags
-    delete safeUpdates.is_bio;
-    delete safeUpdates.is_deklarationsfrei;
-    delete safeUpdates.is_allergenfrei;
-    delete safeUpdates.is_cook_chill;
-    delete safeUpdates.is_freeze_thaw_stable;
-    delete safeUpdates.is_palm_oil_free;
-    delete safeUpdates.is_yeast_free;
-    delete safeUpdates.is_lactose_free;
-    delete safeUpdates.is_gluten_free;
-    delete safeUpdates.is_vegan;
-    delete safeUpdates.is_vegetarian;
-    delete safeUpdates.is_fairtrade;
-
-    if (!isUUID) {
-      const safeInsertData = {
-        ...safeUpdates,
-        item_type: 'zukauf',
-        name: safeUpdates.name ?? 'Unbenannt',
-        unit: safeUpdates.unit ?? 'stk',
-        purchase_price: safeUpdates.purchase_price ?? 0,
-      };
-      updateResponse = await client
-        .from("items")
-        .insert(safeInsertData)
-        .select("*");
-    } else {
-      updateResponse = await client
-        .from("items")
-        .update(safeUpdates)
-        .eq("id", body.id)
-        .select("*");
-    }
-  }
-
-  if (updateResponse.error) {
-    console.error("Supabase Update Error:", JSON.stringify(updateResponse.error, null, 2));
-    const msg = updateResponse.error.message;
-    const details = updateResponse.error.details || "";
-    const hint = updateResponse.error.hint || "";
-    const code = updateResponse.error.code || "";
-    
+  if (updateResponse.error || !updateResponse.data) {
     return NextResponse.json(
       {
-        error: `Datenbank-Fehler (${code}): ${msg}. Details: ${details}. Hint: ${hint}`,
-        originalError: updateResponse.error
+        error:
+          updateResponse.error?.message ??
+          'Fehler beim Aktualisieren des Artikels in Tabelle "items"',
       },
       { status: 500 }
     );
   }
 
-  if (!updateResponse.data || updateResponse.data.length === 0) {
-    return NextResponse.json(
-      { error: "Artikel nicht gefunden (ID existiert nicht)" },
-      { status: 404 }
-    );
-  }
-
-  const row = updateResponse.data[0] as SupabaseItemRow;
+  const row = updateResponse.data as SupabaseItemRow;
 
   let components: InventoryComponent[] | undefined;
   let hasGhostComponents = false;
@@ -729,7 +480,6 @@ export async function POST(request: Request) {
       quantity: rel.quantity,
       unit: rel.unit,
       deletedItemName: rel.deleted_item_name,
-      customName: rel.custom_name,
     }));
 
     hasGhostComponents = relations.some(
@@ -772,28 +522,15 @@ export async function POST(request: Request) {
     isGlutenFree: row.is_gluten_free ?? false,
     isVegan: row.is_vegan ?? false,
     isVegetarian: row.is_vegetarian ?? false,
-    isFairtrade: row.is_fairtrade ?? false,
     packshotX: row.packshot_x,
     packshotY: row.packshot_y,
     packshotZoom: row.packshot_zoom,
-    storageArea: row.storage_area,
-    warengruppe: row.warengruppe,
     hasGhostComponents:
       hasGhostComponents || undefined,
     components,
     imageUrl: row.image_url,
     fileUrl: row.file_url,
-    deviceSettings: row.device_settings,
   };
 
   return NextResponse.json({ item });
-  } catch (error) {
-    console.error("API Error:", error);
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Ein interner Serverfehler ist aufgetreten",
-      },
-      { status: 500 }
-    );
-  }
 }

@@ -31,8 +31,6 @@ import {
   Sparkles,
   Maximize2,
   X,
-  Eye,
-  Trash2,
 } from "lucide-react";
 import { Accordion,
   AccordionContent,
@@ -163,7 +161,6 @@ type PdfJsModule = {
 type InventoryItem = {
   id: string;
   internalId?: number | null;
-  internalArticleNumber?: string | null;
   name: string;
   type: InventoryType;
   unit: string;
@@ -464,7 +461,7 @@ function findExactRecipeMatchByName(
   return null;
 }
 
-export function RecipeManager() {
+export function InventoryManager() {
   const pathname = usePathname();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [filterType, setFilterType] = useState<FilterType>("all");
@@ -599,7 +596,6 @@ export function RecipeManager() {
     string | null
   >(null);
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
-  const stepFileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [imageViewer, setImageViewer] = useState<{
     stepId: string;
     imageUrl: string;
@@ -1403,11 +1399,6 @@ export function RecipeManager() {
            return false;
          }
       }
-      if (activeSection === "rezepte") {
-        if (item.type !== "eigenproduktion") {
-          return false;
-        }
-      }
       if (filterType !== "all" && item.type !== filterType && activeSection !== "zutaten") {
         return false;
       }
@@ -2058,117 +2049,6 @@ export function RecipeManager() {
     proYieldWeightInput,
     selectedItem,
   ]);
-
-  // Dynamic Summation of all numeric fields
-  const dynamicSums = useMemo(() => {
-    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
-      return {};
-    }
-    
-    const rootItem: InventoryItem = {
-      ...selectedItem,
-      components: isEditingComponents ? editingComponents : selectedItem.components,
-    };
-
-    const sums: Record<string, number> = {};
-    const EXCLUDED_KEYS = new Set([
-      "id", "internalId", "packshotX", "packshotY", "packshotZoom", 
-      "targetPortions", "targetSalesPrice", "components", "deviceSettings",
-      "purchasePrice", "nutritionPerUnit", "standardPreparation", "preparationSteps"
-    ]);
-
-    function traverse(item: InventoryItem, multiplier: number, path: Set<string>) {
-        if (path.has(item.id)) return;
-        const newPath = new Set(path).add(item.id);
-        
-        // Sum fields for this item
-        for (const key in item) {
-            if (EXCLUDED_KEYS.has(key)) continue;
-            
-            const val = item[key as keyof InventoryItem];
-            if (typeof val === 'number') {
-                sums[key] = (sums[key] || 0) + val * multiplier;
-            } else if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
-                 for (const subKey in val) {
-                     const subVal = (val as any)[subKey];
-                     if (typeof subVal === 'number') {
-                         const compoundKey = `${key}.${subKey}`;
-                         sums[compoundKey] = (sums[compoundKey] || 0) + subVal * multiplier;
-                     }
-                 }
-            }
-        }
-
-        // Recurse into components
-        if (item.components) {
-            for (const comp of item.components) {
-                 if (!comp.itemId) continue;
-                 const child = itemsById.get(comp.itemId);
-                 if (!child) continue;
-                 
-                 const qty = Number(String(comp.quantity).replace(',', '.'));
-                 if (!Number.isFinite(qty)) continue;
-                 
-                 traverse(child, multiplier * qty, newPath);
-            }
-        }
-    }
-    
-    traverse(rootItem, 1, new Set());
-    
-    return sums;
-  }, [selectedItem, editingComponents, isEditingComponents, itemsById]);
-
-  // Resource Aggregation
-  const resourceSums = useMemo(() => {
-    if (!selectedItem || selectedItem.type !== "eigenproduktion") {
-      return null;
-    }
-
-    const sums = {
-      energyKwh: 0,
-      waterLiter: 0,
-      runtimeMin: 0
-    };
-    
-    function parseVal(str: string | undefined): number {
-        if (!str) return 0;
-        const match = str.match(/([\d.,]+)/);
-        if (!match) return 0;
-        return parseFloat(match[1].replace(',', '.'));
-    }
-
-    const rootItem: InventoryItem = {
-      ...selectedItem,
-      components: isEditingComponents ? editingComponents : selectedItem.components,
-    };
-    
-    function traverse(item: InventoryItem, path: Set<string>) {
-        if (path.has(item.id)) return;
-        const newPath = new Set(path).add(item.id);
-
-        if (item.deviceSettings) {
-            for (const ds of item.deviceSettings) {
-                sums.energyKwh += parseVal(ds.energy);
-                sums.waterLiter += parseVal(ds.water);
-                sums.runtimeMin += parseVal(ds.runtime);
-            }
-        }
-        
-        if (item.components) {
-            for (const comp of item.components) {
-                if (comp.itemId) {
-                    const child = itemsById.get(comp.itemId);
-                    if (child) traverse(child, newPath);
-                }
-            }
-        }
-    }
-    
-    traverse(rootItem, new Set());
-    
-    return sums;
-  }, [selectedItem, editingComponents, isEditingComponents, itemsById]);
 
   useEffect(() => {
     setSpecItem(null);
@@ -3019,63 +2899,6 @@ export function RecipeManager() {
       setError(message);
     } finally {
       setIsSaving(false);
-    }
-  }
-
-  async function handleStepImageUpload(e: React.ChangeEvent<HTMLInputElement>, stepId: string) {
-    const file = e.target.files?.[0];
-    if (!file || !selectedItem) return;
-
-    try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("itemId", selectedItem.id);
-        formData.append("filename", `step-${stepId}.jpg`);
-
-        const response = await fetch("/api/recipe-image-upload", {
-            method: "POST",
-            body: formData,
-        });
-
-        if (!response.ok) throw new Error("Upload failed");
-        
-        const data = await response.json();
-        const imageUrl = data.imageUrl;
-
-        // Update the step with the new image URL
-        const currentSteps = Array.isArray(selectedItem.preparationSteps) ? selectedItem.preparationSteps : [];
-        const newSteps = currentSteps.map(step => 
-            step.id === stepId ? { ...step, imageUrl } : step
-        );
-        
-        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
-        
-    } catch (error) {
-        console.error("Error uploading step image:", error);
-    }
-  }
-
-  async function handleStepImageDelete(stepId: string, imageUrl: string) {
-    if (!selectedItem) return;
-    try {
-        const response = await fetch("/api/recipe-image-upload", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ imageUrl }),
-        });
-
-        if (!response.ok) throw new Error("Delete failed");
-
-        // Update state to remove image URL
-        const currentSteps = Array.isArray(selectedItem.preparationSteps) ? selectedItem.preparationSteps : [];
-        const newSteps = currentSteps.map(step => 
-            step.id === stepId ? { ...step, imageUrl: null } : step
-        );
-        
-        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
-
-    } catch (error) {
-        console.error("Error deleting step image:", error);
     }
   }
 
@@ -4266,7 +4089,7 @@ export function RecipeManager() {
 
   return (
     <div className="flex flex-1 overflow-hidden bg-[#F6F7F5] text-[#1F2326]">
-      {(activeSection === "zutaten" || activeSection === "rezepte") && (
+      {activeSection === "zutaten" && (
         <aside className="flex w-[280px] shrink-0 flex-col border-r border-[#6B7176] bg-[#1F2326]">
           <div className="flex flex-col gap-3 border-b border-[#6B7176] p-4">
             <div className="relative">
@@ -4278,28 +4101,26 @@ export function RecipeManager() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            {activeSection === "zutaten" && (
-              <div className="flex flex-wrap gap-1">
-                <Badge
-                  variant="outline"
-                  className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
-                >
-                  Trockenlager
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
-                >
-                  Kühlung
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
-                >
-                  Obst/Gemüse
-                </Badge>
-              </div>
-            )}
+            <div className="flex flex-wrap gap-1">
+              <Badge
+                variant="outline"
+                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
+              >
+                Trockenlager
+              </Badge>
+              <Badge
+                variant="outline"
+                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
+              >
+                Kühlung
+              </Badge>
+              <Badge
+                variant="outline"
+                className="h-5 cursor-pointer border-[#6B7176] px-2 text-[10px] text-white hover:bg-white/10"
+              >
+                Obst/Gemüse
+              </Badge>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             <div className="flex flex-col">
@@ -4309,23 +4130,15 @@ export function RecipeManager() {
                 </div>
               )}
               <Accordion className="w-full">
-                {(activeSection === "rezepte" 
-                  ? ["Vorspeise", "Hauptgang", "Dessert", "Unkategorisiert"] 
-                  : ["Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe", "Unkategorisiert"]
-                ).map((group) => {
-                  const groupItems = filteredItems.filter((item) => {
-                    if (activeSection === "rezepte") {
-                       return group === "Unkategorisiert" 
-                         ? !item.category || !["Vorspeise", "Hauptgang", "Dessert"].includes(item.category)
-                         : item.category === group;
-                    }
-                    return group === "Unkategorisiert"
+                {["Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe", "Unkategorisiert"].map((group) => {
+                  const groupItems = filteredItems.filter((item) =>
+                    group === "Unkategorisiert"
                       ? !item.warengruppe ||
                         !["Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke", "Zusatz- & Hilfsstoffe"].includes(
                           item.warengruppe
                         )
-                      : item.warengruppe === group;
-                  });
+                      : item.warengruppe === group
+                  );
                   
                   // Sort items alphabetically within the group
                   groupItems.sort((a, b) => a.name.localeCompare(b.name));
@@ -4453,14 +4266,12 @@ export function RecipeManager() {
             </Card>
           )}
 
-          {(activeSection === "zutaten" || activeSection === "rezepte") ? (
+          {activeSection === "zutaten" ? (
             <div className="flex h-full flex-col gap-4 overflow-hidden bg-[#F6F7F5] p-6">
               <div className="grid flex-1 min-h-0 grid-cols-[280px_1fr] grid-rows-[minmax(0,1fr)] gap-4">
                 <Card className="flex h-full flex-col overflow-hidden border-none bg-white shadow-sm">
                   <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
-                    <CardTitle className="text-base text-[#1F2326]">
-                      {activeSection === "rezepte" ? "Rezept-Import" : "Artikel-Import"}
-                    </CardTitle>
+                    <CardTitle className="text-base text-[#1F2326]">Artikel-Import</CardTitle>
 
                   </CardHeader>
                   <CardContent className="flex-1 overflow-y-auto p-0">
@@ -4474,15 +4285,15 @@ export function RecipeManager() {
                           try {
                             setIsSaving(true);
                             setError(null);
-                            const isRecipe = activeSection === "rezepte";
+                            const isRecipe = false;
                             const response = await fetch("/api/inventory", {
                               method: "POST",
                               headers: {
                                 "Content-Type": "application/json",
                               },
                               body: JSON.stringify({
-                                name: isRecipe ? "Neues Rezept" : "Neuer Artikel",
-                                type: isRecipe ? "eigenproduktion" : "zukauf",
+                                name: "Neuer Artikel",
+                                type: "zukauf",
                                 unit: "Stück",
                                 purchasePrice: 0,
                                 components: [],
@@ -4511,7 +4322,7 @@ export function RecipeManager() {
                           }
                         }}
                       >
-                        {isSaving ? "Erstelle..." : activeSection === "rezepte" ? "Neues Rezept anlegen" : "Neuen Artikel anlegen"}
+                        {isSaving ? "Erstelle..." : "Neuen Artikel anlegen"}
                       </Button>
                     </div>
                     <div className="space-y-2 rounded-md border border-[#E5E7EB] bg-[#F6F7F5]/50 p-3 text-xs">
@@ -4595,7 +4406,7 @@ export function RecipeManager() {
                 <Card className="flex h-full flex-col overflow-hidden border-none bg-white shadow-sm">
                    <CardHeader className="flex flex-row items-center justify-between gap-2 border-b border-[#E5E7EB] px-4 py-3">
                       <div className="flex items-center gap-2">
-                         <CardTitle className="text-base text-[#1F2326]">{activeSection === "rezepte" ? "Rezept-Karte" : "Stammdaten"}</CardTitle>
+                         <CardTitle className="text-base text-[#1F2326]">Stammdaten</CardTitle>
                       </div>
 
                    </CardHeader>
@@ -4792,35 +4603,20 @@ export function RecipeManager() {
                                 </div>
                             </div>
                             <div className="grid gap-4">
-                               <div className="flex gap-4">
-                                 <div className="grid gap-2 flex-1">
-                                    <label className="text-xs font-medium text-[#1F2326]">Artikelbezeichnung</label>
-                                    <Input 
-                                      value={selectedItem.name} 
-                                      className="border-[#E5E7EB] bg-white text-[#1F2326]"
-                                      onChange={(e) => {
-                                         const val = e.target.value;
-                                         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, name: val } : i));
-                                      }}
-                                    />
-                                 </div>
-                                 <div className="grid gap-2 w-32">
-                                    <label className="text-xs font-medium text-[#1F2326]">
-                                      {activeSection === "rezepte" ? "Rezept-Nr." : "Int. A.Nr."}
-                                    </label>
-                                    <Input 
-                                      value={selectedItem.internalArticleNumber || ""} 
-                                      className="border-[#E5E7EB] bg-white text-[#1F2326]"
-                                      onChange={(e) => {
-                                         const val = e.target.value;
-                                         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, internalArticleNumber: val } : i));
-                                      }}
-                                    />
-                                 </div>
+                               <div className="grid gap-2">
+                                  <label className="text-xs font-medium text-[#1F2326]">Artikelbezeichnung</label>
+                                  <Input 
+                                    value={selectedItem.name} 
+                                    className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                    onChange={(e) => {
+                                       const val = e.target.value;
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, name: val } : i));
+                                    }}
+                                  />
                                </div>
                                <div className="grid grid-cols-3 gap-4">
                                 <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">{activeSection === "rezepte" ? "Autor / Quelle" : "Marke (Brand)"}</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">Marke (Brand)</label>
                                   <Input 
                                     value={selectedItem.brand || ""} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -4832,7 +4628,7 @@ export function RecipeManager() {
                                   />
                                 </div>
                                 <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">{activeSection === "rezepte" ? "Internet-Link" : "Hersteller-Artikelnummer"}</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">Hersteller-Artikelnummer</label>
                                   <Input 
                                     value={selectedItem.manufacturerArticleNumber || ""} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -4844,7 +4640,7 @@ export function RecipeManager() {
                                   />
                                 </div>
                                 <div className="grid gap-2">
-                                  <label className="text-xs font-medium text-[#1F2326]">{activeSection === "rezepte" ? "Portionen im Durchschnitt" : "EAN (GTIN)"}</label>
+                                  <label className="text-xs font-medium text-[#1F2326]">EAN (GTIN)</label>
                                   <Input 
                                     value={selectedItem.ean || ""} 
                                     className="border-[#E5E7EB] bg-white text-[#1F2326]"
@@ -4858,7 +4654,7 @@ export function RecipeManager() {
                               </div>
                                
                                <div className="grid gap-2">
-                                <label className="text-xs font-medium text-[#1F2326]">{activeSection === "rezepte" ? "Kategorien" : "Warengruppe (kulinarisch)"}</label>
+                                <label className="text-xs font-medium text-[#1F2326]">Warengruppe (kulinarisch)</label>
                                 <select
                                   value={selectedItem.warengruppe || ""}
                                   onChange={(e) => {
@@ -5010,200 +4806,17 @@ export function RecipeManager() {
                                  </div>
                                </div>
 
-                               {/* Hinweise aus Zutaten */}
-                               {(() => {
-                                  const componentHints: { itemName: string; hint: string }[] = [];
-                                  const comps = isEditingComponents ? editingComponents : (selectedItem.components || []);
-                                  
-                                  comps.forEach(comp => {
-                                    if (!comp.itemId) return;
-                                    const item = itemsById.get(comp.itemId);
-                                    if (item && item.preparationSteps) {
-                                      let hint = "";
-                                      if (typeof item.preparationSteps === 'string') {
-                                        hint = item.preparationSteps;
-                                      } else if (Array.isArray(item.preparationSteps) && item.preparationSteps.length > 0) {
-                                        hint = item.preparationSteps.map(s => s.text).join("\n");
-                                      }
-                                      
-                                      if (hint) {
-                                        componentHints.push({ itemName: item.name, hint });
-                                      }
-                                    }
-                                  });
-
-                                  if (componentHints.length === 0) return null;
-
-                                  return (
-                                    <div className="mb-4 space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-                                      <h4 className="flex items-center gap-2 text-xs font-semibold text-amber-800">
-                                        <Sparkles className="h-3 w-3" /> Hinweise aus Zutaten
-                                      </h4>
-                                      <div className="space-y-2">
-                                        {componentHints.map((hint, idx) => (
-                                          <div key={idx} className="text-[11px] text-amber-900">
-                                            <span className="font-medium">{hint.itemName}:</span> {hint.hint}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
-
                                <div className="grid gap-2">
-                                  <div className="flex items-center justify-between">
-                                    <label className="text-xs font-medium text-[#1F2326]">Zubereitung</label>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 text-[10px] text-primary hover:text-primary/80"
-                                      onClick={() => {
-                                        const currentSteps = Array.isArray(selectedItem.preparationSteps) ? selectedItem.preparationSteps : [];
-                                        const newStep: PreparationStep = {
-                                          id: crypto.randomUUID(),
-                                          text: "",
-                                          duration: ""
-                                        };
-                                        const newSteps = [...currentSteps, newStep];
-                                        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
-                                      }}
-                                    >
-                                      <Plus className="mr-1 h-3 w-3" /> Schritt hinzufügen
-                                    </Button>
-                                  </div>
-                                  
-                                  {typeof selectedItem.preparationSteps === 'string' ? (
-                                    <div className="space-y-2">
-                                       <Textarea
-                                          value={selectedItem.preparationSteps}
-                                          className="min-h-[80px] text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
-                                          placeholder="Zubereitungsschritte hier eingeben..."
-                                          onChange={(e) => {
-                                             const val = e.target.value;
-                                             setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: val } : i));
-                                          }}
-                                       />
-                                       <Button 
-                                          type="button" 
-                                          variant="link" 
-                                          size="sm" 
-                                          className="h-auto p-0 text-[10px] text-muted-foreground"
-                                          onClick={() => {
-                                             // Convert string to first step
-                                             const text = selectedItem.preparationSteps as string;
-                                             if (text && text.trim().length > 0) {
-                                                const newStep: PreparationStep = {
-                                                   id: crypto.randomUUID(),
-                                                   text: text,
-                                                };
-                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: [newStep] } : i));
-                                             } else {
-                                                setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: [] } : i));
-                                             }
-                                          }}
-                                       >
-                                          In Schritte umwandeln
-                                       </Button>
-                                    </div>
-                                  ) : (
-                                    <div className="space-y-3">
-                                       {(!selectedItem.preparationSteps || selectedItem.preparationSteps.length === 0) && (
-                                          <div className="rounded-md border border-dashed p-4 text-center text-[11px] text-muted-foreground">
-                                             Keine Zubereitungsschritte. Klicke auf "Schritt hinzufügen".
-                                          </div>
-                                       )}
-                                       {(selectedItem.preparationSteps || []).map((step, index) => (
-                                          <div key={step.id || index} className="group relative grid gap-2 rounded-md border bg-white p-3">
-                                             <div className="flex items-start gap-2">
-                                                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
-                                                   {index + 1}
-                                                </div>
-                                                <div className="grid flex-1 gap-2">
-                                                   <Textarea
-                                                      value={step.text}
-                                                      className="min-h-[60px] resize-none border-0 p-0 text-xs shadow-none focus-visible:ring-0"
-                                                      placeholder={`Schritt ${index + 1} beschreiben...`}
-                                                      onChange={(e) => {
-                                                         const newSteps = [...(selectedItem.preparationSteps as PreparationStep[])];
-                                                         newSteps[index] = { ...step, text: e.target.value };
-                                                         setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
-                                                      }}
-                                                   />
-                                                   <div className="flex items-center gap-2">
-                                                      <Input
-                                                         value={step.duration || ''}
-                                                         placeholder="Dauer (z.B. 10 Min)"
-                                                         className="h-6 w-32 text-[10px]"
-                                                         onChange={(e) => {
-                                                            const newSteps = [...(selectedItem.preparationSteps as PreparationStep[])];
-                                                            newSteps[index] = { ...step, duration: e.target.value };
-                                                            setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
-                                                         }}
-                                                      />
-                                                      {/* Image Upload */}
-                                                      <input
-                                                          type="file"
-                                                          ref={(el) => { stepFileInputRefs.current[step.id] = el; }}
-                                                          className="hidden"
-                                                          accept="image/*"
-                                                          onChange={(e) => handleStepImageUpload(e, step.id)}
-                                                      />
-                                                      <Button 
-                                                          type="button" 
-                                                          variant={step.imageUrl ? "default" : "ghost"} 
-                                                          size="sm" 
-                                                          className={`h-6 text-[10px] ${step.imageUrl ? "bg-green-100 text-green-800 hover:bg-green-200" : "text-muted-foreground hover:text-foreground"}`}
-                                                          onClick={() => stepFileInputRefs.current[step.id]?.click()}
-                                                      >
-                                                          <ImageIcon className="mr-1 h-3 w-3" /> {step.imageUrl ? "Bild ändern" : "Bild"}
-                                                      </Button>
-                                                      {step.imageUrl && (
-                                                          <div className="relative h-6 w-6 overflow-hidden rounded border border-gray-200 group/image">
-                                                              <img src={step.imageUrl} alt="Schritt" className="h-full w-full object-cover" />
-                                                              <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/50 opacity-0 group-hover/image:opacity-100 transition-opacity">
-                                                                  <div 
-                                                                       className="cursor-pointer p-0.5 hover:text-white text-gray-200"
-                                                                       onClick={() => {
-                                                                           setPreviewImage(step.imageUrl || null);
-                                                                           setPreviewImageItemId(selectedItem.id);
-                                                                       }}
-                                                                       title="Vorschau"
-                                                                  >
-                                                                      <Eye className="h-3 w-3" />
-                                                                  </div>
-                                                                  <div 
-                                                                       className="cursor-pointer p-0.5 hover:text-red-400 text-gray-200"
-                                                                       onClick={(e) => {
-                                                                           e.stopPropagation();
-                                                                           if (step.imageUrl) handleStepImageDelete(step.id, step.imageUrl);
-                                                                       }}
-                                                                       title="Bild löschen"
-                                                                  >
-                                                                      <Trash2 className="h-3 w-3" />
-                                                                  </div>
-                                                              </div>
-                                                          </div>
-                                                      )}
-                                                   </div>
-                                                </div>
-                                                <Button
-                                                   type="button"
-                                                   variant="ghost"
-                                                   size="sm"
-                                                   className="h-6 w-6 p-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                                                   onClick={() => {
-                                                      const newSteps = (selectedItem.preparationSteps as PreparationStep[]).filter((_, i) => i !== index);
-                                                      setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
-                                                   }}
-                                                >
-                                                   <X className="h-3 w-3" />
-                                                </Button>
-                                             </div>
-                                          </div>
-                                       ))}
-                                    </div>
-                                  )}
+                                  <label className="text-xs font-medium text-[#1F2326]">Zubereitungsempfehlung</label>
+                                  <Textarea
+                                    value={typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps : ''}
+                                    className="min-h-[80px] text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
+                                    placeholder="Zubereitungsschritte hier eingeben..."
+                                    onChange={(e) => {
+                                       const val = e.target.value;
+                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: val } : i));
+                                    }}
+                                  />
                                 </div>
 
                                 {!showProductionPanel && (
@@ -5233,26 +4846,8 @@ export function RecipeManager() {
                                      </div>
                                      
                                      {isProductionAccordionOpen && (
-                                      <div className="p-3 bg-gray-50 space-y-3">
-                                         {/* Resource Aggregation Summary */}
-                                         {resourceSums && (resourceSums.energyKwh > 0 || resourceSums.waterLiter > 0 || resourceSums.runtimeMin > 0) && (
-                                            <div className="mb-3 grid grid-cols-3 gap-2 rounded-md bg-white border border-gray-200 p-2 text-xs shadow-sm">
-                                               <div className="flex flex-col items-center justify-center p-1">
-                                                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Energie</span>
-                                                  <span className="font-bold text-gray-700">{resourceSums.energyKwh.toFixed(2)} kWh</span>
-                                               </div>
-                                               <div className="flex flex-col items-center justify-center p-1 border-l border-gray-100">
-                                                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Wasser</span>
-                                                  <span className="font-bold text-gray-700">{resourceSums.waterLiter.toFixed(1)} l</span>
-                                               </div>
-                                               <div className="flex flex-col items-center justify-center p-1 border-l border-gray-100">
-                                                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Zeit</span>
-                                                  <span className="font-bold text-gray-700">{resourceSums.runtimeMin.toFixed(0)} Min</span>
-                                               </div>
-                                            </div>
-                                         )}
-
-                                         <div className="flex justify-end">
+                                       <div className="p-3 bg-gray-50 space-y-3">
+                                          <div className="flex justify-end">
                                              <Button 
                                                 type="button" 
                                                 variant="outline" 
@@ -5985,10 +5580,42 @@ export function RecipeManager() {
               <Card className="flex flex-col" key={activeSection}>
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
-                    <CardTitle>Rezept-Import</CardTitle>
+                    <CardTitle>Artikel-Import</CardTitle>
                   </div>
 
-
+                {activeSection === "rezepte" && (
+                  <div className="inline-flex rounded-md border bg-muted/40 p-1 text-[11px]">
+                    <Button
+                      type="button"
+                      variant={recipeViewMode === "list" ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setRecipeViewMode("list")}
+                    >
+                      List View
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={recipeViewMode === "grid" ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setRecipeViewMode("grid")}
+                    >
+                      Grid View
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={
+                        recipeViewMode === "detailed" ? "default" : "outline"
+                      }
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={() => setRecipeViewMode("detailed")}
+                    >
+                      Detailed List
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
                 {error && (
@@ -6216,7 +5843,7 @@ export function RecipeManager() {
                   </div>
                 </form>
                 <div className="flex gap-3">
-                  {(activeSection as string) === "rezepte" && (
+                  {activeSection === "rezepte" && (
                     <div
                       className={cn(
                         "w-52 shrink-0 rounded-md border bg-card/80 p-3 text-[11px] transition-all",
@@ -7628,21 +7255,6 @@ export function RecipeManager() {
                             </div>
                           </div>
                           <div className="grid gap-1 text-[11px] md:grid-cols-2">
-                            {/* Dynamic Sums Display */}
-                            {Object.entries(dynamicSums).length > 0 && (
-                               <div className="col-span-2 mb-2 pb-2 border-b border-dashed border-gray-200">
-                                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Dynamische Summen (aus Zutaten)</div>
-                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                                    {Object.entries(dynamicSums).map(([key, value]) => (
-                                      <div key={key} className="flex justify-between gap-2">
-                                         <span className="text-muted-foreground capitalize truncate" title={key}>{key.replace(/_/g, ' ')}</span>
-                                         <span className="font-medium whitespace-nowrap">{typeof value === 'number' ? value.toFixed(2) : value}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                               </div>
-                            )}
-
                             <div className="flex justify-between gap-2">
                               <span className="text-muted-foreground">
                                 Gesamtkosten Rezept

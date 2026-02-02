@@ -5,7 +5,6 @@ type InventoryComponent = {
   itemId: string | null;
   quantity: number;
   unit: string;
-  customName?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -49,7 +48,6 @@ export async function POST(request: Request) {
         component_item_id: component.itemId,
         quantity: component.quantity,
         unit: component.unit,
-        custom_name: component.customName,
       }))
     )
     .select("*");
@@ -65,7 +63,6 @@ export async function POST(request: Request) {
     itemId: row.component_item_id as string | null,
     quantity: row.quantity as number,
     unit: row.unit as string,
-    customName: row.custom_name as string | null,
   }));
 
   return NextResponse.json<InventoryComponent[]>(saved);

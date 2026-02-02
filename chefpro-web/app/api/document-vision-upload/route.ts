@@ -14,7 +14,6 @@ type VisionNutritionPer100 = {
   sodium?: number;
   bread_units?: number;
   cholesterol?: number;
-  co2?: number;
 };
 
 type VisionExtracted = {
@@ -26,10 +25,10 @@ type VisionExtracted = {
   ingredients?: string | null;
   dosage_instructions?: string | null;
   yield_info?: string | null;
+  yield_volume?: string | null;
   preparation_steps?: string | null;
   nutrition_per_100?: VisionNutritionPer100 | null;
   manufacturer_article_number?: string | null;
-  ean?: string | null;
   is_bio?: boolean;
   is_deklarationsfrei?: boolean;
   is_allergenfrei?: boolean;
@@ -41,15 +40,6 @@ type VisionExtracted = {
   is_gluten_free?: boolean;
   is_vegan?: boolean;
   is_vegetarian?: boolean;
-  is_fairtrade?: boolean;
-  is_powder?: boolean;
-  is_granulate?: boolean;
-  is_paste?: boolean;
-  is_liquid?: boolean;
-  warengruppe?: string | null;
-  storageArea?: string | null;
-  bio_control_number?: string | null;
-  debug_reasoning?: string;
   standard_preparation?: {
     components: {
       name: string;
@@ -69,7 +59,6 @@ type SupabaseItemRow = {
   purchase_price: number;
   brand: string | null;
   manufacturer_article_number: string | null;
-  ean: string | null;
   is_bio: boolean | null;
   is_deklarationsfrei: boolean | null;
   is_allergenfrei: boolean | null;
@@ -79,16 +68,6 @@ type SupabaseItemRow = {
   is_yeast_free: boolean | null;
   is_lactose_free: boolean | null;
   is_gluten_free: boolean | null;
-  is_vegan: boolean | null;
-  is_vegetarian: boolean | null;
-  is_fairtrade: boolean | null;
-  is_powder: boolean | null;
-  is_granulate: boolean | null;
-  is_paste: boolean | null;
-  is_liquid: boolean | null;
-  warengruppe: string | null;
-  storage_area: string | null;
-  bio_control_number: string | null;
   file_url: string | null;
   image_url: string | null;
   nutrition_per_unit: {
@@ -147,186 +126,78 @@ export async function POST(request: Request) {
 
   try {
     const formData = await request.formData();
-    const existingImageUrl = formData.get("existing_image_url");
-    const analyzeOnly = formData.get("analyze_only") === "true";
-    let file = formData.get("file");
+    const file = formData.get("file");
 
-    let publicUrl = "";
-    let originalName = "upload";
-    let isImage = false;
-    let isPdf = false;
-    let fileBuffer: Buffer | null = null;
-    let promptInputText: string | null = null;
-    let useImage: boolean = false;
-    let visionImageUrl: string | null = null;
-
-    if (existingImageUrl && typeof existingImageUrl === "string") {
-      publicUrl = existingImageUrl;
-      
-      // Safe URL parsing to handle query parameters and extraction
-      try {
-          const urlObj = new URL(publicUrl);
-          const pathname = urlObj.pathname;
-          originalName = pathname.split("/").pop() ?? "existing_file";
-          
-          isImage = true; // Default assumption
-          if (pathname.toLowerCase().endsWith(".pdf")) {
-             isImage = false;
-             isPdf = true;
-          }
-      } catch (e) {
-          console.error("Invalid URL in Re-Scan:", publicUrl, e);
-          // Fallback simple check if URL parsing fails
-          originalName = publicUrl.split("/").pop()?.split('?')[0] ?? "existing_file";
-          if (publicUrl.toLowerCase().includes(".pdf")) {
-              isImage = false;
-              isPdf = true;
-          }
-      }
-
-      if (isPdf) {
-         // For existing PDFs, we need to fetch content to extract text
-         try {
-            console.log(`Re-Scan: Fetching PDF content from ${publicUrl}`);
-            const response = await fetch(publicUrl);
-            if (!response.ok) {
-                throw new Error(`Fetch failed with status ${response.status} ${response.statusText}`);
-            }
-            const arrayBuffer = await response.arrayBuffer();
-            fileBuffer = Buffer.from(arrayBuffer);
-            console.log(`Re-Scan: PDF fetched successfully, size: ${fileBuffer.length}`);
-         } catch (e) {
-            console.error("Failed to fetch existing PDF for re-scan:", e);
-            return NextResponse.json(
-                {
-                    error: "Fehler beim Laden des PDF-Dokuments für den Re-Scan. Bitte prüfen Sie die Internetverbindung oder laden Sie das Dokument erneut hoch.",
-                    details: String(e),
-                    fileUrl: publicUrl,
-                },
-                { status: 500 }
-            );
-         }
-      } else if (isImage) {
-          // For existing Images, we fetch content and convert to base64 to ensure OpenAI can access it reliably
-          try {
-              console.log(`Re-Scan: Fetching Image content from ${publicUrl}`);
-              const response = await fetch(publicUrl);
-              if (!response.ok) {
-                  throw new Error(`Fetch failed with status ${response.status} ${response.statusText}`);
-              }
-              const arrayBuffer = await response.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
-              const base64 = buffer.toString("base64");
-              const contentType = response.headers.get("content-type") || "image/jpeg";
-              
-              visionImageUrl = `data:${contentType};base64,${base64}`;
-              useImage = true;
-              console.log(`Re-Scan: Image fetched and converted to base64 successfully`);
-          } catch (e) {
-              console.error("Failed to fetch existing Image for re-scan:", e);
-              // Fallback: Try with URL if fetch fails, but log error
-              visionImageUrl = publicUrl;
-              useImage = true;
-          }
-      }
-    } else {
-        if (!(file instanceof Blob)) {
-        return NextResponse.json(
-            { error: "Es wurde keine Datei hochgeladen." },
-            { status: 400 }
-        );
-        }
-
-        originalName =
-        typeof formData.get("filename") === "string"
-            ? (formData.get("filename") as string)
-            : "upload";
-
-        const extensionFromName = originalName.includes(".")
-        ? originalName.split(".").pop() ?? ""
-        : "";
-
-        const safeExtension =
-        extensionFromName ||
-        (file.type === "application/pdf"
-            ? "pdf"
-            : file.type.startsWith("image/")
-            ? "jpg"
-            : "bin");
-
-        const objectPath = `${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}.${safeExtension}`;
-
-        const arrayBuffer = await file.arrayBuffer();
-        fileBuffer = Buffer.from(arrayBuffer);
-
-        console.log(
-        `Starting upload to Supabase Storage. Bucket: ${STORAGE_BUCKET}, File: ${originalName}, Size: ${file.size}`
-        );
-
-        const uploadResult = await client.storage
-        .from(STORAGE_BUCKET)
-        .upload(objectPath, fileBuffer, {
-            contentType: file.type || "application/octet-stream",
-            upsert: false,
-        });
-
-        if (uploadResult.error) {
-        console.error("Supabase Storage Upload Error:", uploadResult.error);
-        const isHtmlError =
-            uploadResult.error.message.includes("<") ||
-            uploadResult.error.message.includes("Unexpected token");
-        
-        let errorMessage = uploadResult.error.message;
-        if (isHtmlError) {
-            errorMessage = "Der Storage-Server hat eine ungültige Antwort (HTML statt JSON) zurückgegeben. Möglicherweise ist die Datei zu groß oder der Service nicht erreichbar.";
-        }
-
-        return NextResponse.json(
-            {
-            error: `Fehler beim Upload in Supabase Storage: ${errorMessage}`,
-            },
-            { status: 500 }
-        );
-        }
-
-        const publicUrlResult = client.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(objectPath);
-
-        publicUrl = publicUrlResult.data.publicUrl;
-
-        isImage = file.type.startsWith("image/");
-        isPdf =
-        file.type === "application/pdf" ||
-        file.type === "application/x-pdf" ||
-        file.type.endsWith("+pdf");
+    if (!(file instanceof Blob)) {
+      return NextResponse.json(
+        { error: "Es wurde keine Datei hochgeladen." },
+        { status: 400 }
+      );
     }
+
+    const originalName =
+      typeof formData.get("filename") === "string"
+        ? (formData.get("filename") as string)
+        : "upload";
+
+    const extensionFromName = originalName.includes(".")
+      ? originalName.split(".").pop() ?? ""
+      : "";
+
+    const safeExtension =
+      extensionFromName ||
+      (file.type === "application/pdf"
+        ? "pdf"
+        : file.type.startsWith("image/")
+        ? "jpg"
+        : "bin");
+
+    const objectPath = `${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${safeExtension}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBuffer = Buffer.from(arrayBuffer);
+
+    const uploadResult = await client.storage
+      .from(STORAGE_BUCKET)
+      .upload(objectPath, fileBuffer, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (uploadResult.error) {
+      return NextResponse.json(
+        {
+          error: `Fehler beim Upload in Supabase Storage: ${uploadResult.error.message}`,
+        },
+        { status: 500 }
+      );
+    }
+
+    const publicUrlResult = client.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(objectPath);
+
+    const publicUrl = publicUrlResult.data.publicUrl;
+
+    const isImage = file.type.startsWith("image/");
+    const isPdf =
+      file.type === "application/pdf" ||
+      file.type === "application/x-pdf" ||
+      file.type.endsWith("+pdf");
 
     const imagePublicUrl = isImage ? publicUrl : null;
 
-    const visionFile = formData.get("vision_file");
-    if (visionFile && visionFile instanceof Blob) {
-      const arrayBuffer = await visionFile.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const base64 = buffer.toString("base64");
-      const mimeType = visionFile.type || "image/jpeg";
-      visionImageUrl = `data:${mimeType};base64,${base64}`;
-      useImage = true;
-    } else if (isImage) {
-      visionImageUrl = publicUrl;
-      useImage = true;
-    }
+    let promptInputText: string | null = null;
+    let useImage: boolean = false;
 
-    if (isPdf && fileBuffer) {
-      try {
-        const pdfData = await pdfParse(fileBuffer);
-        promptInputText = pdfData.text.slice(0, 15000);
-      } catch (error) {
-        console.error("Fehler beim Parsen der PDF-Datei:", error);
-      }
-    } else if (!isImage && !useImage) {
+    if (isImage) {
+      useImage = true;
+    } else if (isPdf) {
+      const pdfData = await pdfParse(fileBuffer);
+      promptInputText = pdfData.text.slice(0, 15000);
+    } else {
       return NextResponse.json(
         {
           error:
@@ -337,95 +208,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const mode = formData.get("mode");
-    const isRecipeMode = mode === "recipe";
+    const systemPrompt =
+      "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt mit den Feldern: name (string), brand (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), standard_preparation (object), yield_info (string), yield_volume (string), preparation_steps (string), nutrition_per_100 (object), manufacturer_article_number (string), is_bio (boolean), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean), is_vegan (boolean), is_vegetarian (boolean). nutrition_per_100 beschreibt die Nährwerte pro 100 g bzw. 100 ml und enthält die Felder: energy_kcal (number), fat (number), saturated_fat (number), carbs (number), sugar (number), protein (number), salt (number), fiber (number), sodium (number), bread_units (number), cholesterol (number). Die Währung ist immer EUR und muss nicht angegeben werden. purchase_price ist der Gesamt-Einkaufspreis für die auf dem Datenblatt ausgewiesene Gebindegröße. allergens enthält alle deklarierten Allergene als kurze Klartexteinträge. ingredients sind die Zutaten in der Reihenfolge der Deklaration. dosage_instructions beschreibt ausschließlich Mischverhältnisse, Basismengen und Dosierungen als Text (z.B. '100g auf 1l' oder '10%'). standard_preparation enthält strukturierte Dosierungsdaten in 'components' (Array). Jeder Eintrag in components hat: name (string), quantity (number), unit (string). Falls im Text 'Produkt', 'Basisprodukt' oder 'Basis' steht, ersetze dies durch den Artikelnamen oder 'Hauptartikel'. preparation_steps beschreibt die eigentliche Zubereitung und Kochanleitung, jedoch OHNE die reinen Mengenangaben. yield_info beschreibt Ausbeute oder Fertig-Gewicht, yield_volume beschreibt explizit das End-Volumen (z.B. ml, l). manufacturer_article_number ist die Hersteller-Artikelnummer des Herstellers (nicht die EAN/GTIN) und kann z.B. als „Art.-Nr.“ oder „Artikelnummer“ gekennzeichnet sein. brand ist der Markenname des Produkts (z.B. 'Knorr', 'Maggi', 'Lukull'). Falls ein Feld nicht im Dokument zu finden ist, setze es auf null (bei Zahlen) oder einen leeren String (bei Text). Setze boolean-Flags nur auf true, wenn es explizit im Text steht (z.B. 'Bio', 'Vegan', 'Hefefrei').";
 
-    let instructions = "";
-
-    if (isRecipeMode) {
-      instructions = 
-        "Du analysierst ein Rezept (aus einem Kochbuch, Handschrift oder Web-Ausdruck). Extrahiere die Daten strukturiert als JSON-Objekt.\n" +
-        "WICHTIG: Das Feld 'name' ist der Rezept-Name (z.B. 'Lasagne al Forno').\n" +
-        "\n" +
-        "ZUTATEN (standard_preparation.components):\n" +
-        "- Extrahiere ALLE Zutaten als Liste in `standard_preparation.components`.\n" +
-        "- Jede Zutat muss 'name', 'quantity' (Zahl) und 'unit' (Einheit) haben.\n" +
-        "- Wenn keine Menge angegeben ist, setze quantity=0 und unit=''.\n" +
-        "- Versuche, Zutaten sauber zu benennen (z.B. 'Rinderhackfleisch' statt 'Hack').\n" +
-        "\n" +
-        "ZUBEREITUNG (preparation_steps):\n" +
-        "- Extrahiere den kompletten Zubereitungstext in das Feld `preparation_steps` (als String).\n" +
-        "\n" +
-        "PORTIONEN (yield_info):\n" +
-        "- Suche nach Angaben wie 'für 4 Personen' oder 'ergibt 10 Stück' und schreibe dies in 'yield_info'.\n" +
-        "\n" +
-        "EXTRAS:\n" +
-        "- Falls Nährwerte pro Portion oder pro 100g angegeben sind, extrahiere sie in `nutrition_per_100` (auch wenn es pro Portion ist, nutze dieses Feld, wir mappen es später).\n" +
-        "- Bestimme 'warengruppe' und 'storageArea' passend zum Hauptbestandteil des Rezepts (z.B. Hauptgang -> 'Trockensortiment' oder passendes).\n" +
-        "- Setze Boolean-Flags (is_vegan, is_vegetarian etc.) basierend auf den Zutaten.\n" +
-        "\n" +
-        "Das Ausgabeformat muss identisch zur Produktdatenblatt-Analyse sein (JSON), damit die API kompatibel bleibt.";
-    } else {
-      // Default: Product Data Sheet Analysis
-      instructions =
-        "Du analysierst Produktdatenblätter und extrahierst strukturierte Einkaufs- und Nährwertdaten für eine Küchen-Software. Antworte immer als JSON-Objekt. WICHTIG: Das Feld 'name' ist das allerwichtigste Feld. Es MUSS immer einen Wert enthalten (String).\n" +
-        "- Der Name soll exakt wie auf der Packung übernommen werden.\n" +
-        "- WICHTIG: Übernimm ALLE Namensbestandteile, inklusive 'Fairtrade', 'Bio', 'Vegan' oder Markenzusätze (z.B. 'Mousse au Chocolat FAIRTRADE'). Kürze den Namen NICHT ab.\n" +
-        "- VERBOTEN: Erfinde KEINE eigenen Namen. Beschreibe das Produkt NICHT (z.B. 'Schoko Dessert' statt 'Mousse au Chocolat'). Nutze NUR den Text, der auf der Packung steht.\n" +
-        "- Negativ-Beispiel: Aus 'Mousse au Chocolat FAIRTRADE' darf NICHT 'Fairtrade Schoko Dessert' werden. Es MUSS 'Mousse au Chocolat FAIRTRADE' bleiben.\n" +
-        "- Entferne jedoch rein physische Zustandsbeschreibungen wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit', es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens.\n" +
-        "\n" +
-        "WICHTIG für 'brand' (Marke):\n" +
-        "- Suche explizit nach Hersteller-Logos oder Markennamen (z.B. 'Vogeley', 'Knorr', 'Unilever').\n" +
-        "- Verwechsle diese NICHT mit anderen Marken. Wenn 'Vogeley' auf der Packung steht, ist das die Marke.\n" +
-        "\n" +
-        "WICHTIG für 'unit' (Menge/Gewicht):\n" +
-        "- Suche nach der Nettofüllmenge oder dem Abtropfgewicht (z.B. '2,4 kg', '1000 ml', '500 g').\n" +
-        "- Ignoriere Portionsangaben (z.B. '72g pro Portion') oder Nährwert-Referenzmengen (z.B. '100g').\n" +
-        "- Das Feld 'unit' muss die GESAMT-Menge der Verkaufseinheit enthalten.\n" +
-        "\n" +
-        "WICHTIG für 'standard_preparation' (Zubereitung):\n" +
-        "- Wenn die Zubereitung aus mehreren Komponenten besteht (z.B. '400g Pulver + 1l Milch'), MÜSSEN diese als separate Objekte im Array `standard_preparation.components` zurückgegeben werden.\n" +
-        "- WICHTIG: Verwende für die Hauptkomponente (das Produkt selbst) NICHT das Wort 'Produkt', sondern den Artikelnamen plus Aggregatzustand (z.B. 'Mousse au Chocolat Pulver' oder 'Suppenbasis Paste').\n" +
-        "- VERBOTEN: {name: 'Produkt', ...} -> KORREKT: {name: 'Mousse au Chocolat Pulver', ...}\n" +
-        "- Das Wort 'Produkt' ist als Komponenten-Name STRENGSTENS VERBOTEN. Nutze immer den spezifischen Namen.\n" +
-        "- WICHTIG: Suche explizit nach ALLEN weiteren Zutaten für die Zubereitung (z.B. Milch, Sahne, Wasser, Zucker) und füge diese als eigene Komponenten hinzu. Es dürfen keine Zutaten fehlen!\n" +
-        "- Beispiel: `[{name: 'Mousse au Chocolat Pulver', quantity: 400, unit: 'g'}, {name: 'Milch (1,5% Fett)', quantity: 1, unit: 'l'}]`.\n" +
-        "- Schreibe NICHT alles in ein Feld. Trenne die Zutaten sauber auf.\n" +
-        "\n" +
-        "Füge ein Feld 'debug_reasoning' (string) hinzu, in dem du zuerst beschreibst, welche visuellen Elemente, Logos, Siegel oder Text-Hinweise du gefunden hast.\n" +
-        "- Suche aggressiv nach dem Wort 'Fairtrade' oder dem Fairtrade-Logo. Wenn 'Fairtrade' im Namen oder auf dem Bild steht, MUSS 'is_fairtrade' true sein.\n" +
-        "- Begründe kurz deine Entscheidung für jedes Boolean-Flag.\n" +
-        "\n" +
-        "Kategorisierung (WICHTIG: Du MUSST zwingend einen Wert aus den Listen wählen. NULL ist VERBOTEN. Falls unsicher, nutze den Default 'Trockensortiment'/'Trockenwaren'):\n" +
-        "- 'warengruppe': Wähle exakt einen aus: ['Obst & Gemüse', 'Molkerei & Eier', 'Trockensortiment', 'Getränke', 'Zusatz- & Hilfsstoffe']. Wenn unsicher, nimm 'Trockensortiment'.\n" +
-        "- 'storageArea': Wähle exakt einen aus: ['Frischwaren', 'Kühlwaren', 'Tiefkühlwaren', 'Trockenwaren', 'Non Food']. Wenn unsicher, nimm 'Trockenwaren'.\n" +
-        "\n" +
-        "Bestimme auch den Aggregatzustand des Produkts (Pulver, Granulat, Paste, Flüssigkeit) anhand der Beschreibung und Bilder.\n" +
-        "\n" +
-        "WICHTIG für 'nutrition_per_100' (Nährwerte):\n" +
-        "- Extrahiere IMMER Nährwerte, wenn sie auf dem Bild oder im Text zu finden sind.\n" +
-        "- Suche nach einer Tabelle mit 'Nährwerte', 'Nutrition Facts' oder ähnlichem.\n" +
-        "- Wenn Werte pro 100g/ml angegeben sind, nutze diese.\n" +
-        "- Fülle das Objekt `nutrition_per_100` mit den Feldern: energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt.\n" +
-        "- Falls keine Nährwerte vorhanden sind, lasse das Feld `nutrition_per_100` null, aber erfinde keine Werte.\n" +
-        "\n" +
-        "Die erwarteten Felder sind: name (PFLICHT!), brand (string), unit (string), purchase_price (number), allergens (array of strings), ingredients (string), dosage_instructions (string), standard_preparation (object), yield_info (string), preparation_steps (string), nutrition_per_100 (object), manufacturer_article_number (string), ean (string), is_bio (boolean), bio_control_number (string), is_deklarationsfrei (boolean), is_allergenfrei (boolean), is_cook_chill (boolean), is_freeze_thaw_stable (boolean), is_palm_oil_free (boolean), is_yeast_free (boolean), is_lactose_free (boolean), is_gluten_free (boolean), is_vegan (boolean), is_vegetarian (boolean), is_fairtrade (boolean), is_powder (boolean), is_granulate (boolean), is_paste (boolean), is_liquid (boolean), warengruppe (string), storageArea (string).";
-    }
-
-    const userTextInstructions = isRecipeMode
-      ? "Analysiere dieses Rezept. Extrahiere Titel, Zutaten (als Komponenten-Liste mit Menge/Einheit), Zubereitungsschritte und Portionen. Achte auf Handschrift oder unstrukturierte Daten."
-      : "Analysiere dieses Produktdatenblatt. WICHTIG: Marke (brand) muss korrekt erkannt werden (z.B. Vogeley). Unit muss die Gesamtmenge sein (z.B. 2,4 kg), NICHT Portionsgröße. Standardzubereitung MUSS alle Komponenten enthalten (z.B. 400g Artikelname-Pulver UND 1l Milch als ZWEI separate Einträge). Gib die Felder debug_reasoning, name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, preparation_steps, nutrition_per_100, manufacturer_article_number, ean, warengruppe, storageArea, bio_control_number sowie alle boolean-Flags zurück. Achte besonders auf Logos (Bio, Vegan, Fairtrade). Wenn 'Fairtrade' im Text/Bild, setze is_fairtrade=true. Name EXAKT übernehmen.";
-
-
-    const userText = promptInputText
-      ? `${userTextInstructions}\n\nHier ist der extrahierte Text aus dem Dokument (nutze zusätzlich das Bild für Logos/Icons):\n${promptInputText}`
-      : userTextInstructions;
+    const userText =
+      promptInputText ??
+      "Analysiere dieses Produktdatenblatt und gib die Felder name, brand, unit, purchase_price, allergens, ingredients, dosage_instructions, standard_preparation, yield_info, yield_volume, preparation_steps, nutrition_per_100, manufacturer_article_number sowie alle boolean-Flags is_bio, is_deklarationsfrei, is_allergenfrei, is_cook_chill, is_freeze_thaw_stable, is_palm_oil_free, is_yeast_free, is_lactose_free, is_gluten_free, is_vegan, is_vegetarian zurück. nutrition_per_100 sind die Nährwerte pro 100 g bzw. 100 ml mit energy_kcal, fat, saturated_fat, carbs, sugar, protein, salt, fiber, sodium, bread_units, cholesterol.";
 
     const messages = [
       {
         role: "system" as const,
-        content: instructions,
+        content: systemPrompt,
       },
       {
         role: "user" as const,
@@ -438,7 +231,7 @@ export async function POST(request: Request) {
               {
                 type: "image_url" as const,
                 image_url: {
-                  url: visionImageUrl ?? publicUrl,
+                  url: publicUrl,
                 },
               },
             ]
@@ -455,7 +248,7 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o",
+          model: "gpt-4o-mini",
           response_format: { type: "json_object" },
           messages,
         }),
@@ -501,48 +294,33 @@ export async function POST(request: Request) {
 
     let parsed: VisionExtracted;
 
-    // Clean content from markdown code blocks if present (sometimes happens despite JSON mode)
-    const cleanContent = content.trim().replace(/^```json\s*/, "").replace(/^```\s*/, "").replace(/\s*```$/, "");
-
     try {
-      parsed = JSON.parse(cleanContent) as VisionExtracted;
-    } catch (e) {
-      console.error("JSON Parse Error:", e);
+      parsed = JSON.parse(content) as VisionExtracted;
+    } catch {
       return NextResponse.json(
         {
-          error: "Antwort von OpenAI Vision konnte nicht als JSON gelesen werden.",
-          details: String(e),
-          contentPreview: content.substring(0, 100),
+          error:
+            "Antwort von OpenAI Vision konnte nicht als JSON gelesen werden.",
           fileUrl: publicUrl,
         },
         { status: 500 }
       );
     }
 
-    if (!parsed || typeof parsed !== "object") {
+    if (
+      !parsed.name ||
+      !parsed.unit ||
+      typeof parsed.purchase_price !== "number"
+    ) {
       return NextResponse.json(
         {
-          error: "Antwort von OpenAI Vision ist kein gültiges Objekt.",
-          fileUrl: publicUrl,
-        },
-        { status: 500 }
-      );
-    }
-
-    if (!parsed.name || typeof parsed.name !== "string" || parsed.name.trim() === "") {
-      return NextResponse.json(
-        {
-          error: "Antwort von OpenAI Vision ist unvollständig (Name fehlt).",
+          error: "Antwort von OpenAI Vision ist unvollständig.",
           raw: parsed,
           fileUrl: publicUrl,
         },
         { status: 500 }
       );
     }
-
-    // Defaults for missing fields
-    if (!parsed.unit) parsed.unit = "Stück";
-    if (typeof parsed.purchase_price !== "number") parsed.purchase_price = 0;
 
     const allergens =
       Array.isArray(parsed.allergens) && parsed.allergens.length > 0
@@ -555,11 +333,25 @@ export async function POST(request: Request) {
       typeof parsed.dosage_instructions === "string"
         ? parsed.dosage_instructions
         : null;
-    const yieldInfo = parsed.yield_info ?? null;
+    let yieldInfo: string | null =
+      typeof parsed.yield_info === "string" ? parsed.yield_info : null;
+    const yieldVolume =
+      typeof parsed.yield_volume === "string"
+        ? parsed.yield_volume
+        : null;
     const preparationSteps =
       typeof parsed.preparation_steps === "string"
         ? parsed.preparation_steps
         : null;
+
+    if (yieldVolume && yieldVolume.trim().length > 0) {
+      const base = yieldInfo && yieldInfo.trim().length > 0 ? yieldInfo : "";
+      if (base.length > 0) {
+        yieldInfo = `${base} | ${yieldVolume.trim()}`;
+      } else {
+        yieldInfo = yieldVolume.trim();
+      }
+    }
 
     const nutritionPerUnit =
       parsed.nutrition_per_100 && typeof parsed.nutrition_per_100 === "object"
@@ -572,7 +364,6 @@ export async function POST(request: Request) {
             sugar: Number(parsed.nutrition_per_100.sugar) || 0,
             protein: Number(parsed.nutrition_per_100.protein) || 0,
             salt: Number(parsed.nutrition_per_100.salt) || 0,
-            co2: Number(parsed.nutrition_per_100.co2) || 0,
           }
         : null;
 
@@ -608,68 +399,15 @@ export async function POST(request: Request) {
     const isVegan = typeof parsed.is_vegan === "boolean" ? parsed.is_vegan : false;
     const isVegetarian =
       typeof parsed.is_vegetarian === "boolean" ? parsed.is_vegetarian : false;
-    const isFairtrade = typeof parsed.is_fairtrade === "boolean" ? parsed.is_fairtrade : false;
-    const isPowder = typeof parsed.is_powder === "boolean" ? parsed.is_powder : false;
-    const isGranulate = typeof parsed.is_granulate === "boolean" ? parsed.is_granulate : false;
-    const isPaste = typeof parsed.is_paste === "boolean" ? parsed.is_paste : false;
-    const isLiquid = typeof parsed.is_liquid === "boolean" ? parsed.is_liquid : false;
 
     const manufacturerArticleNumber =
       typeof parsed.manufacturer_article_number === "string"
         ? parsed.manufacturer_article_number
         : null;
 
-    const ean =
-      typeof parsed.ean === "string"
-        ? parsed.ean
-        : null;
-
-    const extractedData = {
-      name: parsed.name,
-      brand: parsed.brand,
-      unit: parsed.unit,
-      purchase_price: parsed.purchase_price,
-      nutrition_per_100: parsed.nutrition_per_100,
-      allergens,
-      ingredients,
-      dosage_instructions: dosageInstructions,
-      standard_preparation: parsed.standard_preparation,
-      yield_info: yieldInfo,
-      preparation_steps: preparationSteps,
-      manufacturer_article_number: manufacturerArticleNumber,
-      ean: ean,
-      is_bio: isBio,
-      is_deklarationsfrei: isDeklarationsfrei,
-      is_allergenfrei: isAllergenfrei,
-      is_cook_chill: isCookChill,
-      is_freeze_thaw_stable: isFreezeThawStable,
-      is_palm_oil_free: isPalmOilFree,
-      is_yeast_free: isYeastFree,
-      is_lactose_free: isLactoseFree,
-      is_gluten_free: isGlutenFree,
-      is_vegan: isVegan,
-      is_vegetarian: isVegetarian,
-      is_fairtrade: isFairtrade,
-      is_powder: isPowder,
-      is_granulate: isGranulate,
-      is_paste: isPaste,
-      is_liquid: isLiquid,
-      bio_control_number: parsed.bio_control_number || null,
-      warengruppe: parsed.warengruppe || "Trockensortiment",
-      storageArea: parsed.storageArea || "Trockenwaren",
-      image_url: imagePublicUrl,
-      debug_reasoning: parsed.debug_reasoning,
-    };
-
-    if (analyzeOnly) {
-        return NextResponse.json({
-            item: null, // No new item created
-            extracted: extractedData,
-        });
-    }
-
-    const itemData: SupabaseItemRow = {
-        id: undefined as unknown as string, // Let DB generate ID
+    const insertItemResponse = await client
+      .from("items")
+      .insert({
         name: parsed.name,
         item_type: "zukauf",
         unit: parsed.unit,
@@ -678,11 +416,10 @@ export async function POST(request: Request) {
         allergens,
         ingredients,
         dosage_instructions: dosageInstructions,
-        standard_preparation: parsed.standard_preparation || null,
+        standard_preparation: parsed.standard_preparation,
         yield_info: yieldInfo,
         preparation_steps: preparationSteps,
         manufacturer_article_number: manufacturerArticleNumber,
-        ean: ean,
         is_bio: isBio,
         is_deklarationsfrei: isDeklarationsfrei,
         is_allergenfrei: isAllergenfrei,
@@ -694,26 +431,11 @@ export async function POST(request: Request) {
         is_gluten_free: isGlutenFree,
         is_vegan: isVegan,
         is_vegetarian: isVegetarian,
-        is_fairtrade: isFairtrade,
-        is_powder: isPowder,
-        is_granulate: isGranulate,
-        is_paste: isPaste,
-        is_liquid: isLiquid,
-        warengruppe: parsed.warengruppe || "Trockensortiment",
-        storage_area: parsed.storageArea || "Trockenwaren",
-        bio_control_number: parsed.bio_control_number || null,
-        file_url: publicUrl,
-        image_url: imagePublicUrl,
-        brand: parsed.brand || null,
-    };
-
-    // Remove id from object to let DB generate it
-    const { id, ...insertData } = itemData;
-
-    const insertItemResponse = await client
-      .from("items")
-      .insert(insertData)
-      .select("*")
+          file_url: publicUrl,
+          image_url: imagePublicUrl,
+          brand: parsed.brand || null,
+        })
+        .select("*")
       .single();
 
     if (insertItemResponse.error || !insertItemResponse.data) {
@@ -734,9 +456,8 @@ export async function POST(request: Request) {
             yield_info: yieldInfo,
             preparation_steps: preparationSteps,
             manufacturer_article_number: manufacturerArticleNumber,
+            yield_volume: yieldVolume,
             image_url: imagePublicUrl,
-            warengruppe: parsed.warengruppe || "Trockensortiment",
-            storageArea: parsed.storageArea || "Trockenwaren",
           },
         },
         { status: 500 }
@@ -755,7 +476,6 @@ export async function POST(request: Request) {
         brand: createdItemRow.brand,
         manufacturerArticleNumber:
           createdItemRow.manufacturer_article_number,
-        ean: createdItemRow.ean,
         isBio: createdItemRow.is_bio ?? false,
         isDeklarationsfrei: createdItemRow.is_deklarationsfrei ?? false,
         isAllergenfrei: createdItemRow.is_allergenfrei ?? false,
@@ -765,17 +485,8 @@ export async function POST(request: Request) {
         isYeastFree: createdItemRow.is_yeast_free ?? false,
         isLactoseFree: createdItemRow.is_lactose_free ?? false,
         isGlutenFree: createdItemRow.is_gluten_free ?? false,
-        isVegan: isVegan,
-        isVegetarian: isVegetarian,
-        isFairtrade: isFairtrade,
-        isPowder: createdItemRow.is_powder ?? false,
-        isGranulate: createdItemRow.is_granulate ?? false,
-        isPaste: createdItemRow.is_paste ?? false,
-        isLiquid: createdItemRow.is_liquid ?? false,
         fileUrl: createdItemRow.file_url,
         imageUrl: createdItemRow.image_url,
-        warengruppe: createdItemRow.warengruppe,
-        storageArea: createdItemRow.storage_area,
         nutritionPerUnit: createdItemRow.nutrition_per_unit,
       },
       extracted: {
@@ -791,7 +502,7 @@ export async function POST(request: Request) {
         yield_info: yieldInfo,
         preparation_steps: preparationSteps,
         manufacturer_article_number: manufacturerArticleNumber,
-        ean: ean,
+        yield_volume: yieldVolume,
         is_bio: isBio,
         is_deklarationsfrei: isDeklarationsfrei,
         is_allergenfrei: isAllergenfrei,
@@ -801,17 +512,7 @@ export async function POST(request: Request) {
         is_yeast_free: isYeastFree,
         is_lactose_free: isLactoseFree,
         is_gluten_free: isGlutenFree,
-        is_vegan: isVegan,
-        is_vegetarian: isVegetarian,
-        is_fairtrade: isFairtrade,
-        is_powder: isPowder,
-        is_granulate: isGranulate,
-        is_paste: isPaste,
-        is_liquid: isLiquid,
-        warengruppe: parsed.warengruppe || "Trockensortiment",
-        storageArea: parsed.storageArea || "Trockenwaren",
         image_url: imagePublicUrl,
-        debug_reasoning: parsed.debug_reasoning,
       },
       fileUrl: publicUrl,
     });

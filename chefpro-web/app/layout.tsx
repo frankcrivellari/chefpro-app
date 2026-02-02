@@ -29,16 +29,16 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <div className="flex h-screen w-full max-w-[100vw] overflow-hidden bg-gradient-to-b from-background to-muted">
-          <aside className="hidden w-52 shrink-0 flex-col border-r bg-[#4F8F4E] px-4 py-6 text-sm text-white md:flex">
+          <aside className="hidden w-52 shrink-0 flex-col border-r bg-background/90 px-4 py-6 text-sm text-foreground md:flex">
             {/* <div className="mb-6 px-2">
               <img src="/recetui-header-frei.png" alt="Recetui" className="h-8 w-auto object-contain" />
             </div> */}
             <SidebarNav />
           </aside>
           <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <header className="relative z-50 flex h-32 shrink-0 items-center justify-end border-b bg-[#F28C28] px-6">
-              <div className="absolute left-6 top-1/2 flex -translate-y-1/2 items-center gap-4">
-                <img src="/recetui-logo-header-frei.png" alt="Recetui" className="h-48 w-auto object-contain" />
+            <header className="flex h-32 shrink-0 items-center justify-between border-b bg-[#F28C28] px-6">
+              <div className="flex items-center gap-4">
+                <img src="/recetui-logo-header-frei.png" alt="Recetui" className="h-24 w-auto object-contain" />
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2 rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-card-foreground shadow-sm">

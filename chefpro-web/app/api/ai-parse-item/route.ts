@@ -46,8 +46,6 @@ type ParsedItem = {
   isGlutenFree?: boolean;
   isVegan?: boolean;
   isVegetarian?: boolean;
-  warengruppe?: string | null;
-  storageArea?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -95,7 +93,7 @@ Beispiel Input 2: "400 g Produkt, 1 l Milch"
 Beispiel Output standardPreparation: { "components": [ { "name": "Hauptartikel", "quantity": 400, "unit": "g" }, { "name": "Milch", "quantity": 1, "unit": "l" } ] }
 
 Extrahiere folgende Daten als JSON:
-- name: Name des Artikels (falls im Text erkennbar, sonst "Neuer Artikel"). WICHTIG: Das Feld 'name' muss die reine Artikelbezeichnung sein und darf KEINE Zusätze wie 'Pulver', 'Granulat', 'Paste' oder 'Flüssigkeit' enthalten, es sei denn, sie sind fester Bestandteil des offiziellen Produktnamens.
+- name: Name des Artikels (falls im Text erkennbar, sonst "Neuer Artikel")
 - brand: Marke/Hersteller des Artikels (falls erkennbar)
 - unit: Gewicht/Menge des Inhalts (z.B. "1kg", "500g", "400g Abtropfgewicht"). WICHTIG: Das Feld soll den Wert UND die Einheit enthalten (z.B. "500g"), nicht nur die Einheit. Priorisiere Netto- oder Abtropfgewicht.
 - quantity: Menge des Artikels (als Zahl, z.B. 1 für 1 Stück/Packung, oder das Gewicht als Zahl wenn 'unit' nur 'kg' ist. Wenn 'unit' z.B. '500g' ist, setze quantity auf 1).
@@ -105,10 +103,6 @@ Extrahiere folgende Daten als JSON:
 - nutritionPerUnit: { energyKcal, fat, saturatedFat, carbs, sugar, protein, salt, fiber (Ballaststoffe), sodium (Natrium), breadUnits (BE), cholesterol (Cholesterin) } (optional, Werte als numbers oder null wenn k.A.)
 - dosageInstructions: Dosieranweisungen als Text (optional, falls nicht als components parsbar)
 - Boolean Flags (true/false, default false): isBio, isDeklarationsfrei, isAllergenfrei, isCookChill, isFreezeThawStable, isPalmOilFree, isYeastFree (Hefefrei), isLactoseFree (Laktosefrei), isGlutenFree (Glutenfrei), isVegan, isVegetarian.
-- manufacturerArticleNumber: Hersteller-Artikelnummer (optional, als String)
-- ean: EAN-Nummer / GTIN (optional, als String)
-- warengruppe: "Obst & Gemüse", "Molkerei & Eier", "Trockensortiment", "Getränke" oder "Zusatz- & Hilfsstoffe" (optional, passende Kategorie wählen)
-- storageArea: "Frischwaren", "Kühlwaren", "Tiefkühlwaren", "Trockenwaren" oder "Non Food" (optional, passenden Lagerbereich wählen)
 
 Berechne 'calculated_price_per_unit' = purchase_price / quantity.
 Antworte NUR mit dem JSON-Objekt.
@@ -286,8 +280,6 @@ Antworte NUR mit dem JSON-Objekt.
       isVegan: !!parsedRaw.isVegan,
       isVegetarian: !!parsedRaw.isVegetarian,
       brand: parsedRaw.brand,
-      warengruppe: parsedRaw.warengruppe || null,
-      storageArea: parsedRaw.storageArea || null,
     };
 
     return NextResponse.json(normalized);
