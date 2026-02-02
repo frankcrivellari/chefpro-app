@@ -5790,6 +5790,90 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                             className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                           />
                         </div>
+
+                        {/* Standard-Zubereitung Panel */}
+                        <div className="space-y-2 pt-4 border-t border-border/50">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-medium text-[#1F2326]">Standard-Zubereitung (Basis)</label>
+                             <Button
+                               type="button"
+                               variant="ghost"
+                               size="sm"
+                               className="h-6 w-6 p-0"
+                               onClick={() => {
+                                 const currentPrep = selectedItem.standardPreparation || { components: [], text: "" };
+                                 const newComponents = [...(currentPrep.components || []), { name: "", quantity: 0, unit: "" }];
+                                 setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, components: newComponents } } : i));
+                               }}
+                             >
+                               <Plus className="h-3 w-3" />
+                             </Button>
+                           </div>
+                           
+                           {/* Text Instructions */}
+                           <Textarea
+                             placeholder="Zubereitungsanweisung..."
+                             className="min-h-[80px] text-xs resize-y"
+                             value={selectedItem.standardPreparation?.text || ""}
+                             onChange={(e) => {
+                               const currentPrep = selectedItem.standardPreparation || { components: [], text: "" };
+                               setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...currentPrep, text: e.target.value } } : i));
+                             }}
+                           />
+
+                           {/* Components List */}
+                           <div className="space-y-2">
+                             {(selectedItem.standardPreparation?.components || []).map((comp, idx) => (
+                               <div key={idx} className="flex gap-2 items-center">
+                                 <Input
+                                   className="h-7 w-16 px-2 text-xs"
+                                   placeholder="Menge"
+                                   type="number"
+                                   value={comp.quantity || ""}
+                                   onChange={(e) => {
+                                     const val = parseFloat(e.target.value);
+                                     const newComps = [...(selectedItem.standardPreparation?.components || [])];
+                                     newComps[idx] = { ...comp, quantity: isNaN(val) ? 0 : val };
+                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...i.standardPreparation, components: newComps } } : i));
+                                   }}
+                                 />
+                                 <Input
+                                   className="h-7 w-16 px-2 text-xs"
+                                   placeholder="Einheit"
+                                   value={comp.unit}
+                                   onChange={(e) => {
+                                     const newComps = [...(selectedItem.standardPreparation?.components || [])];
+                                     newComps[idx] = { ...comp, unit: e.target.value };
+                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...i.standardPreparation, components: newComps } } : i));
+                                   }}
+                                 />
+                                 <Input
+                                   className="h-7 flex-1 px-2 text-xs"
+                                   placeholder="Zutat"
+                                   value={comp.name}
+                                   onChange={(e) => {
+                                     const newComps = [...(selectedItem.standardPreparation?.components || [])];
+                                     newComps[idx] = { ...comp, name: e.target.value };
+                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...i.standardPreparation, components: newComps } } : i));
+                                   }}
+                                 />
+                                 <Button
+                                   type="button"
+                                   variant="ghost"
+                                   size="sm"
+                                   className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                   onClick={() => {
+                                     const newComps = (selectedItem.standardPreparation?.components || []).filter((_, i) => i !== idx);
+                                     setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, standardPreparation: { ...i.standardPreparation, components: newComps } } : i));
+                                   }}
+                                 >
+                                   <Trash2 className="h-3 w-3" />
+                                 </Button>
+                               </div>
+                             ))}
+                           </div>
+                        </div>
+
                         <div className="space-y-1 pt-2">
                           <div className="text-[11px] font-medium text-muted-foreground">
                             Nährwerte (pro 100g/ml)

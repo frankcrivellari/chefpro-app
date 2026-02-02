@@ -27,6 +27,7 @@ export default function RootLayout({
     <html lang="de">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        style={{ border: '10px solid blue' }}
       >
         <div className="flex h-screen w-full max-w-[100vw] overflow-hidden bg-gradient-to-b from-background to-muted">
           <aside className="hidden w-52 shrink-0 flex-col border-r bg-background/90 px-4 py-6 text-sm text-foreground md:flex">
