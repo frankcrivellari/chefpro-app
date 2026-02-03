@@ -2345,8 +2345,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
             step.videoUrl.trim().length > 0
               ? step.videoUrl.trim()
               : null,
-        }))
-        .filter((step) => step.text.trim().length > 0);
+        }));
       setPreparationStepsInput(steps);
       setEditingStepId(null);
     } else if (typeof source === "string" && source.length > 0) {
@@ -5056,12 +5055,262 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                       </div>
                                     ))}
                                     <button
-                                      onClick={handleAddPreparationStep}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        handleAddPreparationStep();
+                                      }}
                                       className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors mt-2"
                                     >
                                       <Plus className="h-3 w-3" />
                                       Schritt hinzufügen
                                     </button>
+                                  </div>
+
+                                  <div className="space-y-1 mt-6 pt-4 border-t border-border/50">
+                                    <div className="text-[11px] text-muted-foreground">
+                                      Allergene (kommagetrennt)
+                                    </div>
+                                    <textarea
+                                      rows={2}
+                                      value={proAllergensInput}
+                                      onChange={(event) => {
+                                        const val = event.target.value;
+                                        setProAllergensInput(val);
+                                        if (selectedItem) {
+                                          const allergensArray = val
+                                            .split(",")
+                                            .map((s) => s.trim())
+                                            .filter((s) => s.length > 0);
+                                          setItems((prev) =>
+                                            prev.map((i) =>
+                                              i.id === selectedItem.id
+                                                ? { ...i, allergens: allergensArray }
+                                                : i
+                                            )
+                                          );
+                                        }
+                                      }}
+                                      className="w-full rounded-md border border-input bg-background px-2 py-1 text-[11px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1 pt-2">
+                                    <div className="text-[11px] font-medium text-muted-foreground">
+                                      Nährwerte (pro 100g/ml)
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                                      <div className="space-y-0.5">
+                                        <label className="text-[10px] text-muted-foreground">
+                                          Energie (kcal)
+                                        </label>
+                                        <Input
+                                          type="text"
+                                          value={proEnergyKcalInput}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setProEnergyKcalInput(val);
+                                            if (selectedItem) {
+                                              setItems((prev) =>
+                                                prev.map((i) =>
+                                                  i.id === selectedItem.id
+                                                    ? {
+                                                        ...i,
+                                                        nutritionPerUnit: {
+                                                          ...(i.nutritionPerUnit || {}),
+                                                          energyKcal:
+                                                            parseFloat(val.replace(",", ".")) || null,
+                                                        } as NutritionTotals,
+                                                      }
+                                                    : i
+                                                )
+                                              );
+                                            }
+                                          }}
+                                          className="h-7 px-2 py-1 text-[11px]"
+                                        />
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <label className="text-[10px] text-muted-foreground">
+                                          Fett (g)
+                                        </label>
+                                        <Input
+                                          type="text"
+                                          value={proFatInput}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setProFatInput(val);
+                                            if (selectedItem) {
+                                              setItems((prev) =>
+                                                prev.map((i) =>
+                                                  i.id === selectedItem.id
+                                                    ? {
+                                                        ...i,
+                                                        nutritionPerUnit: {
+                                                          ...(i.nutritionPerUnit || {}),
+                                                          fat:
+                                                            parseFloat(val.replace(",", ".")) || null,
+                                                        } as NutritionTotals,
+                                                      }
+                                                    : i
+                                                )
+                                              );
+                                            }
+                                          }}
+                                          className="h-7 px-2 py-1 text-[11px]"
+                                        />
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <label className="text-[10px] text-muted-foreground">
+                                          Ges. Fettsäuren (g)
+                                        </label>
+                                        <Input
+                                          type="text"
+                                          value={proSaturatedFatInput}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setProSaturatedFatInput(val);
+                                            if (selectedItem) {
+                                              setItems((prev) =>
+                                                prev.map((i) =>
+                                                  i.id === selectedItem.id
+                                                    ? {
+                                                        ...i,
+                                                        nutritionPerUnit: {
+                                                          ...(i.nutritionPerUnit || {}),
+                                                          saturatedFat:
+                                                            parseFloat(val.replace(",", ".")) || null,
+                                                        } as NutritionTotals,
+                                                      }
+                                                    : i
+                                                )
+                                              );
+                                            }
+                                          }}
+                                          className="h-7 px-2 py-1 text-[11px]"
+                                        />
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <label className="text-[10px] text-muted-foreground">
+                                          Kohlenhydrate (g)
+                                        </label>
+                                        <Input
+                                          type="text"
+                                          value={proCarbsInput}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setProCarbsInput(val);
+                                            if (selectedItem) {
+                                              setItems((prev) =>
+                                                prev.map((i) =>
+                                                  i.id === selectedItem.id
+                                                    ? {
+                                                        ...i,
+                                                        nutritionPerUnit: {
+                                                          ...(i.nutritionPerUnit || {}),
+                                                          carbs:
+                                                            parseFloat(val.replace(",", ".")) || null,
+                                                        } as NutritionTotals,
+                                                      }
+                                                    : i
+                                                )
+                                              );
+                                            }
+                                          }}
+                                          className="h-7 px-2 py-1 text-[11px]"
+                                        />
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <label className="text-[10px] text-muted-foreground">
+                                          Zucker (g)
+                                        </label>
+                                        <Input
+                                          type="text"
+                                          value={proSugarInput}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setProSugarInput(val);
+                                            if (selectedItem) {
+                                              setItems((prev) =>
+                                                prev.map((i) =>
+                                                  i.id === selectedItem.id
+                                                    ? {
+                                                        ...i,
+                                                        nutritionPerUnit: {
+                                                          ...(i.nutritionPerUnit || {}),
+                                                          sugar:
+                                                            parseFloat(val.replace(",", ".")) || null,
+                                                        } as NutritionTotals,
+                                                      }
+                                                    : i
+                                                )
+                                              );
+                                            }
+                                          }}
+                                          className="h-7 px-2 py-1 text-[11px]"
+                                        />
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <label className="text-[10px] text-muted-foreground">
+                                          Eiweiß (g)
+                                        </label>
+                                        <Input
+                                          type="text"
+                                          value={proProteinInput}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setProProteinInput(val);
+                                            if (selectedItem) {
+                                              setItems((prev) =>
+                                                prev.map((i) =>
+                                                  i.id === selectedItem.id
+                                                    ? {
+                                                        ...i,
+                                                        nutritionPerUnit: {
+                                                          ...(i.nutritionPerUnit || {}),
+                                                          protein:
+                                                            parseFloat(val.replace(",", ".")) || null,
+                                                        } as NutritionTotals,
+                                                      }
+                                                    : i
+                                                )
+                                              );
+                                            }
+                                          }}
+                                          className="h-7 px-2 py-1 text-[11px]"
+                                        />
+                                      </div>
+                                      <div className="space-y-0.5">
+                                        <label className="text-[10px] text-muted-foreground">
+                                          Salz (g)
+                                        </label>
+                                        <Input
+                                          type="text"
+                                          value={proSaltInput}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setProSaltInput(val);
+                                            if (selectedItem) {
+                                              setItems((prev) =>
+                                                prev.map((i) =>
+                                                  i.id === selectedItem.id
+                                                    ? {
+                                                        ...i,
+                                                        nutritionPerUnit: {
+                                                          ...(i.nutritionPerUnit || {}),
+                                                          salt:
+                                                            parseFloat(val.replace(",", ".")) || null,
+                                                        } as NutritionTotals,
+                                                      }
+                                                    : i
+                                                )
+                                              );
+                                            }
+                                          }}
+                                          className="h-7 px-2 py-1 text-[11px]"
+                                        />
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               )}
