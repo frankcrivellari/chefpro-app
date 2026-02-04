@@ -185,11 +185,19 @@ export async function POST(request: Request) {
   };
 
   if (!body.id) {
+    console.error("❌ POST /api/item-details: ID fehlt im Body");
     return NextResponse.json(
       { error: "id ist erforderlich" },
       { status: 400 }
     );
   }
+
+  console.log("📝 POST /api/item-details empfangen:", {
+    id: body.id,
+    updates_count: Object.keys(body).length,
+    preparationSteps_length: body.preparationSteps?.length,
+    nutrition_per_unit: body.nutritionPerUnit
+  });
 
   const updates: {
     name?: string;
@@ -406,7 +414,8 @@ export async function POST(request: Request) {
     .select("*")
     .single();
 
-  if (updateResponse.error || !updateResponse.data) {
+  if (updateResponse.error) {
+    console.error("❌ Fehler beim Update in /api/item-details:", updateResponse.error);
     return NextResponse.json(
       {
         error:
@@ -416,6 +425,12 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+
+  console.log("✅ Update erfolgreich:", {
+    id: updateResponse.data.id,
+    preparation_steps_saved: !!updateResponse.data.preparation_steps,
+    nutrition_per_unit_saved: !!updateResponse.data.nutrition_per_unit
+  });
 
   const row = updateResponse.data as SupabaseItemRow;
 

@@ -3881,12 +3881,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
             }
           : null;
 
-      const response = await fetch("/api/item-details", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const payloadData = {
           id: selectedItem.id,
           name: nameValue,
           unit: selectedItem.unit,
@@ -3939,7 +3934,16 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
           packshotX: packshotPan.x,
           packshotY: packshotPan.y,
           packshotZoom: packshotZoom,
-        }),
+        };
+
+      console.log("SPEICHER-DATEN:", payloadData);
+
+      const response = await fetch("/api/item-details", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payloadData),
       });
       const payload = (await response.json()) as {
         error?: unknown;
