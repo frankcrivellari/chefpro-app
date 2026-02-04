@@ -5,6 +5,8 @@ type InventoryComponent = {
   itemId: string | null;
   quantity: number;
   unit: string;
+  subRecipeId?: string | null;
+  subRecipeName?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -48,6 +50,8 @@ export async function POST(request: Request) {
         component_item_id: component.itemId,
         quantity: component.quantity,
         unit: component.unit,
+        sub_recipe_id: component.subRecipeId || null,
+        sub_recipe_name: component.subRecipeName || null,
       }))
     )
     .select("*");
@@ -63,6 +67,8 @@ export async function POST(request: Request) {
     itemId: row.component_item_id as string | null,
     quantity: row.quantity as number,
     unit: row.unit as string,
+    subRecipeId: row.sub_recipe_id as string | null,
+    subRecipeName: row.sub_recipe_name as string | null,
   }));
 
   return NextResponse.json<InventoryComponent[]>(saved);

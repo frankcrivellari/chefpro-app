@@ -76,6 +76,8 @@ type SupabaseRecipeStructureRow = {
   quantity: number;
   unit: string;
   deleted_item_name: string | null;
+  sub_recipe_id?: string | null;
+  sub_recipe_name?: string | null;
 };
 
 type InventoryComponent = {
@@ -83,6 +85,8 @@ type InventoryComponent = {
   quantity: number;
   unit: string;
   deletedItemName?: string | null;
+  subRecipeId?: string | null;
+  subRecipeName?: string | null;
 };
 
 type InventoryItem = {
@@ -480,6 +484,8 @@ export async function POST(request: Request) {
       quantity: rel.quantity,
       unit: rel.unit,
       deletedItemName: rel.deleted_item_name,
+      subRecipeId: rel.sub_recipe_id,
+      subRecipeName: rel.sub_recipe_name,
     }));
 
     hasGhostComponents = relations.some(

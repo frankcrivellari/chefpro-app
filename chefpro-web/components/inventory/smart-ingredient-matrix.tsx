@@ -19,17 +19,14 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  Trash2,
   GripVertical,
   Plus,
-  Trash2,
-  Zap,
   Calculator,
-  AlertCircle,
+  Zap,
   Leaf,
-  Droplets,
-  Search,
   Check,
-  X,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +42,9 @@ export type InventoryComponent = {
   customName?: string | null;
   // Temporary ID for list management if itemId is null
   tempId?: string;
+  // Sub-recipe grouping
+  subRecipeId?: string | null;
+  subRecipeName?: string | null;
 };
 
 // We need a subset of InventoryItem for the dropdown and calculations
@@ -52,6 +52,7 @@ export type AvailableItem = {
   id: string;
   name: string;
   unit: string;
+  type?: string; // Added type
   purchasePrice: number;
   nutritionPerUnit?: Record<string, number | null> | null | any;
   isBio?: boolean;
@@ -63,6 +64,7 @@ interface SmartIngredientMatrixProps {
   availableItems: AvailableItem[];
   onUpdate: (components: InventoryComponent[]) => void;
   onQuickImport: (name: string) => void;
+  onExpandSubRecipe?: (index: number, recipeId: string) => void; // New prop
   readOnly?: boolean;
 }
 
@@ -73,6 +75,7 @@ interface SortableRowProps {
   onChange: (index: number, field: keyof InventoryComponent, value: any) => void;
   onRemove: (index: number) => void;
   onQuickImport: (name: string) => void;
+  onExpandSubRecipe?: (index: number, recipeId: string) => void; // New prop
   readOnly?: boolean;
 }
 
@@ -97,6 +100,7 @@ const SortableRow = ({
   onChange,
   onRemove,
   onQuickImport,
+  onExpandSubRecipe,
   readOnly,
 }: SortableRowProps) => {
   const {
@@ -153,6 +157,11 @@ const SortableRow = ({
   }, [availableItems, searchTerm]);
 
   const handleSelect = (item: AvailableItem) => {
+    if (item.type === "eigenproduktion" && onExpandSubRecipe) {
+      onExpandSubRecipe(index, item.id);
+      setSearchOpen(false);
+      return;
+    }
     onChange(index, "itemId", item.id);
     onChange(index, "customName", null);
     onChange(index, "unit", item.unit); // Auto-fill unit
@@ -180,6 +189,7 @@ const SortableRow = ({
 
   const isLinked = !!component.itemId;
   const hasCustomName = !!component.customName && !isLinked;
+  const isSubRecipe = !!component.subRecipeId;
 
   return (
     <div
@@ -187,7 +197,8 @@ const SortableRow = ({
       style={style}
       className={cn(
         "group flex items-center gap-2 rounded-md border bg-white p-2 shadow-sm transition-all hover:shadow-md",
-        isDragging && "opacity-50"
+        isDragging && "opacity-50",
+        isSubRecipe && "ml-6 border-l-4 border-[#6B7176] bg-gray-50/50"
       )}
     >
       {/* Drag Handle */}
@@ -297,6 +308,21 @@ const SortableRow = ({
               <Zap size={16} />
             </Button>
           )}
+          {/* Expand Sub-Recipe Button */}
+          {component.itemId &&
+            availableItems.find((i) => i.id === component.itemId)?.type ===
+              "eigenproduktion" &&
+            onExpandSubRecipe && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-blue-500 hover:bg-blue-50 hover:text-blue-600"
+                title="Rezept auflösen (als Unterrezept einfügen)"
+                onClick={() => onExpandSubRecipe(index, component.itemId!)}
+              >
+                <Layers size={16} />
+              </Button>
+            )}
           <Button
             variant="ghost"
             size="icon"
@@ -316,6 +342,7 @@ export function SmartIngredientMatrix({
   availableItems,
   onUpdate,
   onQuickImport,
+  onExpandSubRecipe,
   readOnly = false,
 }: SmartIngredientMatrixProps) {
   // ... (sensors, itemsWithIds, handleDragEnd, handleChange, handleRemove, handleAddRow remain same)
@@ -396,15 +423,8 @@ export function SmartIngredientMatrix({
 
   return (
     <div className="space-y-4">
-      {/* ... (Header and DndContext remain same) */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-700">Zutaten & Ressourcen</h3>
-        {!readOnly && (
-            <Button onClick={handleAddRow} size="sm" variant="outline" className="h-8 gap-2">
-            <Plus size={14} /> Zeile hinzufügen
-            </Button>
-        )}
-      </div>
+      {/* Header and DndContext remain same */}
+
 
       <div className="rounded-lg border bg-gray-50/50 p-4">
         {/* Header Row */}
@@ -436,6 +456,7 @@ export function SmartIngredientMatrix({
                   onChange={handleChange}
                   onRemove={handleRemove}
                   onQuickImport={onQuickImport}
+                  onExpandSubRecipe={onExpandSubRecipe}
                   readOnly={readOnly}
                 />
               ))}

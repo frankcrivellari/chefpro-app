@@ -86,6 +86,8 @@ type InventoryComponent = {
   deletedItemName?: string | null;
   customName?: string | null;
   tempId?: string;
+  subRecipeId?: string | null;
+  subRecipeName?: string | null;
 };
 
 type StandardPreparationComponent = {
@@ -2919,6 +2921,38 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
     }
   }
 
+  async function handleExpandSubRecipe(index: number, recipeId: string) {
+    const subItem = items.find((i) => i.id === recipeId);
+    if (!subItem || !subItem.components) {
+      return;
+    }
+
+    const componentInRow = (selectedItem?.components || [])[index];
+    if (!componentInRow) return;
+
+    // Determine scale: Quantity Used / (Target Portions || 1)
+    const qtyUsed = componentInRow.quantity;
+    const subYield = subItem.targetPortions || 1;
+    const scale = qtyUsed / subYield;
+
+    const newComponents = subItem.components.map((c) => ({
+      ...c,
+      quantity: c.quantity * scale,
+      subRecipeId: subItem.id,
+      subRecipeName: subItem.name,
+      tempId: `sub-${subItem.id}-${Date.now()}-${Math.random()}`,
+    }));
+
+    const currentComponents = [...(selectedItem?.components || [])];
+    currentComponents.splice(index, 1, ...newComponents);
+
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === selectedItem?.id ? { ...i, components: currentComponents } : i
+      )
+    );
+  }
+
   async function handleSaveComponents() {
     if (!selectedItem || selectedItem.type !== "eigenproduktion") {
       return;
@@ -2931,6 +2965,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
           String(component.quantity).toString().replace(",", ".")
         ),
         unit: component.unit.trim(),
+        subRecipeId: component.subRecipeId,
+        subRecipeName: component.subRecipeName,
       }))
       .filter(
         (component) =>
@@ -4720,7 +4756,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                         </div>
                       )}
                       {selectedItem ? (
-                         <div className="space-y-4">
+                         <div className="space-y-4" key={selectedItem.id}>
                             <div className="flex flex-col items-center mb-4">
                                 <div className="text-[10px] font-medium text-[#6B7176] mb-1 w-full text-left">Packshot-Fokus</div>
                                 <div 
@@ -4963,15 +4999,43 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                 </div>
                                 <div className="grid gap-2">
                                   <label className="text-xs font-medium text-[#1F2326]">{(activeSection as string) === "rezepte" ? "Portionen im Durchschnitt" : "EAN (GTIN)"}</label>
-                                  <Input 
-                                    value={selectedItem.ean || ""} 
-                                    className="border-[#E5E7EB] bg-white text-[#1F2326]"
-                                    onChange={(e) => {
-                                       const val = e.target.value;
-                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, ean: val } : i));
-                                       setEanInput(val);
-                                    }}
-                                  />
+                                  {(activeSection as string) === "rezepte" ? (
+                                      <Input 
+                                        type="number"
+                                        value={selectedItem.targetPortions || ""} 
+                                        className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                        onChange={(e) => {
+                                           const val = parseFloat(e.target.value);
+                                           if (Number.isNaN(val)) return;
+                                           
+                                           const oldPortions = selectedItem.targetPortions || 1;
+                                           const ratio = val / oldPortions;
+                                           
+                                           setItems(prev => prev.map(i => {
+                                              if (i.id === selectedItem.id) {
+                                                  // Scale all components
+                                                  const newComponents = (i.components || []).map(c => ({
+                                                      ...c,
+                                                      quantity: c.quantity * ratio
+                                                  }));
+                                                  return { ...i, targetPortions: val, components: newComponents };
+                                              }
+                                              return i;
+                                           }));
+                                           setTargetPortionsInput(e.target.value);
+                                        }}
+                                      />
+                                  ) : (
+                                      <Input 
+                                        value={selectedItem.ean || ""} 
+                                        className="border-[#E5E7EB] bg-white text-[#1F2326]"
+                                        onChange={(e) => {
+                                           const val = e.target.value;
+                                           setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, ean: val } : i));
+                                           setEanInput(val);
+                                        }}
+                                      />
+                                  )}
                                 </div>
                               </div>
                                
@@ -4996,13 +5060,14 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                               </div>
 
                               <div className="mt-6">
-                                <h3 className="mb-2 text-sm font-semibold">Zutaten & Ressourcen (Matrix)</h3>
+                                <h3 className="mb-2 text-sm font-semibold">Zutaten</h3>
                                 <SmartIngredientMatrix
                                   components={selectedItem.components || []}
                                   availableItems={effectiveItems.map(item => ({
                                     id: item.id,
                                     name: item.name,
                                     unit: item.unit,
+                                    type: item.type,
                                     purchasePrice: item.purchasePrice,
                                     nutritionPerUnit: item.nutritionPerUnit,
                                     isBio: item.isBio,
@@ -5016,6 +5081,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                   onQuickImport={(name) => {
                                     console.log("Quick import:", name);
                                   }}
+                                  onExpandSubRecipe={handleExpandSubRecipe}
                                   readOnly={false}
                                 />
                               </div>

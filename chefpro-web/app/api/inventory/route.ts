@@ -8,6 +8,8 @@ type InventoryComponent = {
   quantity: number;
   unit: string;
   deletedItemName?: string | null;
+  subRecipeId?: string | null;
+  subRecipeName?: string | null;
 };
 
 type StandardPreparationComponent = {
@@ -125,6 +127,8 @@ type SupabaseRecipeStructureRow = {
   quantity: number;
   unit: string;
   deleted_item_name: string | null;
+  sub_recipe_id?: string | null;
+  sub_recipe_name?: string | null;
 };
 
 export async function GET() {
@@ -238,6 +242,8 @@ export async function GET() {
         quantity: rel.quantity,
         unit: rel.unit,
         deletedItemName: rel.deleted_item_name,
+        subRecipeId: rel.sub_recipe_id,
+        subRecipeName: rel.sub_recipe_name,
       });
       componentsByParent.set(rel.parent_item_id, existing);
     }
@@ -385,6 +391,8 @@ export async function POST(request: Request) {
             component_item_id: component.itemId,
             quantity: component.quantity,
             unit: component.unit,
+            sub_recipe_id: component.subRecipeId || null,
+            sub_recipe_name: component.subRecipeName || null,
           }))
         )
         .select("*");
@@ -411,6 +419,8 @@ export async function POST(request: Request) {
         itemId: rel.component_item_id,
         quantity: rel.quantity,
         unit: rel.unit,
+        subRecipeId: rel.sub_recipe_id,
+        subRecipeName: rel.sub_recipe_name,
       }));
     }
 
