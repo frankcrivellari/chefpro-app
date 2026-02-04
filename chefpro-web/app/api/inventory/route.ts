@@ -380,6 +380,12 @@ export async function POST(request: Request) {
 
     const createdItemRow = insertItemResponse.data as SupabaseItemRow;
 
+    console.log("✅ Item created:", {
+      id: createdItemRow.id,
+      name: createdItemRow.name,
+      type: createdItemRow.item_type,
+    });
+
     let components: InventoryComponent[] | undefined;
 
     if (body.components && body.components.length > 0) {
@@ -464,7 +470,16 @@ export async function POST(request: Request) {
       components,
     };
 
-    return NextResponse.json(resultItem, { status: 201 });
+    return NextResponse.json(
+      {
+        item: {
+          ...resultItem,
+          recipeId:
+            resultItem.type === "eigenproduktion" ? resultItem.id : undefined,
+        },
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Unexpected error in /api/inventory POST", error);
     const message =

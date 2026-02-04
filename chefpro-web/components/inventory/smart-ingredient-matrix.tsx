@@ -424,7 +424,13 @@ export function SmartIngredientMatrix({
   return (
     <div className="space-y-4">
       {/* Header and DndContext remain same */}
-
+      <div className="flex items-center justify-between">
+        {!readOnly && (
+            <Button onClick={handleAddRow} size="sm" variant="outline" className="h-8 gap-2">
+            <Plus size={14} /> Zeile hinzufügen
+            </Button>
+        )}
+      </div>
 
       <div className="rounded-lg border bg-gray-50/50 p-4">
         {/* Header Row */}
