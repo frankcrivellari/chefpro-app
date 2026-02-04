@@ -132,22 +132,22 @@ type SupabaseRecipeStructureRow = {
 };
 
 export async function GET() {
-  const client = getSupabaseServerClient();
-
-  if (!client) {
-    console.error(
-      "Supabase client initialization failed: Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY"
-    );
-    return NextResponse.json(
-      {
-        error:
-          'Supabase ist nicht konfiguriert (Bitte env-Variablen prüfen: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY oder SUPABASE_ANON_KEY)',
-      },
-      { status: 500 }
-    );
-  }
-
   try {
+    const client = getSupabaseServerClient();
+
+    if (!client) {
+      console.error(
+        "Supabase client initialization failed: Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY"
+      );
+      return NextResponse.json(
+        {
+          error:
+            'Supabase ist nicht konfiguriert (Bitte env-Variablen prüfen: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY oder SUPABASE_ANON_KEY)',
+        },
+        { status: 500 }
+      );
+    }
+
     const itemsResponse = await client.from("items").select("*");
 
     if (itemsResponse.error) {
@@ -275,12 +275,16 @@ export async function GET() {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error("Unexpected error in /api/inventory GET", error);
+    console.error("Unexpected error in /api/inventory GET:", error);
+    if (error instanceof Error && error.stack) {
+      console.error("Stacktrace:", error.stack);
+    }
     const message =
       error instanceof Error ? error.message : "Unbekannter Fehler";
     return NextResponse.json(
       {
-        error: `Unerwarteter Fehler im Inventory-Endpoint: ${message}`,
+        error: `CRASH PREVENTED: Unerwarteter Fehler im Inventory-Endpoint: ${message}`,
+        details: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );
@@ -481,12 +485,16 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Unexpected error in /api/inventory POST", error);
+    console.error("Unexpected error in /api/inventory POST:", error);
+    if (error instanceof Error && error.stack) {
+      console.error("Stacktrace:", error.stack);
+    }
     const message =
       error instanceof Error ? error.message : "Unbekannter Fehler";
     return NextResponse.json(
       {
-        error: `Unerwarteter Fehler beim Speichern des Artikels: ${message}`,
+        error: `CRASH PREVENTED: Unerwarteter Fehler beim Speichern des Artikels: ${message}`,
+        details: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );
@@ -647,12 +655,16 @@ export async function DELETE(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Unexpected error in /api/inventory DELETE", error);
+    console.error("Unexpected error in /api/inventory DELETE:", error);
+    if (error instanceof Error && error.stack) {
+      console.error("Stacktrace:", error.stack);
+    }
     const message =
       error instanceof Error ? error.message : "Unbekannter Fehler";
     return NextResponse.json(
       {
-        error: `Unerwarteter Fehler beim Löschen des Artikels: ${message}`,
+        error: `CRASH PREVENTED: Unerwarteter Fehler beim Löschen des Artikels: ${message}`,
+        details: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );
