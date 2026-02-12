@@ -86,8 +86,7 @@ type InventoryComponent = {
   deletedItemName?: string | null;
   customName?: string | null;
   tempId?: string;
-  subRecipeId?: string | null;
-  subRecipeName?: string | null;
+  hasSubIngredients?: boolean;
 };
 
 type StandardPreparationComponent = {
@@ -114,7 +113,8 @@ type DeviceSetting = {
 
 type PreparationStep = {
   id: string;
-  text: string;
+  instruction: string;
+  stepOrder: number;
   duration?: string | null;
   imageUrl?: string | null;
   videoUrl?: string | null;
@@ -528,6 +528,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
   const [editingComponents, setEditingComponents] = useState<
     InventoryComponent[]
   >([]);
+  const [isLoadingRecipeStructure, setIsLoadingRecipeStructure] = useState(false);
+  const lastLoadedRecipeItemId = useRef<string | null>(null);
   const [aiText, setAiText] = useState("");
   const [aiIsParsing, setAiIsParsing] = useState(false);
   const [aiParsed, setAiParsed] = useState<ParsedAiItem | null>(null);
@@ -1692,6 +1694,43 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
     setIsImageDropActive(false);
   }, [selectedItem?.id]);
 
+  // Load recipe structure from API when selected item changes
+  useEffect(() => {
+    async function loadRecipeStructure() {
+      if (!selectedItem?.id) return;
+      // Prevent reloading if we just loaded this item
+      if (lastLoadedRecipeItemId.current === selectedItem.id) return;
+      
+      lastLoadedRecipeItemId.current = selectedItem.id;
+      setIsLoadingRecipeStructure(true);
+      
+      try {
+        const res = await fetch(`/api/recipe-structure?parentItemId=${selectedItem.id}`);
+        if (!res.ok) throw new Error("Failed to load recipe structure");
+        
+        const data = (await res.json()) as { itemId: string; quantity: number; unit: string }[];
+        
+        const mappedComponents: InventoryComponent[] = data.map((c, index) => ({
+             itemId: c.itemId,
+             quantity: c.quantity,
+             unit: c.unit,
+             tempId: `loaded-${index}-${Date.now()}`,
+             hasSubIngredients: false 
+        }));
+        
+        setItems(prev => prev.map(i => 
+             i.id === selectedItem.id ? { ...i, components: mappedComponents } : i
+        ));
+      } catch (err) {
+        console.error("Error loading recipe structure:", err);
+      } finally {
+        setIsLoadingRecipeStructure(false);
+      }
+    }
+
+    loadRecipeStructure();
+  }, [selectedItem?.id]);
+
   // Sync Packshot State from Item - REMOVED to prevent re-render resets
   // The state initialization is now handled by the ID-based effect below
 
@@ -2331,7 +2370,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
             typeof step.id === "string" && step.id.trim().length > 0
               ? step.id
               : `step-${index}-${createPreparationStepId()}`,
-          text: typeof step.text === "string" ? step.text : "",
+          instruction: typeof step.instruction === "string" ? step.instruction : (typeof (step as any).text === "string" ? (step as any).text : ""),
+          stepOrder: typeof step.stepOrder === "number" ? step.stepOrder : index + 1,
           duration:
             typeof step.duration === "string" &&
             step.duration.trim().length > 0
@@ -2354,7 +2394,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
       setPreparationStepsInput([
         {
           id: createPreparationStepId(),
-          text: source,
+          instruction: source,
+          stepOrder: 1,
           duration: null,
           imageUrl: null,
           videoUrl: null,
@@ -2412,7 +2453,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
         selectedItem.preparationSteps.length > 0
       ) {
         text = selectedItem.preparationSteps
-          .map((s) => s.text)
+          .map((s) => s.instruction)
           .join("\n");
       } else if (
         selectedItem.type === "zukauf" &&
@@ -2669,7 +2710,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
       ...preparationStepsInput,
       {
         id,
-        text: "",
+        instruction: "",
+        stepOrder: preparationStepsInput.length + 1,
         duration: null,
         imageUrl: null,
         videoUrl: null,
@@ -2680,18 +2722,18 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
     
     // Sync to selectedItem immediately
     if (selectedItem) {
-        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: JSON.stringify(newSteps) } : i));
+        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
     }
   }
 
-  function handlePreparationStepTextChange(
+  function handlePreparationStepInstructionChange(
     stepId: string,
     event: ChangeEvent<HTMLTextAreaElement>
   ) {
     const value = event.target.value;
     setPreparationStepsInput((steps) =>
       steps.map((step) =>
-        step.id === stepId ? { ...step, text: value } : step
+        step.id === stepId ? { ...step, instruction: value } : step
       )
     );
     const match = value.match(/@([^@\n]*)$/);
@@ -2775,7 +2817,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
     
     // Sync to selectedItem immediately
     if (selectedItem) {
-        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: JSON.stringify(newSteps) } : i));
+        setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: newSteps } : i));
     }
   }
 
@@ -2785,11 +2827,11 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
         if (step.id !== stepId) {
           return step;
         }
-        const text = step.text ?? "";
+        const text = step.instruction ?? "";
         const newText = text.replace(/@([^@\n]*)$/, ingredientName);
         return {
           ...step,
-          text: newText,
+          instruction: newText,
         };
       })
     );
@@ -2866,7 +2908,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
     const step = preparationStepsInput.find(
       (value) => value.id === stepId
     );
-    if (!step || !step.text.trim()) {
+    if (!step || !step.instruction.trim()) {
       return;
     }
     try {
@@ -2878,7 +2920,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          prompt: step.text,
+          prompt: step.instruction,
         }),
       });
       if (!response.ok) {
@@ -2938,8 +2980,6 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
     const newComponents = subItem.components.map((c) => ({
       ...c,
       quantity: c.quantity * scale,
-      subRecipeId: subItem.id,
-      subRecipeName: subItem.name,
       tempId: `sub-${subItem.id}-${Date.now()}-${Math.random()}`,
     }));
 
@@ -2965,8 +3005,6 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
           String(component.quantity).toString().replace(",", ".")
         ),
         unit: component.unit.trim(),
-        subRecipeId: component.subRecipeId,
-        subRecipeName: component.subRecipeName,
       }))
       .filter(
         (component) =>
@@ -3572,16 +3610,18 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
         if (Array.isArray(prepSource)) {
              const steps = prepSource.map((step, index) => ({
                  id: typeof step.id === "string" ? step.id : `step-${index}-${createPreparationStepId()}`,
-                 text: typeof step.text === "string" ? step.text : "",
+                 instruction: typeof step.text === "string" ? step.text : (typeof step.instruction === "string" ? step.instruction : ""),
+                 stepOrder: index + 1,
                  duration: typeof step.duration === "string" ? step.duration : null,
                  imageUrl: typeof step.imageUrl === "string" ? step.imageUrl : null,
                  videoUrl: typeof step.videoUrl === "string" ? step.videoUrl : null,
-             })).filter(s => s.text.trim().length > 0);
+             })).filter(s => s.instruction.trim().length > 0);
              setPreparationStepsInput(steps);
         } else if (typeof prepSource === "string" && prepSource.length > 0) {
              setPreparationStepsInput([{
                  id: createPreparationStepId(),
-                 text: prepSource,
+                 instruction: prepSource,
+                 stepOrder: 1,
                  duration: null,
                  imageUrl: null,
                  videoUrl: null
@@ -3818,10 +3858,10 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
         }
       }
 
-      let preparationStepsValue: string | undefined;
+      let preparationStepsValue: PreparationStep[] | undefined;
       const cleanedSteps = preparationStepsInput
-        .map((step) => {
-          const text = step.text.trim();
+        .map((step, index) => {
+          const instruction = step.instruction.trim();
           const duration =
             step.duration && step.duration.trim().length > 0
               ? step.duration.trim()
@@ -3836,15 +3876,16 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
               : null;
           return {
             id: step.id,
-            text,
+            instruction,
+            stepOrder: index + 1,
             duration,
             imageUrl,
             videoUrl,
           };
         })
-        .filter((step) => step.text.length > 0);
+        .filter((step) => step.instruction.length > 0);
       preparationStepsValue =
-        cleanedSteps.length > 0 ? JSON.stringify(cleanedSteps) : "";
+        cleanedSteps.length > 0 ? cleanedSteps : undefined;
 
       const parseNutrient = (val: string) => {
         const trimmed = val.trim();
@@ -3957,6 +3998,28 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
         throw new Error(message);
       }
       if (payload.item) {
+        // Save recipe structure (matrix rows)
+        try {
+             const componentsToSave = (items.find(i => i.id === selectedItem.id)?.components || [])
+                .filter(c => c.itemId) // Only save linked items
+                .map(c => ({
+                    itemId: c.itemId,
+                    quantity: c.quantity,
+                    unit: c.unit
+                }));
+
+             await fetch("/api/recipe-structure", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    parentItemId: payload.item.id,
+                    components: componentsToSave
+                })
+             });
+        } catch (err) {
+             console.error("Failed to save recipe structure:", err);
+        }
+
         const updated = payload.item;
         setItems((previous) =>
           previous.map((item) => {
@@ -5065,6 +5128,11 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
 
                               <div className="mt-6">
                                 <h3 className="mb-2 text-sm font-semibold">Zutaten</h3>
+                                {isLoadingRecipeStructure ? (
+                                    <div className="flex justify-center p-8">
+                                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                    </div>
+                                ) : (
                                 <SmartIngredientMatrix
                                   components={selectedItem.components || []}
                                   availableItems={effectiveItems.map(item => ({
@@ -5088,6 +5156,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                   onExpandSubRecipe={handleExpandSubRecipe}
                                   readOnly={false}
                                 />
+                                )}
                               </div>
 
                               {(activeSection as string) === "rezepte" && (
@@ -5101,11 +5170,11 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                         </div>
                                         <textarea
                                           rows={2}
-                                          value={step.text}
+                                          value={step.instruction}
                                           onChange={(e) => {
                                             const newText = e.target.value;
                                             const newSteps = preparationStepsInput.map((s) =>
-                                              s.id === step.id ? { ...s, text: newText } : s
+                                              s.id === step.id ? { ...s, instruction: newText } : s
                                             );
                                             setPreparationStepsInput(newSteps);
                                             if (selectedItem) {
@@ -7082,7 +7151,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                               <div className="space-y-1">
                                 <div className="text-[1.1rem] leading-[1.6]">
                                   {renderTaggedText(
-                                    step.text,
+                                    step.instruction,
                                     ingredientTagOptions
                                   )}
                                 </div>
@@ -8399,9 +8468,9 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                     <div className="space-y-2">
                                       <textarea
                                         rows={3}
-                                        value={step.text}
+                                        value={step.instruction}
                                         onChange={(event) =>
-                                          handlePreparationStepTextChange(
+                                          handlePreparationStepInstructionChange(
                                             step.id,
                                             event
                                           )
@@ -8435,7 +8504,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                         </div>
                                         <div className="text-[11px]">
                                           {renderTaggedText(
-                                            step.text,
+                                            step.instruction,
                                             ingredientTagOptions
                                           )}
                                         </div>
@@ -8472,7 +8541,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                               disabled={
                                                 isGeneratingImageStepId ===
                                                   step.id ||
-                                                !step.text.trim()
+                                                !step.instruction.trim()
                                               }
                                               onClick={() =>
                                                 handleGenerateStepImage(
@@ -8583,7 +8652,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                       <div className="flex items-center gap-3">
                                         <div className="flex-1">
                                           {renderTaggedText(
-                                            step.text,
+                                            step.instruction,
                                             ingredientTagOptions
                                           )}
                                         </div>
@@ -8956,12 +9025,12 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                 </div>
                                 <textarea
                                   rows={2}
-                                  value={step.text}
+                                  value={step.instruction}
                                   onChange={(e) => {
                                     const newText = e.target.value;
                                     setPreparationStepsInput((prev) =>
                                       prev.map((s) =>
-                                        s.id === step.id ? { ...s, text: newText } : s
+                                        s.id === step.id ? { ...s, instruction: newText } : s
                                       )
                                     );
                                   }}
@@ -9175,8 +9244,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                             <div className="space-y-1">
                                               <div className="text-[1.1rem] leading-[1.6]">
                                                 {renderTaggedText(
-                                                  typeof step.text === "string"
-                                                    ? step.text
+                                                  typeof step.instruction === "string"
+                                                    ? step.instruction
                                                     : "",
                                                   ingredientTagOptions
                                                 )}
@@ -9302,8 +9371,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                             <div className="space-y-0.5">
                                               <div>
                                                 {renderTaggedText(
-                                                  typeof step.text === "string"
-                                                    ? step.text
+                                                  typeof step.instruction === "string"
+                                                    ? step.instruction
                                                     : "",
                                                   ingredientTagOptions
                                                 )}

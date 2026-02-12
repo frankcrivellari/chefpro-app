@@ -82,6 +82,7 @@ type InventoryComponent = {
   quantity: number;
   unit: string;
   deletedItemName?: string | null;
+  hasSubIngredients?: boolean;
 };
 
 type StandardPreparationComponent = {
@@ -108,7 +109,8 @@ type DeviceSetting = {
 
 type PreparationStep = {
   id: string;
-  text: string;
+  instruction: string;
+  stepOrder?: number;
   duration?: string | null;
   imageUrl?: string | null;
   videoUrl?: string | null;
@@ -179,7 +181,7 @@ type InventoryItem = {
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
   yieldVolume?: string | null;
-  preparationSteps?: string | PreparationStep[] | null;
+  preparationSteps?: PreparationStep[] | null;
   nutritionPerUnit?: NutritionTotals | null;
   standardPreparation?: StandardPreparation | null;
   components?: InventoryComponent[];

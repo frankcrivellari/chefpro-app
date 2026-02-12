@@ -72,21 +72,29 @@ type SupabaseItemRow = {
 type SupabaseRecipeStructureRow = {
   id: string;
   parent_item_id: string;
-  component_item_id: string | null;
-  quantity: number;
+  child_item_id: string;
+  amount: number;
   unit: string;
-  deleted_item_name: string | null;
-  sub_recipe_id?: string | null;
-  sub_recipe_name?: string | null;
+};
+
+type SupabasePreparationStepRow = {
+  id: string;
+  item_id: string;
+  step_order: number;
+  instruction: string;
 };
 
 type InventoryComponent = {
   itemId: string | null;
   quantity: number;
   unit: string;
-  deletedItemName?: string | null;
-  subRecipeId?: string | null;
-  subRecipeName?: string | null;
+  hasSubIngredients?: boolean;
+};
+
+type PreparationStep = {
+  id?: string;
+  stepOrder: number;
+  instruction: string;
 };
 
 type InventoryItem = {
@@ -110,7 +118,7 @@ type InventoryItem = {
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
   yieldVolume?: string | null;
-  preparationSteps?: string | null;
+  preparationSteps?: PreparationStep[]; // Changed from string | null
   nutritionPerUnit?: NutritionTotals | null;
   standardPreparation?: StandardPreparation | null;
   isBio?: boolean;
@@ -156,7 +164,7 @@ export async function POST(request: Request) {
     ingredients?: string;
     dosageInstructions?: string;
     yieldInfo?: string;
-    preparationSteps?: string;
+    preparationSteps?: PreparationStep[]; // Updated type
     targetPortions?: number | null;
     targetSalesPrice?: number | null;
     category?: string | null;
@@ -182,6 +190,7 @@ export async function POST(request: Request) {
     packshotZoom?: number | null;
     imageUrl?: string | null;
     fileUrl?: string | null;
+    components?: InventoryComponent[]; // Add components to body
   };
 
   if (!body.id) {
@@ -196,6 +205,7 @@ export async function POST(request: Request) {
     id: body.id,
     updates_count: Object.keys(body).length,
     preparationSteps_length: body.preparationSteps?.length,
+    components_length: body.components?.length,
     nutrition_per_unit: body.nutritionPerUnit
   });
 
@@ -208,7 +218,7 @@ export async function POST(request: Request) {
     ingredients?: string | null;
     dosage_instructions?: string | null;
     yield_info?: string | null;
-    preparation_steps?: string | null;
+    // preparation_steps removed from updates object as it's now a separate table
     target_portions?: number | null;
     target_sales_price?: number | null;
     category?: string | null;
@@ -299,12 +309,7 @@ export async function POST(request: Request) {
         : null;
   }
 
-  if (typeof body.preparationSteps === "string") {
-    updates.preparation_steps =
-      body.preparationSteps.trim().length > 0
-        ? body.preparationSteps.trim()
-        : null;
-  }
+  // preparation_steps removed from updates block
 
   if (typeof body.imageUrl === "string") {
     const trimmed = body.imageUrl.trim();
@@ -428,11 +433,87 @@ export async function POST(request: Request) {
 
   console.log("✅ Update erfolgreich:", {
     id: updateResponse.data.id,
-    preparation_steps_saved: !!updateResponse.data.preparation_steps,
     nutrition_per_unit_saved: !!updateResponse.data.nutrition_per_unit
   });
 
   const row = updateResponse.data as SupabaseItemRow;
+
+  // --- Atomic Save for Recipe Structure ---
+  if (body.components) {
+    // 1. Delete existing relations
+    const deleteRelations = await client
+      .from("recipe_structure")
+      .delete()
+      .eq("parent_item_id", row.id);
+
+    if (deleteRelations.error) {
+      console.error("❌ Fehler beim Löschen der Rezept-Struktur:", deleteRelations.error);
+      return NextResponse.json(
+        { error: `Fehler beim Löschen der Rezept-Struktur: ${deleteRelations.error.message}` },
+        { status: 500 }
+      );
+    }
+
+    // 2. Insert new relations
+    if (body.components.length > 0) {
+      const newRelations = body.components.map((comp) => ({
+        parent_item_id: row.id,
+        child_item_id: comp.itemId!, // Assumes valid ID
+        amount: comp.quantity,
+        unit: comp.unit,
+      }));
+
+      const insertRelations = await client
+        .from("recipe_structure")
+        .insert(newRelations);
+
+      if (insertRelations.error) {
+        console.error("❌ Fehler beim Speichern der Rezept-Struktur:", insertRelations.error);
+        return NextResponse.json(
+          { error: `Fehler beim Speichern der Rezept-Struktur: ${insertRelations.error.message}` },
+          { status: 500 }
+        );
+      }
+    }
+  }
+
+  // --- Atomic Save for Preparation Steps ---
+  if (body.preparationSteps) {
+    // 1. Delete existing steps
+    const deleteSteps = await client
+      .from("preparation_steps")
+      .delete()
+      .eq("item_id", row.id);
+
+    if (deleteSteps.error) {
+      console.error("❌ Fehler beim Löschen der Zubereitungsschritte:", deleteSteps.error);
+      return NextResponse.json(
+        { error: `Fehler beim Löschen der Zubereitungsschritte: ${deleteSteps.error.message}` },
+        { status: 500 }
+      );
+    }
+
+    // 2. Insert new steps
+    if (body.preparationSteps.length > 0) {
+      const newSteps = body.preparationSteps.map((step, index) => ({
+        item_id: row.id,
+        step_order: index + 1,
+        instruction: step.instruction,
+      }));
+
+      const insertSteps = await client
+        .from("preparation_steps")
+        .insert(newSteps);
+
+      if (insertSteps.error) {
+        console.error("❌ Fehler beim Speichern der Zubereitungsschritte:", insertSteps.error);
+        return NextResponse.json(
+          { error: `Fehler beim Speichern der Zubereitungsschritte: ${insertSteps.error.message}` },
+          { status: 500 }
+        );
+      }
+    }
+  }
 
   let components: InventoryComponent[] | undefined;
   let hasGhostComponents = false;
@@ -440,72 +521,63 @@ export async function POST(request: Request) {
   const relationsResponse = await client
     .from("recipe_structure")
     .select(
-      "id,parent_item_id,component_item_id,quantity,unit,deleted_item_name"
+      "id,parent_item_id,child_item_id,amount,unit"
     )
     .eq("parent_item_id", row.id);
 
   if (relationsResponse.error) {
-    const relationsError = relationsResponse.error;
-    const isMissingDeletedItemNameColumn =
-      relationsError.code === "42703" ||
-      (typeof relationsError.message === "string" &&
-        relationsError.message
-          .toLowerCase()
-          .includes("deleted_item_name"));
-
-    if (isMissingDeletedItemNameColumn) {
-      const fallbackRelationsResponse = await client
-        .from("recipe_structure")
-        .select("id,parent_item_id,component_item_id,quantity,unit")
-        .eq("parent_item_id", row.id);
-
-      if (fallbackRelationsResponse.error) {
-        return NextResponse.json(
-          {
-            error:
-              fallbackRelationsResponse.error.message ??
-              'Fehler beim Laden der Komponenten aus Tabelle "recipe_structure"',
-          },
-          { status: 500 }
-        );
-      }
-
-      const relations =
-        (fallbackRelationsResponse.data ??
-          []) as SupabaseRecipeStructureRow[];
-
-      components = relations.map((rel) => ({
-        itemId: rel.component_item_id,
-        quantity: rel.quantity,
-        unit: rel.unit,
-      }));
-    } else {
-      return NextResponse.json(
+    return NextResponse.json(
         {
           error:
-            relationsError.message ??
+            relationsResponse.error.message ??
             'Fehler beim Laden der Komponenten aus Tabelle "recipe_structure"',
         },
         { status: 500 }
       );
-    }
   } else {
     const relations =
       (relationsResponse.data ??
         []) as SupabaseRecipeStructureRow[];
 
-    components = relations.map((rel) => ({
-      itemId: rel.component_item_id,
-      quantity: rel.quantity,
-      unit: rel.unit,
-      deletedItemName: rel.deleted_item_name,
-      subRecipeId: rel.sub_recipe_id,
-      subRecipeName: rel.sub_recipe_name,
-    }));
+    // Fetch sub-recipe info for icons (is this efficient? maybe separate query or view later)
+    // For now, simple check if child items have their own recipe structure
+    // Optimization: Get all child IDs
+    const childIds = relations.map(r => r.child_item_id).filter(Boolean);
+    let subRecipeMap = new Set<string>();
+    
+    if (childIds.length > 0) {
+        const subRecipesCheck = await client
+            .from("recipe_structure")
+            .select("parent_item_id")
+            .in("parent_item_id", childIds);
+            
+        if (subRecipesCheck.data) {
+            subRecipesCheck.data.forEach(r => subRecipeMap.add(r.parent_item_id));
+        }
+    }
 
-    hasGhostComponents = relations.some(
-      (rel) => !rel.component_item_id && !!rel.deleted_item_name
-    );
+    components = relations.map((rel) => ({
+      itemId: rel.child_item_id,
+      quantity: rel.amount,
+      unit: rel.unit,
+      hasSubIngredients: subRecipeMap.has(rel.child_item_id)
+    }));
+  }
+
+  // Fetch Preparation Steps for Response
+  const stepsResponse = await client
+    .from("preparation_steps")
+    .select("id, step_order, instruction")
+    .eq("item_id", row.id)
+    .order("step_order", { ascending: true });
+    
+  let preparationSteps: PreparationStep[] = [];
+  if (stepsResponse.data) {
+    preparationSteps = stepsResponse.data.map(s => ({
+        id: s.id,
+        stepOrder: s.step_order,
+        instruction: s.instruction
+    }));
   }
 
   const item: InventoryItem = {
@@ -529,7 +601,7 @@ export async function POST(request: Request) {
     dosageInstructions: row.dosage_instructions,
     yieldInfo: row.yield_info,
     yieldVolume: row.yield_volume,
-    preparationSteps: row.preparation_steps,
+    preparationSteps: preparationSteps, // Use the fetched array
     standardPreparation: row.standard_preparation,
     nutritionPerUnit: row.nutrition_per_unit,
     isBio: row.is_bio ?? false,
@@ -546,8 +618,7 @@ export async function POST(request: Request) {
     packshotX: row.packshot_x,
     packshotY: row.packshot_y,
     packshotZoom: row.packshot_zoom,
-    hasGhostComponents:
-      hasGhostComponents || undefined,
+    hasGhostComponents: undefined, // Concept removed? Or needs check?
     components,
     imageUrl: row.image_url,
     fileUrl: row.file_url,

@@ -42,9 +42,8 @@ export type InventoryComponent = {
   customName?: string | null;
   // Temporary ID for list management if itemId is null
   tempId?: string;
-  // Sub-recipe grouping
-  subRecipeId?: string | null;
-  subRecipeName?: string | null;
+  // Flag indicating if this item has sub-ingredients (is a sub-recipe)
+  hasSubIngredients?: boolean;
 };
 
 // We need a subset of InventoryItem for the dropdown and calculations
@@ -157,11 +156,11 @@ const SortableRow = ({
   }, [availableItems, searchTerm]);
 
   const handleSelect = (item: AvailableItem) => {
-    if (item.type === "eigenproduktion" && onExpandSubRecipe) {
-      onExpandSubRecipe(index, item.id);
-      setSearchOpen(false);
-      return;
-    }
+    // Determine if the item has sub-ingredients (this logic might need to be passed down or checked against a list of known recipes)
+    // For now, we rely on the parent component or API to tell us, but when selecting from dropdown, we might not know yet unless AvailableItem has a flag.
+    // However, the user said "Jedes Item kann ein Rezept sein".
+    // We will update the row.
+    
     onChange(index, "itemId", item.id);
     onChange(index, "customName", null);
     onChange(index, "unit", item.unit); // Auto-fill unit
@@ -189,7 +188,7 @@ const SortableRow = ({
 
   const isLinked = !!component.itemId;
   const hasCustomName = !!component.customName && !isLinked;
-  const isSubRecipe = !!component.subRecipeId;
+  const isSubRecipe = !!component.hasSubIngredients;
 
   return (
     <div
@@ -198,7 +197,7 @@ const SortableRow = ({
       className={cn(
         "group flex items-center gap-2 rounded-md border bg-white p-2 shadow-sm transition-all hover:shadow-md",
         isDragging && "opacity-50",
-        isSubRecipe && "ml-6 border-l-4 border-[#6B7176] bg-gray-50/50"
+        isSubRecipe && "border-l-4 border-l-blue-400" // Visual indicator for sub-recipe
       )}
     >
       {/* Drag Handle */}
@@ -308,21 +307,12 @@ const SortableRow = ({
               <Zap size={16} />
             </Button>
           )}
-          {/* Expand Sub-Recipe Button */}
-          {component.itemId &&
-            availableItems.find((i) => i.id === component.itemId)?.type ===
-              "eigenproduktion" &&
-            onExpandSubRecipe && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-blue-500 hover:bg-blue-50 hover:text-blue-600"
-                title="Rezept auflösen (als Unterrezept einfügen)"
-                onClick={() => onExpandSubRecipe(index, component.itemId!)}
-              >
+          {/* Expand Sub-Recipe Button / Icon */}
+          {component.hasSubIngredients && (
+             <div className="flex h-8 w-8 items-center justify-center text-blue-500" title="Enthält Unter-Zutaten (Rezept)">
                 <Layers size={16} />
-              </Button>
-            )}
+             </div>
+          )}
           <Button
             variant="ghost"
             size="icon"

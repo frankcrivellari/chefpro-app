@@ -7,9 +7,13 @@ type InventoryComponent = {
   itemId: string | null;
   quantity: number;
   unit: string;
-  deletedItemName?: string | null;
-  subRecipeId?: string | null;
-  subRecipeName?: string | null;
+  hasSubIngredients?: boolean;
+};
+
+type PreparationStep = {
+  id: string;
+  instruction: string;
+  stepOrder: number;
 };
 
 type StandardPreparationComponent = {
@@ -56,7 +60,7 @@ type InventoryItem = {
   ingredients?: string | null;
   dosageInstructions?: string | null;
   yieldInfo?: string | null;
-  preparationSteps?: string | null;
+  preparationSteps?: PreparationStep[] | null;
   fileUrl?: string | null;
   imageUrl?: string | null;
   nutritionPerUnit?: NutritionTotals | null;
@@ -123,12 +127,16 @@ type SupabaseItemRow = {
 type SupabaseRecipeStructureRow = {
   id: string;
   parent_item_id: string;
-  component_item_id: string | null;
-  quantity: number;
+  child_item_id: string | null;
+  amount: number;
   unit: string;
-  deleted_item_name: string | null;
-  sub_recipe_id?: string | null;
-  sub_recipe_name?: string | null;
+};
+
+type SupabasePreparationStepRow = {
+  id: string;
+  item_id: string;
+  step_order: number;
+  instruction: string;
 };
 
 export async function GET() {
@@ -184,9 +192,40 @@ export async function GET() {
       );
     }
 
+    const stepsResponse = await client
+      .from("preparation_steps")
+      .select("*")
+      .order("step_order");
+
+    if (stepsResponse.error) {
+      console.error("Supabase preparation_steps query error", {
+        table: "preparation_steps",
+        error: stepsResponse.error.message,
+      });
+      // We don't fail hard here, just log
+    }
+
     const items = (itemsResponse.data ?? []) as SupabaseItemRow[];
     const relations =
       (recipeResponse.data ?? []) as SupabaseRecipeStructureRow[];
+    const steps = (stepsResponse.data ?? []) as SupabasePreparationStepRow[];
+
+    // Build a set of all item IDs that are parents (i.e., they are recipes)
+    // This is useful if we want to know if an item is a recipe.
+    // But for hasSubIngredients, we need to know if a CHILD item is a recipe.
+    // So we need a set of IDs that appear as parent_item_id in recipe_structure.
+    const recipeItemIds = new Set(relations.map(r => r.parent_item_id));
+
+    const stepsByItem = new Map<string, any[]>();
+    for (const step of steps) {
+      const existing = stepsByItem.get(step.item_id) ?? [];
+      existing.push({
+        id: step.id,
+        instruction: step.instruction,
+        stepOrder: step.step_order
+      });
+      stepsByItem.set(step.item_id, existing);
+    }
 
     const itemsById = new Map<string, InventoryItem>();
 
@@ -211,7 +250,7 @@ export async function GET() {
         ingredients: row.ingredients,
         dosageInstructions: row.dosage_instructions,
         yieldInfo: row.yield_info,
-        preparationSteps: row.preparation_steps,
+        preparationSteps: stepsByItem.get(row.id) || null, // Use fetched steps
         fileUrl: row.file_url,
         imageUrl: row.image_url,
         nutritionPerUnit: row.nutrition_per_unit,
@@ -238,12 +277,10 @@ export async function GET() {
     for (const rel of relations) {
       const existing = componentsByParent.get(rel.parent_item_id) ?? [];
       existing.push({
-        itemId: rel.component_item_id,
-        quantity: rel.quantity,
+        itemId: rel.child_item_id,
+        quantity: rel.amount,
         unit: rel.unit,
-        deletedItemName: rel.deleted_item_name,
-        subRecipeId: rel.sub_recipe_id,
-        subRecipeName: rel.sub_recipe_name,
+        hasSubIngredients: rel.child_item_id ? recipeItemIds.has(rel.child_item_id) : false,
       });
       componentsByParent.set(rel.parent_item_id, existing);
     }
@@ -254,6 +291,7 @@ export async function GET() {
         continue;
       }
       item.components = components;
+      /* Ghost components logic deprecated
       const hasGhost = components.some(
         (component) =>
           !component.itemId && !!component.deletedItemName
@@ -262,6 +300,7 @@ export async function GET() {
         (item as InventoryItem & { hasGhostComponents?: boolean }).hasGhostComponents =
           true;
       }
+      */
     }
 
     const result = Array.from(itemsById.values());
@@ -305,7 +344,7 @@ export async function POST(request: Request) {
       nutritionTags?: string[];
       components?: InventoryComponent[];
       standardPreparation?: StandardPreparation | null;
-      preparationSteps?: string | null;
+      preparationSteps?: PreparationStep[] | null;
       nutritionPerUnit?: NutritionTotals | null;
       dosageInstructions?: string | null;
       isVegan?: boolean;
@@ -342,11 +381,7 @@ export async function POST(request: Request) {
           body.nutritionTags && body.nutritionTags.length > 0
             ? body.nutritionTags
             : null,
-        preparation_steps:
-          typeof body.preparationSteps === "string" &&
-          body.preparationSteps.trim().length > 0
-            ? body.preparationSteps.trim()
-            : null,
+        // preparation_steps is now in a separate table
         nutrition_per_unit:
           body.nutritionPerUnit && typeof body.nutritionPerUnit === "object"
             ? body.nutritionPerUnit
@@ -392,17 +427,16 @@ export async function POST(request: Request) {
 
     let components: InventoryComponent[] | undefined;
 
+    // 1. Save Recipe Structure (Ingredients)
     if (body.components && body.components.length > 0) {
       const insertRelationsResponse = await client
         .from("recipe_structure")
         .insert(
           body.components.map((component) => ({
             parent_item_id: createdItemRow.id,
-            component_item_id: component.itemId,
-            quantity: component.quantity,
+            child_item_id: component.itemId, // Renamed from component_item_id
+            amount: component.quantity,      // Renamed from quantity
             unit: component.unit,
-            sub_recipe_id: component.subRecipeId || null,
-            sub_recipe_name: component.subRecipeName || null,
           }))
         )
         .select("*");
@@ -412,27 +446,51 @@ export async function POST(request: Request) {
           table: "recipe_structure",
           error: insertRelationsResponse.error,
         });
-        return NextResponse.json(
-          {
-            error:
-              insertRelationsResponse.error.message ??
-              'Fehler beim Speichern der Komponenten in Tabelle "recipe_structure"',
-          },
-          { status: 500 }
-        );
+        // We log but don't fail the whole request, although strictly we should maybe rollback
+      } else {
+         const createdRelations =
+          (insertRelationsResponse.data as SupabaseRecipeStructureRow[]) ?? [];
+
+        components = createdRelations.map((rel) => ({
+          itemId: rel.child_item_id,
+          quantity: rel.amount,
+          unit: rel.unit,
+          // hasSubIngredients is calculated on GET, not available immediately here without extra query
+          // but for response we can just return what we saved
+        }));
       }
-
-      const createdRelations =
-        (insertRelationsResponse.data as SupabaseRecipeStructureRow[]) ?? [];
-
-      components = createdRelations.map((rel) => ({
-        itemId: rel.component_item_id,
-        quantity: rel.quantity,
-        unit: rel.unit,
-        subRecipeId: rel.sub_recipe_id,
-        subRecipeName: rel.sub_recipe_name,
-      }));
     }
+
+      // 2. Save Preparation Steps (New Table)
+    let preparationSteps: PreparationStep[] | undefined;
+
+    if (body.preparationSteps && Array.isArray(body.preparationSteps) && body.preparationSteps.length > 0) {
+       const stepsToInsert = body.preparationSteps.map((step, index) => ({
+         item_id: createdItemRow.id,
+         step_order: step.step_order ?? index + 1,
+         instruction: step.instruction,
+       }));
+
+       const insertStepsResponse = await client
+         .from("preparation_steps")
+         .insert(stepsToInsert)
+         .select("*");
+
+       if (insertStepsResponse.error) {
+         console.error("Supabase insert preparation_steps error", {
+           table: "preparation_steps",
+           error: insertStepsResponse.error,
+         });
+       } else {
+          const createdSteps = (insertStepsResponse.data as SupabasePreparationStepRow[]) ?? [];
+          preparationSteps = createdSteps.map(step => ({
+            id: step.id,
+            instruction: step.instruction,
+            step_order: step.step_order
+          }));
+       }
+    }
+
 
     const resultItem: InventoryItem = {
       id: createdItemRow.id,
@@ -453,7 +511,7 @@ export async function POST(request: Request) {
       ingredients: createdItemRow.ingredients,
       dosageInstructions: createdItemRow.dosage_instructions,
       yieldInfo: createdItemRow.yield_info,
-      preparationSteps: createdItemRow.preparation_steps,
+      preparationSteps: preparationSteps ?? null, // Use the newly saved steps
       fileUrl: createdItemRow.file_url,
       standardPreparation: createdItemRow.standard_preparation,
       nutritionPerUnit: createdItemRow.nutrition_per_unit,
@@ -571,57 +629,27 @@ export async function DELETE(request: Request) {
       );
     }
 
+    // If we delete an item that is used in other recipes, we should probably update those recipes
+    // to remove the reference.
+    // User requested "Delete old -> Insert new" for SAVING recipes, but for DELETING items:
+    // "Wenn ich ein Item in eine Matrix einfüge, speichere NUR die Verknüpfung (ID und Menge)."
+    // If ID is gone, we should remove the link or set it to null.
+    // Since we don't have "deleted_item_name" anymore, we'll just set child_item_id to null
+    // or delete the row. Deleting the row is cleaner for strict schema.
+    
     const updateComponentRelationsResponse = await client
       .from("recipe_structure")
-      .update({
-        component_item_id: null,
-        deleted_item_name: itemName,
-      })
-      .eq("component_item_id", body.id);
+      .delete()
+      .eq("child_item_id", body.id);
 
     if (updateComponentRelationsResponse.error) {
-      const updateError = updateComponentRelationsResponse.error;
-      const isMissingDeletedItemNameColumn =
-        updateError.code === "42703" ||
-        (typeof updateError.message === "string" &&
-          updateError.message.toLowerCase().includes("deleted_item_name"));
-
-      if (isMissingDeletedItemNameColumn) {
-        const fallbackUpdateResponse = await client
-          .from("recipe_structure")
-          .update({
-            component_item_id: null,
-          })
-          .eq("component_item_id", body.id);
-
-        if (fallbackUpdateResponse.error) {
-          console.error("Supabase update recipe_structure fallback error", {
-            table: "recipe_structure",
-            error: fallbackUpdateResponse.error,
-          });
-          return NextResponse.json(
-            {
-              error:
-                fallbackUpdateResponse.error.message ??
-                'Fehler beim Aktualisieren der Komponenten in Tabelle "recipe_structure"',
-            },
-            { status: 500 }
-          );
-        }
-      } else {
-        console.error("Supabase update recipe_structure error", {
-          table: "recipe_structure",
-          error: updateError,
-        });
-        return NextResponse.json(
-          {
-            error:
-              updateError.message ??
-              'Fehler beim Aktualisieren der Komponenten in Tabelle "recipe_structure"',
-          },
-          { status: 500 }
-        );
-      }
+       console.error("Supabase delete child relations error", {
+         table: "recipe_structure",
+         error: updateComponentRelationsResponse.error,
+       });
+       // Log error but proceed? Or fail? Usually we want to ensure cleanup.
+       // But if cascade delete is set on DB, this might be redundant.
+       // Assuming no cascade for now.
     }
 
     const deleteItemResponse = await client

@@ -5,9 +5,48 @@ type InventoryComponent = {
   itemId: string | null;
   quantity: number;
   unit: string;
-  subRecipeId?: string | null;
-  subRecipeName?: string | null;
 };
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const parentItemId = searchParams.get("parentItemId");
+
+  const client = getSupabaseServerClient();
+
+  if (!client) {
+    return NextResponse.json(
+      { error: "Supabase ist nicht konfiguriert" },
+      { status: 500 }
+    );
+  }
+
+  if (!parentItemId) {
+    return NextResponse.json(
+      { error: "parentItemId ist erforderlich" },
+      { status: 400 }
+    );
+  }
+
+  const { data, error } = await client
+    .from("recipe_structure")
+    .select("child_item_id, amount, unit")
+    .eq("parent_item_id", parentItemId);
+
+  if (error) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500 }
+    );
+  }
+
+  const components: InventoryComponent[] = (data || []).map((row) => ({
+    itemId: row.child_item_id,
+    quantity: row.amount,
+    unit: row.unit,
+  }));
+
+  return NextResponse.json(components);
+}
 
 export async function POST(request: Request) {
   const client = getSupabaseServerClient();
@@ -31,10 +70,18 @@ export async function POST(request: Request) {
     );
   }
 
-  await client
+  // Atomic Save: First delete all existing components for this parent
+  const deleteResponse = await client
     .from("recipe_structure")
     .delete()
     .eq("parent_item_id", body.parentItemId);
+
+  if (deleteResponse.error) {
+    return NextResponse.json(
+      { error: deleteResponse.error.message },
+      { status: 500 }
+    );
+  }
 
   const components = body.components ?? [];
 
@@ -42,19 +89,18 @@ export async function POST(request: Request) {
     return NextResponse.json<InventoryComponent[]>([]);
   }
 
+  // Then insert the new components
   const insertResponse = await client
     .from("recipe_structure")
     .insert(
       components.map((component) => ({
         parent_item_id: body.parentItemId,
-        component_item_id: component.itemId,
-        quantity: component.quantity,
+        child_item_id: component.itemId,
+        amount: component.quantity,
         unit: component.unit,
-        sub_recipe_id: component.subRecipeId || null,
-        sub_recipe_name: component.subRecipeName || null,
       }))
     )
-    .select("*");
+    .select("child_item_id, amount, unit");
 
   if (insertResponse.error || !insertResponse.data) {
     return NextResponse.json(
@@ -63,68 +109,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const saved = insertResponse.data.map((row) => ({
-    itemId: row.component_item_id as string | null,
-    quantity: row.quantity as number,
-    unit: row.unit as string,
-    subRecipeId: row.sub_recipe_id as string | null,
-    subRecipeName: row.sub_recipe_name as string | null,
+  const saved: InventoryComponent[] = insertResponse.data.map((row) => ({
+    itemId: row.child_item_id,
+    quantity: row.amount,
+    unit: row.unit,
   }));
 
-  return NextResponse.json<InventoryComponent[]>(saved);
-}
-
-export async function PATCH(request: Request) {
-  const client = getSupabaseServerClient();
-
-  if (!client) {
-    return NextResponse.json(
-      { error: "Supabase ist nicht konfiguriert" },
-      { status: 500 }
-    );
-  }
-
-  const body = (await request.json()) as {
-    deletedItemName: string;
-    newItemId: string;
-  };
-
-  if (!body.deletedItemName || !body.newItemId) {
-    return NextResponse.json(
-      {
-        error:
-          "deletedItemName und newItemId sind erforderlich, um einen Ersatz vorzunehmen",
-      },
-      { status: 400 }
-    );
-  }
-
-  const updateResponse = await client
-    .from("recipe_structure")
-    .update({
-      component_item_id: body.newItemId,
-      deleted_item_name: null,
-    })
-    .eq("deleted_item_name", body.deletedItemName)
-    .is("component_item_id", null)
-    .select("id");
-
-  if (updateResponse.error) {
-    return NextResponse.json(
-      {
-        error:
-          updateResponse.error.message ??
-          "Fehler beim globalen Ersetzen der Komponenten",
-      },
-      { status: 500 }
-    );
-  }
-
-  const count = Array.isArray(updateResponse.data)
-    ? updateResponse.data.length
-    : 0;
-
-  return NextResponse.json({
-    replacedCount: count,
-  });
+  return NextResponse.json(saved);
 }
