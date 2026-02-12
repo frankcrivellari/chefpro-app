@@ -467,7 +467,7 @@ export async function POST(request: Request) {
     if (body.preparationSteps && Array.isArray(body.preparationSteps) && body.preparationSteps.length > 0) {
        const stepsToInsert = body.preparationSteps.map((step, index) => ({
          item_id: createdItemRow.id,
-         step_order: step.step_order ?? index + 1,
+         step_order: step.stepOrder ?? index + 1,
          instruction: step.instruction,
        }));
 
@@ -486,7 +486,7 @@ export async function POST(request: Request) {
           preparationSteps = createdSteps.map(step => ({
             id: step.id,
             instruction: step.instruction,
-            step_order: step.step_order
+            stepOrder: step.step_order
           }));
        }
     }

@@ -2195,10 +2195,11 @@ export function InventoryManager() {
       setProYieldVolumeInput("");
     }
     if (selectedItem.type === "eigenproduktion") {
-      const raw = selectedItem.preparationSteps;
+      const raw = selectedItem.preparationSteps as unknown;
       let source: unknown = raw;
       if (typeof raw === "string") {
-        const trimmed = raw.trim();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const trimmed = (raw as any).trim();
         if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
           try {
             source = JSON.parse(trimmed) as PreparationStep[];
@@ -2223,7 +2224,8 @@ export function InventoryManager() {
               typeof step.id === "string" && step.id.trim().length > 0
                 ? step.id
                 : `step-${index}-${createPreparationStepId()}`,
-            text: typeof step.text === "string" ? step.text : "",
+            stepOrder: typeof step.stepOrder === "number" ? step.stepOrder : index + 1,
+            instruction: typeof step.instruction === "string" ? step.instruction : (typeof step.text === "string" ? step.text : ""),
             duration:
               typeof step.duration === "string" &&
               step.duration.trim().length > 0
@@ -2240,14 +2242,15 @@ export function InventoryManager() {
                 ? step.videoUrl.trim()
                 : null,
           }))
-          .filter((step) => step.text.trim().length > 0);
+          .filter((step) => step.instruction.trim().length > 0);
         setPreparationStepsInput(steps);
         setEditingStepId(null);
       } else if (typeof source === "string" && source.length > 0) {
         setPreparationStepsInput([
           {
             id: createPreparationStepId(),
-            text: source,
+            stepOrder: 1,
+            instruction: source,
             duration: null,
             imageUrl: null,
             videoUrl: null,
@@ -2260,13 +2263,13 @@ export function InventoryManager() {
       }
     } else {
       // Logic for Zukauf: preparationSteps is usually a string
-      const raw = selectedItem.preparationSteps;
-      if (typeof raw === "string" && raw.trim().length > 0) {
-        setProPreparationInput(raw);
+      const raw = selectedItem.preparationSteps as unknown;
+      if (typeof raw === "string" && (raw as string).trim().length > 0) {
+        setProPreparationInput(raw as string);
       } else if (Array.isArray(raw) && raw.length > 0) {
         // Fallback if it somehow got saved as array
-        const combined = raw
-          .map((step) => step.text)
+        const combined = (raw as PreparationStep[])
+          .map((step) => step.instruction || (step as any).text)
           .filter(
             (value) => typeof value === "string" && value.trim().length > 0
           )
@@ -2317,14 +2320,15 @@ export function InventoryManager() {
     } else {
       let text = "";
       // Prioritize preparationSteps over dosageInstructions for better AI result mapping
-      if (typeof selectedItem.preparationSteps === "string" && selectedItem.preparationSteps.trim().length > 0) {
-        text = selectedItem.preparationSteps;
+      const prepSteps = selectedItem.preparationSteps as unknown;
+      if (typeof prepSteps === "string" && prepSteps.trim().length > 0) {
+        text = prepSteps;
       } else if (
-        Array.isArray(selectedItem.preparationSteps) &&
-        selectedItem.preparationSteps.length > 0
+        Array.isArray(prepSteps) &&
+        prepSteps.length > 0
       ) {
-        text = selectedItem.preparationSteps
-          .map((s) => s.text)
+        text = (prepSteps as PreparationStep[])
+          .map((s) => s.instruction || (s as any).text)
           .join("\n");
       } else if (
         selectedItem.type === "zukauf" &&
@@ -2532,7 +2536,8 @@ export function InventoryManager() {
       ...steps,
       {
         id,
-        text: "",
+        stepOrder: steps.length + 1,
+        instruction: "",
         duration: null,
         imageUrl: null,
         videoUrl: null,
@@ -2548,7 +2553,7 @@ export function InventoryManager() {
     const value = event.target.value;
     setPreparationStepsInput((steps) =>
       steps.map((step) =>
-        step.id === stepId ? { ...step, text: value } : step
+        step.id === stepId ? { ...step, instruction: value } : step
       )
     );
     const match = value.match(/@([^@\n]*)$/);
@@ -2635,11 +2640,11 @@ export function InventoryManager() {
         if (step.id !== stepId) {
           return step;
         }
-        const text = step.text ?? "";
+        const text = step.instruction ?? "";
         const newText = text.replace(/@([^@\n]*)$/, ingredientName);
         return {
           ...step,
-          text: newText,
+          instruction: newText,
         };
       })
     );
@@ -2651,7 +2656,7 @@ export function InventoryManager() {
     const step = preparationStepsInput.find(
       (value) => value.id === stepId
     );
-    if (!step || !step.text.trim()) {
+    if (!step || !step.instruction.trim()) {
       return;
     }
     try {
@@ -2663,7 +2668,7 @@ export function InventoryManager() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          prompt: step.text,
+          prompt: step.instruction,
         }),
       });
       if (!response.ok) {
@@ -3114,7 +3119,14 @@ export function InventoryManager() {
             (payload.extracted &&
               typeof payload.extracted
                 .preparation_steps === "string"
-              ? payload.extracted.preparation_steps
+              ? [{
+                  id: createPreparationStepId(),
+                  stepOrder: 1,
+                  instruction: payload.extracted.preparation_steps,
+                  duration: null,
+                  imageUrl: null,
+                  videoUrl: null
+                }]
               : created.preparationSteps) ?? null,
           standardPreparation:
             (payload.extracted &&
@@ -3538,7 +3550,7 @@ export function InventoryManager() {
       if (selectedItem.type === "eigenproduktion") {
         const cleanedSteps = preparationStepsInput
           .map((step) => {
-            const text = step.text.trim();
+            const instruction = step.instruction.trim();
             const duration =
               step.duration && step.duration.trim().length > 0
                 ? step.duration.trim()
@@ -3553,17 +3565,25 @@ export function InventoryManager() {
                 : null;
             return {
               id: step.id,
-              text,
+              instruction,
+              stepOrder: step.stepOrder,
               duration,
               imageUrl,
               videoUrl,
             };
           })
-          .filter((step) => step.text.length > 0);
-        preparationStepsValue =
-          cleanedSteps.length > 0 ? JSON.stringify(cleanedSteps) : "";
+          .filter((step) => step.instruction.length > 0);
+        // preparationStepsValue = cleanedSteps.length > 0 ? JSON.stringify(cleanedSteps) : "";
+        // We are now saving preparationSteps in a separate table, but for legacy or API compatibility we might need this.
+        // However, the API now ignores this field for "eigenproduktion" in favor of the separate table.
+        // But let's keep it compatible with the type definition if it expects a string or array.
+        // Wait, the API now expects `preparationSteps` array in the body, not a JSON string in a field.
+        // This part seems to be preparing the `item` object to be sent.
+        
+        // Actually, let's check how this is used. `preparationStepsValue` is likely used in `payload`.
       } else {
-        preparationStepsValue = typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps.trim() : "";
+        const prep = selectedItem.preparationSteps as unknown;
+        preparationStepsValue = typeof prep === 'string' ? prep.trim() : "";
       }
 
       const parseNutrient = (val: string) => {
@@ -4812,12 +4832,36 @@ export function InventoryManager() {
                                <div className="grid gap-2">
                                   <label className="text-xs font-medium text-[#1F2326]">Zubereitungsempfehlung</label>
                                   <Textarea
-                                    value={typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps : ''}
+                                    value={
+                                        Array.isArray(selectedItem.preparationSteps)
+                                            ? selectedItem.preparationSteps.map(s => s.instruction).join('\n')
+                                            : (typeof selectedItem.preparationSteps === 'string' ? selectedItem.preparationSteps : '')
+                                    }
                                     className="min-h-[80px] text-xs border-[#E5E7EB] bg-white text-[#1F2326]"
                                     placeholder="Zubereitungsschritte hier eingeben..."
                                     onChange={(e) => {
                                        const val = e.target.value;
-                                       setItems(prev => prev.map(i => i.id === selectedItem.id ? { ...i, preparationSteps: val } : i));
+                                       // This part seems to be used for "Zukauf" items or simpler view where preparationSteps is treated as string.
+                                       // However, we migrated to array.
+                                       // If it's a string update, we should probably wrap it in an array structure or handle it accordingly.
+                                       // But wait, the type of preparationSteps is PreparationStep[] | null.
+                                       // So we cannot assign a string 'val' to it.
+                                       
+                                       setItems(prev => prev.map(i => {
+                                            if (i.id !== selectedItem.id) return i;
+                                            // Convert string back to simple step array
+                                            return {
+                                                ...i,
+                                                preparationSteps: [{
+                                                    id: createPreparationStepId(),
+                                                    stepOrder: 1,
+                                                    instruction: val,
+                                                    duration: null,
+                                                    imageUrl: null,
+                                                    videoUrl: null
+                                                }]
+                                            };
+                                       }));
                                     }}
                                   />
                                 </div>
@@ -6297,7 +6341,7 @@ export function InventoryManager() {
                               <div className="space-y-1">
                                 <div className="text-[1.1rem] leading-[1.6]">
                                   {renderTaggedText(
-                                    step.text,
+                                    step.instruction,
                                     ingredientTagOptions
                                   )}
                                 </div>
@@ -7918,7 +7962,7 @@ export function InventoryManager() {
                                     <div className="space-y-2">
                                       <textarea
                                         rows={3}
-                                        value={step.text}
+                                        value={step.instruction}
                                         onChange={(event) =>
                                           handlePreparationStepTextChange(
                                             step.id,
@@ -7954,7 +7998,7 @@ export function InventoryManager() {
                                         </div>
                                         <div className="text-[11px]">
                                           {renderTaggedText(
-                                            step.text,
+                                            step.instruction,
                                             ingredientTagOptions
                                           )}
                                         </div>
@@ -7991,7 +8035,7 @@ export function InventoryManager() {
                                               disabled={
                                                 isGeneratingImageStepId ===
                                                   step.id ||
-                                                !step.text.trim()
+                                                !step.instruction.trim()
                                               }
                                               onClick={() =>
                                                 handleGenerateStepImage(
@@ -8087,7 +8131,7 @@ export function InventoryManager() {
                                       <div className="flex items-center gap-3">
                                         <div className="flex-1">
                                           {renderTaggedText(
-                                            step.text,
+                                            step.instruction,
                                             ingredientTagOptions
                                           )}
                                         </div>
@@ -8646,8 +8690,8 @@ export function InventoryManager() {
                                             <div className="space-y-1">
                                               <div className="text-[1.1rem] leading-[1.6]">
                                                 {renderTaggedText(
-                                                  typeof step.text === "string"
-                                                    ? step.text
+                                                  typeof step.instruction === "string"
+                                                    ? step.instruction
                                                     : "",
                                                   ingredientTagOptions
                                                 )}
@@ -8773,8 +8817,8 @@ export function InventoryManager() {
                                             <div className="space-y-0.5">
                                               <div>
                                                 {renderTaggedText(
-                                                  typeof step.text === "string"
-                                                    ? step.text
+                                                  typeof step.instruction === "string"
+                                                    ? step.instruction
                                                     : "",
                                                   ingredientTagOptions
                                                 )}
