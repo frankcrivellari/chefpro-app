@@ -125,9 +125,13 @@ const SortableRow = ({
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(
-    component.customName || 
-    (component.itemId ? availableItems.find(i => i.id === component.itemId)?.name : "") || 
-    ""
+    component.customName ||
+      (component.itemId
+        ? availableItems.find(
+            (i) => String(i.id) === String(component.itemId)
+          )?.name
+        : "") ||
+      ""
   );
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -167,7 +171,8 @@ const SortableRow = ({
   }, [availableItems, searchTerm]);
 
   const handleSelect = async (item: AvailableItem) => {
-    onChange(index, "itemId", item.id);
+    console.log("Selected Item Raw Data:", item);
+    onChange(index, "itemId", String(item.id));
     onChange(index, "customName", null);
     onChange(index, "unit", item.unit);
     onChange(index, "purchasePrice", item.purchasePrice);
@@ -203,7 +208,9 @@ const SortableRow = ({
       const data = await res.json();
       if (Array.isArray(data)) {
         const mapped = data.map((row: any) => {
-          const child = availableItems.find((i) => i.id === row.itemId);
+          const child = availableItems.find(
+            (i) => String(i.id) === String(row.itemId)
+          );
           const qty =
             typeof row.quantity === "number"
               ? row.quantity
@@ -234,7 +241,11 @@ const SortableRow = ({
     setSearchTerm(text);
     setSearchOpen(true);
     // If text doesn't match the currently selected item, switch to custom mode
-    const currentItem = component.itemId ? availableItems.find(i => i.id === component.itemId) : null;
+    const currentItem = component.itemId
+      ? availableItems.find(
+          (i) => String(i.id) === String(component.itemId)
+        )
+      : null;
     if (currentItem && currentItem.name !== text) {
       onChange(index, "itemId", null);
       onChange(index, "customName", text);
@@ -244,8 +255,14 @@ const SortableRow = ({
   };
 
   // Helper to calculate cost for a row (inlined or we can use the helper if defined)
-  const rowCost = component.itemId && availableItems.find(i => i.id === component.itemId)
-    ? (availableItems.find(i => i.id === component.itemId)!.purchasePrice * component.quantity)
+  const rowCost =
+    component.itemId &&
+    availableItems.find(
+      (i) => String(i.id) === String(component.itemId)
+    )
+      ? availableItems.find(
+          (i) => String(i.id) === String(component.itemId)
+        )!.purchasePrice * component.quantity
     : 0;
 
   const isLinked = !!component.itemId;
@@ -346,7 +363,9 @@ const SortableRow = ({
           {isLinked && (
             <span className="text-[10px] text-gray-400">
               {(
-                availableItems.find((i) => i.id === component.itemId)
+                availableItems.find(
+                  (i) => String(i.id) === String(component.itemId)
+                )
                   ?.purchasePrice || 0
               ).toFixed(2)}{" "}
               € / Eh.
