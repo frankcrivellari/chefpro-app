@@ -33,7 +33,7 @@ import {
   X,
   Trash2,
 } from "lucide-react";
-import { SmartIngredientMatrix, type InventoryComponent as SmartInventoryComponent } from "@/components/inventory/smart-ingredient-matrix";
+import { RecipeCompositionMatrix, type RecipeComponent as RecipeMatrixComponent } from "@/components/recipes/recipe-composition-matrix";
 import { Accordion,
   AccordionContent,
   AccordionItem,
@@ -5220,7 +5220,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                                     </div>
                                 ) : (
-                                <SmartIngredientMatrix
+                                <RecipeCompositionMatrix
                                   components={selectedItem.components || []}
                                   availableItems={effectiveItems.map(item => ({
                                     id: item.id,
@@ -7215,8 +7215,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Zutatenstruktur
                       </h3>
-                      <SmartIngredientMatrix
-                        components={selectedItem.components as SmartInventoryComponent[] ?? []}
+                      <RecipeCompositionMatrix
+                        components={selectedItem.components as RecipeMatrixComponent[] ?? []}
                         availableItems={items.filter(i => i.id !== selectedItem?.id)}
                         onUpdate={() => {}}
                         onQuickImport={() => {}}
