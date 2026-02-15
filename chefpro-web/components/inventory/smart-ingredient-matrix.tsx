@@ -68,6 +68,7 @@ interface SmartIngredientMatrixProps {
   onExpandSubRecipe?: (index: number, recipeId: string) => void;
   onImportSubRecipeSteps?: (recipeId: string) => void;
   readOnly?: boolean;
+  debugStatus?: string;
 }
 
 interface SortableRowProps {
@@ -171,6 +172,7 @@ const SortableRow = ({
   }, [availableItems, searchTerm]);
 
   const handleSelect = async (item: AvailableItem) => {
+    alert("Auswahl erkannt: " + item.id);
     console.log("Selected Item Raw Data:", item);
     onChange(index, "itemId", String(item.id));
     onChange(index, "customName", null);
@@ -467,6 +469,7 @@ export function SmartIngredientMatrix({
   onExpandSubRecipe,
   onImportSubRecipeSteps,
   readOnly = false,
+  debugStatus,
 }: SmartIngredientMatrixProps) {
   // ... (sensors, itemsWithIds, handleDragEnd, handleChange, handleRemove, handleAddRow remain same)
   const sensors = useSensors(
@@ -518,6 +521,8 @@ export function SmartIngredientMatrix({
   };
 
   // Dynamic Totals Calculation
+  console.log("SmartIngredientMatrix availableItems length:", availableItems.length, availableItems);
+
   const totals = useMemo(() => {
     const result: Record<string, number> = { cost: 0 };
     
@@ -546,7 +551,11 @@ export function SmartIngredientMatrix({
 
   return (
     <div className="space-y-4">
-      {/* Header and DndContext remain same */}
+      {debugStatus && (
+        <div className="rounded-md border border-dashed bg-white/70 px-3 py-1 text-[11px] text-gray-700">
+          {debugStatus} | availableItems: {availableItems.length} | components: {components.length}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         {!readOnly && (
             <Button onClick={handleAddRow} size="sm" variant="outline" className="h-8 gap-2">

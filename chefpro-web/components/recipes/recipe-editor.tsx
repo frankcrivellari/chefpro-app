@@ -5242,6 +5242,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                   }}
                                   onExpandSubRecipe={handleExpandSubRecipe}
                                   onImportSubRecipeSteps={handleImportSubRecipeSteps}
+                                  debugStatus={selectedItem ? `Item geladen: ${selectedItem.name}` : "Kein Item ausgewählt"}
                                   readOnly={false}
                                 />
                                 )}
