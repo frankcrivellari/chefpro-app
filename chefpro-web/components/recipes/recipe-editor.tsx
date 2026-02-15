@@ -2993,6 +2993,93 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
     );
   }
 
+  function handleImportSubRecipeSteps(recipeId: string) {
+    if (!selectedItem) return;
+    const subItem = items.find((i) => i.id === recipeId);
+    if (!subItem) return;
+
+    const source =
+      (subItem as any).preparationSteps ??
+      (subItem as any).preparation_steps ??
+      null;
+
+    let imported: PreparationStep[] = [];
+
+    if (Array.isArray(source)) {
+      imported = source
+        .map((step, index) => {
+          const instruction =
+            typeof step.text === "string"
+              ? step.text
+              : typeof step.instruction === "string"
+              ? step.instruction
+              : "";
+          const duration =
+            typeof step.duration === "string" &&
+            step.duration.trim().length > 0
+              ? step.duration.trim()
+              : null;
+          const imageUrl =
+            typeof step.imageUrl === "string" &&
+            step.imageUrl.trim().length > 0
+              ? step.imageUrl.trim()
+              : null;
+          const videoUrl =
+            typeof step.videoUrl === "string" &&
+            step.videoUrl.trim().length > 0
+              ? step.videoUrl.trim()
+              : null;
+
+          return {
+            id:
+              typeof step.id === "string" && step.id.trim().length > 0
+                ? step.id
+                : `sub-${recipeId}-${index}-${createPreparationStepId()}`,
+            instruction,
+            stepOrder: index + 1,
+            duration,
+            imageUrl,
+            videoUrl,
+          };
+        })
+        .filter((step) => step.instruction.trim().length > 0);
+    } else if (typeof source === "string" && source.trim().length > 0) {
+      imported = [
+        {
+          id: `sub-${recipeId}-${createPreparationStepId()}`,
+          instruction: source.trim(),
+          stepOrder: 1,
+          duration: null,
+          imageUrl: null,
+          videoUrl: null,
+        },
+      ];
+    }
+
+    if (imported.length === 0) return;
+
+    const combined = [...preparationStepsInput, ...imported];
+    const normalized = combined.map((step, index) => ({
+      ...step,
+      id:
+        typeof step.id === "string" && step.id.trim().length > 0
+          ? step.id
+          : `step-${index}-${createPreparationStepId()}`,
+      stepOrder: index + 1,
+    }));
+
+    setPreparationStepsInput(normalized);
+    setEditingStepId(null);
+
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === selectedItem.id
+          ? { ...item, preparationSteps: normalized }
+          : item
+      )
+    );
+  }
+
   async function handleSaveComponents() {
     if (!selectedItem || selectedItem.type !== "eigenproduktion") {
       return;
@@ -5154,6 +5241,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                     console.log("Quick import:", name);
                                   }}
                                   onExpandSubRecipe={handleExpandSubRecipe}
+                                  onImportSubRecipeSteps={handleImportSubRecipeSteps}
                                   readOnly={false}
                                 />
                                 )}

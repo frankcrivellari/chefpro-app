@@ -65,7 +65,8 @@ interface SmartIngredientMatrixProps {
   availableItems: AvailableItem[];
   onUpdate: (components: InventoryComponent[]) => void;
   onQuickImport: (name: string) => void;
-  onExpandSubRecipe?: (index: number, recipeId: string) => void; // New prop
+  onExpandSubRecipe?: (index: number, recipeId: string) => void;
+  onImportSubRecipeSteps?: (recipeId: string) => void;
   readOnly?: boolean;
 }
 
@@ -76,7 +77,8 @@ interface SortableRowProps {
   onChange: (index: number, field: keyof InventoryComponent, value: any) => void;
   onRemove: (index: number) => void;
   onQuickImport: (name: string) => void;
-  onExpandSubRecipe?: (index: number, recipeId: string) => void; // New prop
+  onExpandSubRecipe?: (index: number, recipeId: string) => void;
+  onImportSubRecipeSteps?: (recipeId: string) => void;
   readOnly?: boolean;
 }
 
@@ -102,6 +104,7 @@ const SortableRow = ({
   onRemove,
   onQuickImport,
   onExpandSubRecipe,
+  onImportSubRecipeSteps,
   readOnly,
 }: SortableRowProps) => {
   const {
@@ -127,6 +130,12 @@ const SortableRow = ({
     ""
   );
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewItems, setPreviewItems] = useState<
+    { name: string; quantity: number; unit: string }[]
+  >([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   // Sync search term with component data if it changes externally
   useEffect(() => {
@@ -178,6 +187,49 @@ const SortableRow = ({
     }
   };
 
+  const handleTogglePreview = async () => {
+    if (!component.itemId) return;
+    if (previewOpen) {
+      setPreviewOpen(false);
+      return;
+    }
+    setPreviewLoading(true);
+    setPreviewError(null);
+    try {
+      const res = await fetch(`/api/recipe-structure?parentItemId=${component.itemId}`);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const mapped = data.map((row: any) => {
+          const child = availableItems.find((i) => i.id === row.itemId);
+          const qty =
+            typeof row.quantity === "number"
+              ? row.quantity
+              : typeof row.amount === "number"
+              ? row.amount
+              : 0;
+          return {
+            name: child?.name ?? "Unbenannter Artikel",
+            quantity: qty,
+            unit: row.unit || child?.unit || "",
+          };
+        });
+        setPreviewItems(mapped);
+      } else {
+        setPreviewItems([]);
+      }
+      setPreviewOpen(true);
+    } catch (error) {
+      console.error("Fehler beim Laden der Unterrezept-Komponenten:", error);
+      setPreviewError("Fehler beim Laden der Unterrezept-Komponenten");
+      setPreviewOpen(true);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const handleTextChange = (text: string) => {
     setSearchTerm(text);
     setSearchOpen(true);
@@ -201,136 +253,187 @@ const SortableRow = ({
   const isSubRecipe = !!component.hasSubIngredients;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "group flex items-center gap-2 rounded-md border bg-white p-2 shadow-sm transition-all hover:shadow-md",
-        isDragging && "opacity-50",
-        isSubRecipe && "border-l-4 border-l-blue-400" // Visual indicator for sub-recipe
-      )}
-    >
-      {/* Drag Handle */}
-      {!readOnly && (
-        <div
-          {...attributes}
-          {...listeners}
-          className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing"
-        >
-          <GripVertical size={20} />
-        </div>
-      )}
+    <div ref={setNodeRef} style={style}>
+      <div
+        className={cn(
+          "group flex items-center gap-2 rounded-md border bg-white p-2 shadow-sm transition-all hover:shadow-md",
+          isDragging && "opacity-50",
+          isSubRecipe && "border-l-4 border-l-blue-400"
+        )}
+      >
+        {!readOnly && (
+          <div
+            {...attributes}
+            {...listeners}
+            className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing"
+          >
+            <GripVertical size={20} />
+          </div>
+        )}
 
-      {/* Quantity */}
-      <div className="w-20">
-        <Input
-          type="number"
-          value={component.quantity || ""}
-          onChange={(e) => onChange(index, "quantity", parseFloat(e.target.value) || 0)}
-          placeholder="Menge"
-          className="h-8 text-right"
-          readOnly={readOnly}
-        />
-      </div>
-
-      {/* Unit */}
-      <div className="w-20">
-        <Input
-          type="text"
-          value={component.unit || ""}
-          onChange={(e) => onChange(index, "unit", e.target.value)}
-          placeholder="Einheit"
-          className="h-8"
-          readOnly={readOnly}
-        />
-      </div>
-
-      {/* Ingredient Name (Hybrid Input) */}
-      <div className="relative flex-1" ref={wrapperRef}>
-        <div className="relative">
+        <div className="w-20">
           <Input
-            value={searchTerm}
-            onChange={(e) => handleTextChange(e.target.value)}
-            onFocus={() => setSearchOpen(true)}
-            placeholder="Zutat suchen oder eingeben..."
-            className={cn(
-              "h-8 pr-8",
-              isLinked ? "border-green-200 bg-green-50 text-green-900" : ""
-            )}
+            type="number"
+            value={component.quantity || ""}
+            onChange={(e) =>
+              onChange(index, "quantity", parseFloat(e.target.value) || 0)
+            }
+            placeholder="Menge"
+            className="h-8 text-right"
             readOnly={readOnly}
           />
-          {isLinked && (
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 text-green-600">
-              <Check size={14} />
+        </div>
+
+        <div className="w-20">
+          <Input
+            type="text"
+            value={component.unit || ""}
+            onChange={(e) => onChange(index, "unit", e.target.value)}
+            placeholder="Einheit"
+            className="h-8"
+            readOnly={readOnly}
+          />
+        </div>
+
+        <div className="relative flex-1" ref={wrapperRef}>
+          <div className="relative">
+            <Input
+              value={searchTerm}
+              onChange={(e) => handleTextChange(e.target.value)}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="Zutat suchen oder eingeben..."
+              className={cn(
+                "h-8 pr-8",
+                isLinked ? "border-green-200 bg-green-50 text-green-900" : ""
+              )}
+              readOnly={readOnly}
+            />
+            {isLinked && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 text-green-600">
+                <Check size={14} />
+              </div>
+            )}
+          </div>
+
+          {searchOpen && !readOnly && (
+            <div className="absolute left-0 top-full z-50 mt-1 w-full overflow-hidden rounded-md border bg-white shadow-lg">
+              {filteredItems.length > 0 ? (
+                <ul className="max-h-60 overflow-y-auto py-1">
+                  {filteredItems.map((item) => (
+                    <li
+                      key={item.id}
+                      onClick={() => handleSelect(item)}
+                      className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm hover:bg-gray-100"
+                    >
+                      <span>{item.name}</span>
+                      <span className="text-xs text-gray-400">{item.unit}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="p-3 text-center text-xs text-gray-500">
+                  Drücke Enter für Freitext "{searchTerm}"
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Dropdown */}
-        {searchOpen && !readOnly && (
-          <div className="absolute left-0 top-full z-50 mt-1 w-full overflow-hidden rounded-md border bg-white shadow-lg">
-            {filteredItems.length > 0 ? (
-              <ul className="max-h-60 overflow-y-auto py-1">
-                {filteredItems.map((item) => (
-                  <li
-                    key={item.id}
-                    onClick={() => handleSelect(item)}
-                    className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm hover:bg-gray-100"
-                  >
-                    <span>{item.name}</span>
-                    <span className="text-xs text-gray-400">{item.unit}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="p-3 text-center text-xs text-gray-500">
-                Drücke Enter für Freitext "{searchTerm}"
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Cost Preview */}
-      <div className="flex w-24 flex-col items-end justify-center text-xs text-gray-600">
-        <span className="font-medium">
+        <div className="flex w-24 flex-col items-end justify-center text-xs text-gray-600">
+          <span className="font-medium">
             {isLinked ? `${rowCost.toFixed(2)} €` : "-"}
-        </span>
-        {isLinked && (
-           <span className="text-[10px] text-gray-400">
-             {(availableItems.find(i => i.id === component.itemId)?.purchasePrice || 0).toFixed(2)} € / Eh.
-           </span>
-        )}
-      </div>
+          </span>
+          {isLinked && (
+            <span className="text-[10px] text-gray-400">
+              {(
+                availableItems.find((i) => i.id === component.itemId)
+                  ?.purchasePrice || 0
+              ).toFixed(2)}{" "}
+              € / Eh.
+            </span>
+          )}
+        </div>
 
-      {/* Actions */}
-      {!readOnly && (
-        <div className="flex items-center gap-1">
-          {hasCustomName && searchTerm.trim().length > 0 && (
+        {!readOnly && (
+          <div className="flex items-center gap-1">
+            {hasCustomName && searchTerm.trim().length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-yellow-500 hover:bg-yellow-50 hover:text-yellow-600"
+                title="Als neuen Stammdaten-Artikel anlegen (Quick Import)"
+                onClick={() => onQuickImport(searchTerm)}
+              >
+                <Zap size={16} />
+              </Button>
+            )}
+            {component.hasSubIngredients && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-8 w-8 text-blue-500 hover:bg-blue-50 hover:text-blue-600",
+                  previewOpen && "bg-blue-50"
+                )}
+                title="Unterrezept anzeigen"
+                onClick={handleTogglePreview}
+              >
+                <Layers size={16} />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 text-yellow-500 hover:bg-yellow-50 hover:text-yellow-600"
-              title="Als neuen Stammdaten-Artikel anlegen (Quick Import)"
-              onClick={() => onQuickImport(searchTerm)}
+              className="h-8 w-8 text-red-400 hover:bg-red-50 hover:text-red-500"
+              onClick={() => onRemove(index)}
             >
-              <Zap size={16} />
+              <Trash2 size={16} />
             </Button>
+          </div>
+        )}
+      </div>
+      {previewOpen && component.itemId && (
+        <div className="ml-10 mt-2 rounded-md border bg-white/80 p-2 text-xs text-gray-700">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="font-semibold text-[11px]">Unterrezept</span>
+            {onImportSubRecipeSteps && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-6 px-2 text-[10px]"
+                onClick={() => onImportSubRecipeSteps(component.itemId!)}
+              >
+                Zubereitung übernehmen
+              </Button>
+            )}
+          </div>
+          {previewLoading && (
+            <div className="text-[11px] text-gray-500">
+              Lade Unterrezept-Zutaten...
+            </div>
           )}
-          {/* Expand Sub-Recipe Button / Icon */}
-          {component.hasSubIngredients && (
-             <div className="flex h-8 w-8 items-center justify-center text-blue-500" title="Enthält Unter-Zutaten (Rezept)">
-                <Layers size={16} />
-             </div>
+          {!previewLoading && previewError && (
+            <div className="text-[11px] text-red-500">{previewError}</div>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-red-400 hover:bg-red-50 hover:text-red-500"
-            onClick={() => onRemove(index)}
-          >
-            <Trash2 size={16} />
-          </Button>
+          {!previewLoading && !previewError && previewItems.length === 0 && (
+            <div className="text-[11px] text-gray-400">
+              Keine Unter-Zutaten gefunden.
+            </div>
+          )}
+          {!previewLoading && !previewError && previewItems.length > 0 && (
+            <ul className="ml-2 space-y-0.5">
+              {previewItems.map((item, idx) => (
+                <li key={`${item.name}-${idx}`} className="flex gap-2">
+                  <span className="w-16 text-right">
+                    {item.quantity.toFixed(2)} {item.unit}
+                  </span>
+                  <span className="flex-1 truncate">{item.name}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>
@@ -343,6 +446,7 @@ export function SmartIngredientMatrix({
   onUpdate,
   onQuickImport,
   onExpandSubRecipe,
+  onImportSubRecipeSteps,
   readOnly = false,
 }: SmartIngredientMatrixProps) {
   // ... (sensors, itemsWithIds, handleDragEnd, handleChange, handleRemove, handleAddRow remain same)
@@ -463,6 +567,7 @@ export function SmartIngredientMatrix({
                   onRemove={handleRemove}
                   onQuickImport={onQuickImport}
                   onExpandSubRecipe={onExpandSubRecipe}
+                  onImportSubRecipeSteps={onImportSubRecipeSteps}
                   readOnly={readOnly}
                 />
               ))}
