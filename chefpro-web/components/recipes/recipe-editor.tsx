@@ -3097,7 +3097,12 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
       return;
     }
 
-    const cleanedComponents = editingComponents
+    const sourceComponents =
+      (selectedItem.components && selectedItem.components.length > 0
+        ? (selectedItem.components as InventoryComponent[])
+        : editingComponents) || [];
+
+    const cleanedComponents = sourceComponents
       .map((component) => ({
         itemId: component.itemId,
         quantity: Number(
@@ -3117,15 +3122,19 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
       setIsSaving(true);
       setError(null);
 
+      const finalPayload = {
+        parentItemId: selectedItem.id,
+        components: cleanedComponents,
+      };
+
+      console.log("Sende an API:", finalPayload);
+
       const response = await fetch("/api/recipe-structure", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          parentItemId: selectedItem.id,
-          components: cleanedComponents,
-        }),
+        body: JSON.stringify(finalPayload),
       });
 
       if (!response.ok) {
