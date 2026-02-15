@@ -528,6 +528,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
   const [editingComponents, setEditingComponents] = useState<
     InventoryComponent[]
   >([]);
+  const [isComponentsDirty, setIsComponentsDirty] = useState(false);
+  const isComponentsDirtyRef = useRef(false);
   const [isLoadingRecipeStructure, setIsLoadingRecipeStructure] = useState(false);
   const lastLoadedRecipeItemId = useRef<string | null>(null);
   const [aiText, setAiText] = useState("");
@@ -1149,6 +1151,10 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
   const effectiveItems = isLoading ? [] : items;
 
 
+  useEffect(() => {
+    isComponentsDirtyRef.current = isComponentsDirty;
+  }, [isComponentsDirty]);
+
   const generateAndUploadPdfPreview = useCallback(async (fileUrl: string, itemId: string) => {
     try {
       setDocPreviewIsGenerating(true);
@@ -1518,7 +1524,10 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
     search,
   ]);
 
-  // docMatch removed (unused)
+  useEffect(() => {
+    setIsComponentsDirty(false);
+  }, [selectedItemId]);
+
 
   useEffect(() => {
     if (!docParsed || !docParsed.dosageInstructions) {
@@ -1717,10 +1726,13 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
              tempId: `loaded-${index}-${Date.now()}`,
              hasSubIngredients: false 
         }));
-        
+        if (isComponentsDirtyRef.current) {
+          return;
+        }
         setItems(prev => prev.map(i => 
              i.id === selectedItem.id ? { ...i, components: mappedComponents } : i
         ));
+        setIsComponentsDirty(false);
       } catch (err) {
         console.error("Error loading recipe structure:", err);
       } finally {
@@ -3148,6 +3160,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
 
       setEditingComponents(updatedComponents);
       setIsEditingComponents(false);
+      setIsComponentsDirty(false);
     } catch (error) {
       const message =
         error instanceof Error
@@ -5233,9 +5246,11 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                     isVegan: item.isVegan
                                   }))}
                                   onUpdate={(updatedComponents) => {
+                                    if (!selectedItem) return;
                                     setItems(prev => prev.map(i => 
                                       i.id === selectedItem.id ? { ...i, components: updatedComponents } : i
                                     ));
+                                    setIsComponentsDirty(true);
                                   }}
                                   onQuickImport={(name) => {
                                     console.log("Quick import:", name);
