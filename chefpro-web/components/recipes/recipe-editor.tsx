@@ -3102,23 +3102,23 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
         ? (selectedItem.components as InventoryComponent[])
         : editingComponents) || [];
 
-    console.log("KLICK AUF SPEICHERN - Sende Daten:", sourceComponents);
-
-    const cleanedComponents = sourceComponents
-      .map((component) => ({
-        itemId: component.itemId,
-        quantity: Number(
-          String(component.quantity).toString().replace(",", ".")
-        ),
-        unit: component.unit.trim(),
-      }))
-      .filter(
-        (component) =>
-          component.itemId &&
-          component.unit &&
-          !Number.isNaN(component.quantity) &&
-          component.quantity > 0
+    const payloadComponents = sourceComponents.map((component) => {
+      const rawQuantity = Number(
+        String(component.quantity ?? 0).toString().replace(",", ".")
       );
+      const quantity = Number.isFinite(rawQuantity) ? rawQuantity : 0;
+      const unit =
+        component.unit !== undefined && component.unit !== null
+          ? String(component.unit).trim()
+          : "";
+      return {
+        itemId: component.itemId,
+        quantity,
+        unit,
+      };
+    });
+
+    console.log("KLICK AUF SPEICHERN - Sende Daten:", payloadComponents);
 
     try {
       setIsSaving(true);
@@ -3126,7 +3126,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
 
       const finalPayload = {
         parentItemId: selectedItem.id,
-        components: cleanedComponents,
+        components: payloadComponents,
       };
 
       console.log("Sende an API:", finalPayload);
