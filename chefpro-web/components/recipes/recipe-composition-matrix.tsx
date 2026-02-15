@@ -533,7 +533,10 @@ export function RecipeCompositionMatrix({
       components[index]?.quantity && components[index].quantity > 0
         ? components[index].quantity
         : 1;
-
+    const clonedNutrition =
+      item.nutritionPerUnit && typeof item.nutritionPerUnit === "object"
+        ? { ...item.nutritionPerUnit }
+        : null;
     const updated: RecipeComponent = {
       ...components[index],
       itemId: String(item.id),
@@ -541,7 +544,7 @@ export function RecipeCompositionMatrix({
       unit: item.unit,
       customName: null,
       purchasePrice: item.purchasePrice,
-      nutritionPerUnit: item.nutritionPerUnit ?? null,
+      nutritionPerUnit: clonedNutrition,
     };
 
     const newComponents = [...components];
@@ -559,16 +562,26 @@ export function RecipeCompositionMatrix({
 
     components.forEach((comp) => {
       const item = availableItems.find((i) => i.id === comp.itemId);
-      if (item) {
-        result.cost += item.purchasePrice * comp.quantity;
-
-        if (item.nutritionPerUnit) {
-          Object.entries(item.nutritionPerUnit).forEach(([key, value]) => {
-            if (value !== null && typeof value === "number") {
-              result[key] = (result[key] || 0) + value * comp.quantity;
-            }
-          });
-        }
+      if (!item && !comp.purchasePrice && !comp.nutritionPerUnit) {
+        return;
+      }
+      const effectivePrice =
+        typeof comp.purchasePrice === "number"
+          ? comp.purchasePrice
+          : item?.purchasePrice ?? 0;
+      result.cost += effectivePrice * comp.quantity;
+      const nutritionSource =
+        comp.nutritionPerUnit && typeof comp.nutritionPerUnit === "object"
+          ? comp.nutritionPerUnit
+          : item?.nutritionPerUnit && typeof item.nutritionPerUnit === "object"
+          ? item.nutritionPerUnit
+          : null;
+      if (nutritionSource) {
+        Object.entries(nutritionSource).forEach(([key, value]) => {
+          if (value !== null && typeof value === "number") {
+            result[key] = (result[key] || 0) + value * comp.quantity;
+          }
+        });
       }
     });
 
@@ -666,4 +679,3 @@ export function RecipeCompositionMatrix({
     </div>
   );
 }
-
