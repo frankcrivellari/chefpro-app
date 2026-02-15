@@ -141,6 +141,12 @@ type SupabasePreparationStepRow = {
 
 export async function GET() {
   try {
+    // Check Env Vars for debugging
+    const hasServiceRole = !!(process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const hasAnonKey = !!(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY);
+    
+    console.log(`[Inventory API] Init Supabase. ServiceRole: ${hasServiceRole}, Anon: ${hasAnonKey}`);
+
     const client = getSupabaseServerClient();
 
     if (!client) {
@@ -274,11 +280,11 @@ export async function GET() {
 
     const componentsByParent = new Map<string, InventoryComponent[]>();
 
-    for (const rel of relations) {
+    for (const rel of relations as any[]) {
       const existing = componentsByParent.get(rel.parent_item_id) ?? [];
       existing.push({
         itemId: rel.child_item_id,
-        quantity: rel.amount,
+        quantity: (rel as any).amount ?? (rel as any).quantity,
         unit: rel.unit,
         hasSubIngredients: rel.child_item_id ? recipeItemIds.has(rel.child_item_id) : false,
       });
@@ -314,6 +320,7 @@ export async function GET() {
 
     return NextResponse.json(result);
   } catch (error) {
+    console.error("Supabase Error Details:", error);
     console.error("Unexpected error in /api/inventory GET:", error);
     if (error instanceof Error && error.stack) {
       console.error("Stacktrace:", error.stack);

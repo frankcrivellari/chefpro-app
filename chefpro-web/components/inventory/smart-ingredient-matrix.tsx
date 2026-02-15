@@ -44,6 +44,8 @@ export type InventoryComponent = {
   tempId?: string;
   // Flag indicating if this item has sub-ingredients (is a sub-recipe)
   hasSubIngredients?: boolean;
+  purchasePrice?: number;
+  nutritionPerUnit?: Record<string, number | null> | null | any;
 };
 
 // We need a subset of InventoryItem for the dropdown and calculations
@@ -155,17 +157,25 @@ const SortableRow = ({
       .slice(0, 10);
   }, [availableItems, searchTerm]);
 
-  const handleSelect = (item: AvailableItem) => {
-    // Determine if the item has sub-ingredients (this logic might need to be passed down or checked against a list of known recipes)
-    // For now, we rely on the parent component or API to tell us, but when selecting from dropdown, we might not know yet unless AvailableItem has a flag.
-    // However, the user said "Jedes Item kann ein Rezept sein".
-    // We will update the row.
-    
+  const handleSelect = async (item: AvailableItem) => {
     onChange(index, "itemId", item.id);
     onChange(index, "customName", null);
-    onChange(index, "unit", item.unit); // Auto-fill unit
+    onChange(index, "unit", item.unit);
+    onChange(index, "purchasePrice", item.purchasePrice);
+    onChange(index, "nutritionPerUnit", item.nutritionPerUnit ?? null);
     setSearchTerm(item.name);
     setSearchOpen(false);
+    try {
+      const res = await fetch(`/api/recipe-structure?parentItemId=${item.id}`);
+      if (res.ok) {
+        const arr = await res.json();
+        onChange(index, "hasSubIngredients", Array.isArray(arr) && arr.length > 0);
+      } else {
+        onChange(index, "hasSubIngredients", false);
+      }
+    } catch {
+      onChange(index, "hasSubIngredients", false);
+    }
   };
 
   const handleTextChange = (text: string) => {

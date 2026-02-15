@@ -456,16 +456,30 @@ export async function POST(request: Request) {
 
     // 2. Insert new relations
     if (body.components.length > 0) {
-      const newRelations = body.components.map((comp) => ({
-        parent_item_id: row.id,
-        child_item_id: comp.itemId!, // Assumes valid ID
-        amount: comp.quantity,
-        unit: comp.unit,
-      }));
-
-      const insertRelations = await client
+      // Try insert with 'amount'; if it fails due to missing column, retry with 'quantity'
+      let insertRelations = await client
         .from("recipe_structure")
-        .insert(newRelations);
+        .insert(
+          body.components.map((comp) => ({
+            parent_item_id: row.id,
+            child_item_id: comp.itemId!, // Assumes valid ID
+            amount: comp.quantity,
+            unit: comp.unit,
+          }))
+        );
+
+      if (insertRelations.error && typeof insertRelations.error.message === "string" && insertRelations.error.message.toLowerCase().includes("amount")) {
+        insertRelations = await client
+          .from("recipe_structure")
+          .insert(
+            body.components.map((comp) => ({
+              parent_item_id: row.id,
+              child_item_id: comp.itemId!, // Assumes valid ID
+              quantity: comp.quantity,
+              unit: comp.unit,
+            }))
+          );
+      }
 
       if (insertRelations.error) {
         console.error("❌ Fehler beim Speichern der Rezept-Struktur:", insertRelations.error);
@@ -520,9 +534,7 @@ export async function POST(request: Request) {
 
   const relationsResponse = await client
     .from("recipe_structure")
-    .select(
-      "id,parent_item_id,child_item_id,amount,unit"
-    )
+    .select("*")
     .eq("parent_item_id", row.id);
 
   if (relationsResponse.error) {
@@ -556,12 +568,15 @@ export async function POST(request: Request) {
         }
     }
 
-    components = relations.map((rel) => ({
-      itemId: rel.child_item_id,
-      quantity: rel.amount,
-      unit: rel.unit,
-      hasSubIngredients: subRecipeMap.has(rel.child_item_id)
-    }));
+    components = relations.map((rel: any) => {
+      const qty = (rel as any).amount ?? (rel as any).quantity;
+      return {
+        itemId: rel.child_item_id,
+        quantity: qty,
+        unit: rel.unit,
+        hasSubIngredients: subRecipeMap.has(rel.child_item_id)
+      };
+    });
   }
 
   // Fetch Preparation Steps for Response
