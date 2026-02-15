@@ -3102,6 +3102,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
         ? (selectedItem.components as InventoryComponent[])
         : editingComponents) || [];
 
+    console.log("KLICK AUF SPEICHERN - Sende Daten:", sourceComponents);
+
     const cleanedComponents = sourceComponents
       .map((component) => ({
         itemId: component.itemId,
@@ -4328,7 +4330,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
       dosageText = lines.join("\n");
     }
     await handleSaveProfiData(dosageText);
-    if (isEditingComponents) {
+    if (selectedItem.type === "eigenproduktion") {
       await handleSaveComponents();
     }
   }
