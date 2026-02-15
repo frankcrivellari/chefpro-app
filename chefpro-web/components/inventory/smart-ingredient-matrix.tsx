@@ -76,6 +76,7 @@ interface SortableRowProps {
   index: number;
   availableItems: AvailableItem[];
   onChange: (index: number, field: keyof InventoryComponent, value: any) => void;
+  onSelectItem?: (index: number, item: AvailableItem) => void;
   onRemove: (index: number) => void;
   onQuickImport: (name: string) => void;
   onExpandSubRecipe?: (index: number, recipeId: string) => void;
@@ -102,6 +103,7 @@ const SortableRow = ({
   index,
   availableItems,
   onChange,
+  onSelectItem,
   onRemove,
   onQuickImport,
   onExpandSubRecipe,
@@ -174,11 +176,15 @@ const SortableRow = ({
   const handleSelect = async (item: AvailableItem) => {
     alert("Auswahl erkannt: " + item.id);
     console.log("Selected Item Raw Data:", item);
-    onChange(index, "itemId", String(item.id));
-    onChange(index, "customName", null);
-    onChange(index, "unit", item.unit);
-    onChange(index, "purchasePrice", item.purchasePrice);
-    onChange(index, "nutritionPerUnit", item.nutritionPerUnit ?? null);
+    if (onSelectItem) {
+      onSelectItem(index, item);
+    } else {
+      onChange(index, "itemId", String(item.id));
+      onChange(index, "customName", null);
+      onChange(index, "unit", item.unit);
+      onChange(index, "purchasePrice", item.purchasePrice);
+      onChange(index, "nutritionPerUnit", item.nutritionPerUnit ?? null);
+    }
     setSearchTerm(item.name);
     setSearchOpen(false);
     try {
@@ -520,6 +526,32 @@ export function SmartIngredientMatrix({
     ]);
   };
 
+  const handleSelectItem = (index: number, item: AvailableItem) => {
+    const baseQuantity =
+      components[index]?.quantity && components[index].quantity > 0
+        ? components[index].quantity
+        : 1;
+
+    const updated: InventoryComponent = {
+      ...components[index],
+      itemId: String(item.id),
+      quantity: baseQuantity,
+      unit: item.unit,
+      customName: null,
+      purchasePrice: item.purchasePrice,
+      nutritionPerUnit: item.nutritionPerUnit ?? null,
+    };
+
+    const newComponents = [...components];
+    if (index >= newComponents.length) {
+      newComponents.push(updated);
+    } else {
+      newComponents[index] = updated;
+    }
+
+    onUpdate(newComponents);
+  };
+
   // Dynamic Totals Calculation
   const totals = useMemo(() => {
     const result: Record<string, number> = { cost: 0 };
@@ -590,6 +622,7 @@ export function SmartIngredientMatrix({
                   index={index}
                   availableItems={availableItems}
                   onChange={handleChange}
+                  onSelectItem={handleSelectItem}
                   onRemove={handleRemove}
                   onQuickImport={onQuickImport}
                   onExpandSubRecipe={onExpandSubRecipe}
