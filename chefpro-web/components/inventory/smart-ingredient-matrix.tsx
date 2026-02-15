@@ -482,7 +482,7 @@ export function SmartIngredientMatrix({
   const itemsWithIds = useMemo(() => {
     return components.map((c, i) => ({
       ...c,
-      tempId: c.tempId || c.itemId || `row-${i}-${Date.now()}`,
+      tempId: c.tempId || c.itemId || `row-${i}`,
     }));
   }, [components]);
 
@@ -521,8 +521,6 @@ export function SmartIngredientMatrix({
   };
 
   // Dynamic Totals Calculation
-  console.log("SmartIngredientMatrix availableItems length:", availableItems.length, availableItems);
-
   const totals = useMemo(() => {
     const result: Record<string, number> = { cost: 0 };
     
