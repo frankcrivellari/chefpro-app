@@ -605,6 +605,11 @@ export function RecipeCompositionMatrix({
       </div>
 
       <div className="rounded-lg border bg-gray-50/50 p-4">
+        {components.length > 0 && (
+          <span className="mb-2 block text-[11px] font-semibold text-red-500">
+            TEST-ZEILE
+          </span>
+        )}
         <div className="mb-2 flex gap-2 px-2 text-xs font-medium text-gray-500">
           <div className="w-5"></div>
           <div className="w-20 text-right">Menge</div>
