@@ -2486,7 +2486,7 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
         ? String(selectedItem.targetSalesPrice)
         : ""
     );
-  }, [selectedItem]);
+  }, [selectedItem?.id]);
 
   const componentSearchResults = useMemo(() => {
     if (!componentSearch.trim() || !selectedItem) {
@@ -3098,9 +3098,9 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
     }
 
     const sourceComponents =
-      (selectedItem.components && selectedItem.components.length > 0
-        ? (selectedItem.components as InventoryComponent[])
-        : editingComponents) || [];
+      (isEditingComponents
+        ? editingComponents
+        : ((selectedItem.components as InventoryComponent[]) || [])) || [];
 
     const payloadComponents = sourceComponents.map((component) => {
       const rawQuantity = Number(
@@ -5245,7 +5245,11 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                     </div>
                                 ) : (
                                 <RecipeCompositionMatrix
-                                  components={selectedItem.components || []}
+                                  components={
+                                    isEditingComponents
+                                      ? editingComponents
+                                      : selectedItem.components || []
+                                  }
                                   availableItems={effectiveItems.map(item => ({
                                     id: item.id,
                                     name: item.name,
@@ -5258,9 +5262,8 @@ export function RecipeEditor({ mode = "ingredients" }: RecipeEditorProps) {
                                   }))}
                                   onUpdate={(updatedComponents) => {
                                     if (!selectedItem) return;
-                                    setItems(prev => prev.map(i => 
-                                      i.id === selectedItem.id ? { ...i, components: updatedComponents } : i
-                                    ));
+                                    setIsEditingComponents(true);
+                                    setEditingComponents(updatedComponents);
                                     setIsComponentsDirty(true);
                                   }}
                                   onQuickImport={(name) => {
