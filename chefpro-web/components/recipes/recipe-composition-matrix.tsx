@@ -331,7 +331,7 @@ const SortableRow = ({
           </div>
 
           {searchOpen && !readOnly && (
-            <div className="absolute left-0 top-full z-[9999] mt-1 w-full rounded-md border bg-white shadow-lg">
+            <div className="absolute left-0 top-full z-[9999] mt-1 w-full rounded-md border bg-red-600 text-white shadow-lg">
               {filteredItems.length > 0 ? (
                 <ul className="max-h-60 overflow-y-auto py-1">
                   {filteredItems.map((item) => (
