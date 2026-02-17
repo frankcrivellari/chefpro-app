@@ -121,6 +121,11 @@ const SortableRow = ({
   };
 
   const [searchOpen, setSearchOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
   const [searchTerm, setSearchTerm] = useState(
     component.customName ||
       (component.itemId
@@ -156,6 +161,34 @@ const SortableRow = ({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const updateDropdownPosition = () => {
+    if (!wrapperRef.current) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    setDropdownPosition({
+      top: rect.bottom + 4,
+      left: rect.left,
+      width: rect.width,
+    });
+  };
+
+  useEffect(() => {
+    if (!searchOpen || readOnly) return;
+    updateDropdownPosition();
+  }, [searchOpen, readOnly]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handle = () => {
+      updateDropdownPosition();
+    };
+    window.addEventListener("resize", handle);
+    window.addEventListener("scroll", handle, true);
+    return () => {
+      window.removeEventListener("resize", handle);
+      window.removeEventListener("scroll", handle, true);
+    };
+  }, [searchOpen]);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return availableItems.slice(0, 10);
@@ -330,8 +363,15 @@ const SortableRow = ({
             )}
           </div>
 
-          {searchOpen && !readOnly && (
-            <div className="absolute left-0 top-full z-[9999] mt-1 w-full rounded-md border bg-red-600 text-white shadow-lg">
+          {searchOpen && !readOnly && dropdownPosition && (
+            <div
+              className="fixed z-[9999] rounded-md border bg-[#F6F7F5] text-gray-900 shadow-lg"
+              style={{
+                top: dropdownPosition.top,
+                left: dropdownPosition.left,
+                width: dropdownPosition.width,
+              }}
+            >
               {filteredItems.length > 0 ? (
                 <ul className="max-h-60 overflow-y-auto py-1">
                   {filteredItems.map((item) => (
