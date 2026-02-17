@@ -331,7 +331,7 @@ const SortableRow = ({
           </div>
 
           {searchOpen && !readOnly && (
-            <div className="absolute left-0 top-full z-50 mt-1 w-full overflow-hidden rounded-md border bg-white shadow-lg">
+            <div className="absolute left-0 top-full z-[9999] mt-1 w-full rounded-md border bg-white shadow-lg">
               {filteredItems.length > 0 ? (
                 <ul className="max-h-60 overflow-y-auto py-1">
                   {filteredItems.map((item) => (
@@ -605,11 +605,6 @@ export function RecipeCompositionMatrix({
       </div>
 
       <div className="rounded-lg border bg-gray-50/50 p-4">
-        {components.length > 0 && (
-          <span className="mb-2 block text-[11px] font-semibold text-red-500">
-            TEST-ZEILE
-          </span>
-        )}
         <div className="mb-2 flex gap-2 px-2 text-xs font-medium text-gray-500">
           <div className="w-5"></div>
           <div className="w-20 text-right">Menge</div>
