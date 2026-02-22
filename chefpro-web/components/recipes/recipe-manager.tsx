@@ -2736,48 +2736,62 @@ export function InventoryManager() {
       setIsSaving(true);
       setError(null);
 
-      const response = await fetch("/api/recipe-structure", {
+      const response = await fetch("/api/item-details", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          parentItemId: selectedItem.id,
+          id: selectedItem.id,
           components: cleanedComponents,
         }),
       });
 
+      const payload = (await response.json()) as {
+        error?: unknown;
+        item?: InventoryItem;
+      };
+
       if (!response.ok) {
         let message = "Fehler beim Speichern der Komponenten.";
-        try {
-          const payload = (await response.json()) as {
-            error?: unknown;
-          };
-          if (
-            payload &&
-            typeof payload.error === "string"
-          ) {
-            message = payload.error;
-          }
-        } catch {
+        if (payload && typeof payload.error === "string") {
+          message = payload.error;
         }
         throw new Error(message);
       }
 
-      const updatedComponents = (await response.json()) as InventoryComponent[];
+      if (payload.item) {
+        const updated = payload.item;
+        setItems((previousItems) =>
+          previousItems.map((item) => {
+            if (item.id !== updated.id) {
+              return item;
+            }
+            const merged: InventoryItem = {
+              ...item,
+              ...updated,
+            };
+            if (!updated.components && item.components) {
+              merged.components = item.components;
+            }
+            if (
+              updated.hasGhostComponents === undefined &&
+              (item as InventoryItem & {
+                hasGhostComponents?: boolean;
+              }).hasGhostComponents
+            ) {
+              merged.hasGhostComponents = (
+                item as InventoryItem & {
+                  hasGhostComponents?: boolean;
+                }
+              ).hasGhostComponents;
+            }
+            return merged;
+          })
+        );
+        setEditingComponents(updated.components ?? []);
+      }
 
-      setItems((previousItems) =>
-        previousItems.map((item) =>
-          item.id === selectedItem.id
-            ? {
-                ...item,
-                components: updatedComponents,
-              }
-            : item
-        )
-      );
-
-      setEditingComponents(updatedComponents);
       setIsEditingComponents(false);
     } catch (error) {
       const message =
@@ -6582,7 +6596,7 @@ export function InventoryManager() {
                           </>
                         )}
                         {isBioInput && (
-                          <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-emerald-50">
+                          <Badge className="bg-[#4F8F4E] px-2 py-0.5 text-[10px] font-semibold text-[#F6F7F5]">
                             BIO
                           </Badge>
                         )}
@@ -7320,68 +7334,25 @@ export function InventoryManager() {
                                           if (!swapGhostName) {
                                             return;
                                           }
-                                          const confirmed = window.confirm(
-                                            `Möchtest du "${swapGhostName}" in ALLEN Rezepten durch "${item.name}" ersetzen?`
-                                          );
-                                          if (!confirmed) {
-                                            return;
-                                          }
-                                          try {
-                                            setIsSaving(true);
-                                            setError(null);
-                                            const response = await fetch(
-                                              "/api/recipe-structure",
-                                              {
-                                                method: "PATCH",
-                                                headers: {
-                                                  "Content-Type":
-                                                    "application/json",
-                                                },
-                                                body: JSON.stringify({
-                                                  deletedItemName: swapGhostName,
-                                                  newItemId: item.id,
-                                                }),
-                                              }
-                                            );
-                                            const payload =
-                                              (await response.json()) as {
-                                                error?: unknown;
-                                                replacedCount?: number;
-                                              };
-                                            if (!response.ok) {
-                                              let message =
-                                                "Fehler beim globalen Ersetzen der Zutat.";
+                                          setEditingComponents((components) =>
+                                            components.map((component) => {
                                               if (
-                                                payload &&
-                                                typeof payload.error === "string"
+                                                component.deletedItemName &&
+                                                component.deletedItemName ===
+                                                  swapGhostName
                                               ) {
-                                                message = payload.error;
+                                                return {
+                                                  ...component,
+                                                  itemId: item.id,
+                                                  deletedItemName: null,
+                                                };
                                               }
-                                              throw new Error(message);
-                                            }
-                                            const inventoryResponse =
-                                              await fetch("/api/inventory");
-                                            if (inventoryResponse.ok) {
-                                              const inventoryPayload =
-                                                (await inventoryResponse.json()) as InventoryItem[];
-                                              setItems(
-                                                inventoryPayload.length > 0
-                                                  ? inventoryPayload
-                                                  : []
-                                              );
-                                            }
-                                          } catch (swapError) {
-                                            const message =
-                                              swapError instanceof Error
-                                                ? swapError.message
-                                                : "Fehler beim globalen Ersetzen der Zutat.";
-                                            setError(message);
-                                          } finally {
-                                            setIsSaving(false);
-                                            setIsSwapMode(false);
-                                            setSwapGhostName("");
-                                            setComponentSearch("");
-                                          }
+                                              return component;
+                                            })
+                                          );
+                                          setIsSwapMode(false);
+                                          setSwapGhostName("");
+                                          setComponentSearch("");
                                           return;
                                         }
                                         setEditingComponents((components) => {
@@ -7432,8 +7403,8 @@ export function InventoryManager() {
                                 )}
                             </div>
                             {selectedItem.type === "eigenproduktion" && (
-                              <div className="space-y-2 rounded-md border border-sky-300 bg-sky-50 px-3 py-3 text-[11px]">
-                                <div className="text-[11px] font-semibold text-sky-900">
+                              <div className="space-y-2 rounded-md border border-[#4F8F4E] bg-[#F6F7F5] px-3 py-3 text-[11px]">
+                                <div className="text-[11px] font-semibold text-[#1F2326]">
                                   Nicht gefunden? Neue Zutat direkt hier anlegen
                                 </div>
                                 <div className="grid gap-2 md:grid-cols-[80px_80px_minmax(0,2fr)_1fr]">
