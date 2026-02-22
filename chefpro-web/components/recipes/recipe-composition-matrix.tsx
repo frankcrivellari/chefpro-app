@@ -520,7 +520,6 @@ export function RecipeCompositionMatrix({
   readOnly = false,
   debugStatus,
 }: RecipeCompositionMatrixProps) {
-  console.log("RENDER-CHECK - Komponenten im State:", components);
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {

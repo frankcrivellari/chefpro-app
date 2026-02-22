@@ -15,19 +15,8 @@ export function SidebarNav() {
             "bg-primary text-primary-foreground font-semibold"
         )}
       >
-        Zutaten
+        Zutaten-Datenbank
       </Link>
-      <Link
-        href="/rezepte"
-        className={cn(
-          "rounded-md px-3 py-2 text-left hover:bg-accent hover:text-accent-foreground",
-          pathname.startsWith("/rezepte") &&
-            "bg-primary text-primary-foreground font-semibold"
-        )}
-      >
-        Rezepte
-      </Link>
-
     </nav>
   );
 }

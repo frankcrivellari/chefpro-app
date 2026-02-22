@@ -4233,20 +4233,14 @@ export function InventoryManager() {
       <main className="flex flex-1 flex-col min-w-0 overflow-hidden bg-[#F6F7F5]">
         <header className="flex items-center justify-between border-b border-[#6B7176] bg-[#1F2326] px-6 py-3 text-white">
           <div>
-            <h1 className="text-lg font-semibold">
-              {activeSection === "zutaten"
-                ? "Zutaten Manager"
-                : activeSection === "rezepte"
-                ? "Rezept Manager"
-                : "Lager Manager"}
-            </h1>
+            <h1 className="text-lg font-semibold">Zutaten-Datenbank</h1>
           </div>
           <div className="flex items-center gap-2">
             
           </div>
         </header>
         <div className="flex-1 overflow-y-auto p-6">
-          {activeSection === "dashboard" && !isDetailView && (
+          {false && activeSection === "dashboard" && !isDetailView && (
             <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle>Dashboard</CardTitle>
@@ -8475,7 +8469,7 @@ export function InventoryManager() {
                         </div>
                       </div>
                     </div>
-                  {selectedItem.type === "eigenproduktion" && (
+                  {false && selectedItem.type === "eigenproduktion" && (
                     <div className="mt-4 space-y-2 rounded-md border border-red-500/40 bg-red-500/5 p-3 text-xs">
                       <div className="font-semibold text-red-700">
                         Gefahrenzone
@@ -8541,9 +8535,7 @@ export function InventoryManager() {
                         }}
                         disabled={isDeleting || isSaving}
                       >
-                        {isDeleting
-                          ? "Lösche..."
-                          : "Rezept unwiderruflich löschen"}
+                        {isDeleting ? "Lösche..." : "Artikel unwiderruflich löschen"}
                       </Button>
                     </div>
                   )}
@@ -8594,7 +8586,7 @@ export function InventoryManager() {
                                   </h2>
                                   <TypeBadge type={specItem.type} />
                                   {specItem.isBio && (
-                                    <Badge className="bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-50">
+                                    <Badge className="bg-[#4F8F4E] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#F6F7F5]">
                                       BIO
                                     </Badge>
                                   )}
