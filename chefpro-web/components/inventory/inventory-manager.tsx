@@ -984,6 +984,7 @@ export function InventoryManager() {
   const [isCopied, setIsCopied] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const hasLoadedPackshotFromDbRef = useRef(false);
 
   const handlePanMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -1032,11 +1033,13 @@ export function InventoryManager() {
   
   const handleZoomIn = () => {
     setIsAutoFit(false);
+    hasLoadedPackshotFromDbRef.current = true;
     setPackshotZoom((prev) => Math.min(prev + 0.2, 50.0));
   };
   
   const handleZoomOut = () => {
     setIsAutoFit(false);
+    hasLoadedPackshotFromDbRef.current = true;
     setPackshotZoom((prev) => Math.max(prev - 0.2, 0.01));
   };
 
@@ -1602,30 +1605,39 @@ export function InventoryManager() {
     setIsImageDropActive(false);
   }, [selectedItem?.id]);
 
-  // Sync Packshot State from Item
+  // Sync Packshot State from Item (only while user nicht manuell eingegriffen hat)
   useEffect(() => {
-      if (selectedItem) {
-          if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
-              selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
-              setPackshotPan({ x: selectedItem.packshotX, y: selectedItem.packshotY });
-              setIsAutoFit(false);
-          } else {
-              setPackshotPan({ x: 0, y: 0 });
-              setIsAutoFit(true);
-          }
-          if (selectedItem.packshotZoom !== undefined && selectedItem.packshotZoom !== null) {
-              setPackshotZoom(selectedItem.packshotZoom);
-              setIsAutoFit(false);
-          } else {
-              setPackshotZoom(1.0);
-              setIsAutoFit(true);
-          }
-      } else {
+      if (!selectedItem) {
           setPackshotPan({ x: 0, y: 0 });
           setPackshotZoom(1.0);
           setIsAutoFit(true);
+          hasLoadedPackshotFromDbRef.current = false;
+          return;
       }
-  }, [selectedItem?.id, selectedItem?.packshotX, selectedItem?.packshotY, selectedItem?.packshotZoom]);
+
+      if (hasLoadedPackshotFromDbRef.current && !isAutoFit) {
+          return;
+      }
+
+      if (selectedItem.packshotX !== undefined && selectedItem.packshotX !== null &&
+          selectedItem.packshotY !== undefined && selectedItem.packshotY !== null) {
+          setPackshotPan({ x: selectedItem.packshotX, y: selectedItem.packshotY });
+          setIsAutoFit(false);
+      } else {
+          setPackshotPan({ x: 0, y: 0 });
+          setIsAutoFit(true);
+      }
+
+      if (selectedItem.packshotZoom !== undefined && selectedItem.packshotZoom !== null) {
+          setPackshotZoom(selectedItem.packshotZoom);
+          setIsAutoFit(false);
+      } else {
+          setPackshotZoom(1.0);
+          setIsAutoFit(true);
+      }
+
+      hasLoadedPackshotFromDbRef.current = true;
+  }, [selectedItem?.id, selectedItem?.packshotX, selectedItem?.packshotY, selectedItem?.packshotZoom, isAutoFit]);
 
 
 
@@ -2347,11 +2359,6 @@ export function InventoryManager() {
         ? String(selectedItem.targetSalesPrice)
         : ""
     );
-    setPackshotZoom(selectedItem.packshotZoom ?? 2.0);
-    setPackshotPan({
-      x: selectedItem.packshotX ?? 0,
-      y: selectedItem.packshotY ?? 0,
-    });
   }, [selectedItem?.id]);
 
   const componentSearchResults = useMemo(() => {
@@ -4176,7 +4183,9 @@ export function InventoryManager() {
                   );
                   
                   // Sort items alphabetically within the group
-                  groupItems.sort((a, b) => a.name.localeCompare(b.name));
+                  groupItems.sort(
+                    (a, b) => (a.name || "").localeCompare(b.name || "")
+                  );
 
                   if (groupItems.length === 0) return null;
 

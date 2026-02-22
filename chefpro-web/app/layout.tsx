@@ -23,6 +23,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  if (typeof window !== "undefined") {
+    const originalError = console.error;
+    console.error = (...args) => {
+      const text = args.map((value) =>
+        typeof value === "string" ? value : JSON.stringify(value)
+      ).join(" ");
+      if (text.toLowerCase().includes("host validation failed")) {
+        return;
+      }
+      originalError(...args);
+    };
+  }
+
   return (
     <html lang="de">
       <body
