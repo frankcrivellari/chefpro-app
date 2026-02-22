@@ -2150,7 +2150,6 @@ export function InventoryManager() {
         : "keine rezeptorisch enthaltenen Allergene"
     );
     if (selectedItem.nutritionPerUnit) {
-      console.log("Syncing nutrition to state:", selectedItem.nutritionPerUnit);
       const fmt = (val: number | null | undefined) =>
         val !== null && val !== undefined ? String(val) : "k.A.";
       
@@ -2166,7 +2165,6 @@ export function InventoryManager() {
       setProBreadUnitsInput(fmt(selectedItem.nutritionPerUnit.breadUnits));
       setProCholesterolInput(fmt(selectedItem.nutritionPerUnit.cholesterol));
     } else {
-      console.log("Clearing nutrition state because nutritionPerUnit is missing");
       setProEnergyKcalInput("k.A.");
       setProFatInput("k.A.");
       setProSaturatedFatInput("k.A.");
@@ -2354,7 +2352,7 @@ export function InventoryManager() {
       x: selectedItem.packshotX ?? 0,
       y: selectedItem.packshotY ?? 0,
     });
-  }, [selectedItem]);
+  }, [selectedItem?.id]);
 
   const componentSearchResults = useMemo(() => {
     if (!componentSearch.trim() || !selectedItem) {
