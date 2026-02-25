@@ -49,7 +49,7 @@ export default function RootLayout({
             <SidebarNav />
           </aside>
           <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <header className="flex h-32 shrink-0 items-center justify-between border-b bg-[#F28C28] px-6">
+            <header className="flex h-32 shrink-0 items-center justify-between border-b bg-background px-6">
               <div className="flex items-center gap-4">
                 <img src="/recetui-logo-header-frei.png" alt="Recetui" className="h-24 w-auto object-contain" />
               </div>
